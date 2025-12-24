@@ -1,13 +1,17 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/supabase';
 
-const CustomerList: React.FC = () => {
+// Interface para receber a função de clique do App.tsx
+interface CustomerListProps {
+  onSelectCustomer: (id: number) => void;
+}
+
+const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   const [clientes, setClientes] = useState<any[]>([]);
   const [reservas, setReservas] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<'normais' | 'negra'>('normais');
   const [busca, setBusca] = useState('');
-  const [clienteAberto, setClienteAberto] = useState<number | null>(null);
 
   const fetchData = async () => {
     try {
@@ -29,16 +33,23 @@ const CustomerList: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // Lógica de Alerta de Atraso
+  const verificarAtraso = (dataDevolucao: Date) => {
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+    const dataDev = new Date(dataDevolucao);
+    dataDev.setHours(0, 0, 0, 0);
+    return hoje > dataDev;
+  };
+
   const confirmarPagamentoEDevolver = async (reserva: any) => {
-    const confirmacao = window.confirm(`Confirmar devolução de "${reserva.item}" para ${reserva.nomeCliente || 'o cliente'}?`);
+    const confirmacao = window.confirm(`Confirmar devolução de "${reserva.item}" para ${reserva.nomeCliente}?`);
     if (!confirmacao) return;
 
     try {
       setLoading(true);
-      // 1. Atualiza status da reserva
       await db.from('reservas').update({ status: 'Pago' }).eq('id', reserva.id);
       
-      // 2. Busca item no estoque para atualizar quantidades e pegar preço
       const { data: itemEstoque } = await db.from('estoque').select('*').eq('item', reserva.item).single();
       
       if (itemEstoque) {
@@ -47,7 +58,6 @@ const CustomerList: React.FC = () => {
             reservado: Math.max(0, itemEstoque.reservado - reserva.quantidade)
         }).eq('item', reserva.item);
 
-        // 3. Registra no Caixa
         await db.from('movimentacao_caixa').insert([{
               descricao: `Aluguel Finalizado: ${reserva.item}`,
               valor: reserva.quantidade * (itemEstoque.preco || 0),
@@ -61,23 +71,27 @@ const CustomerList: React.FC = () => {
     } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
-  // Lógica da Barra Lateral
   const proximasDevolucoes = reservas
     .filter(r => r.status !== 'Pago')
     .map(r => {
       const cliente = clientes.find(c => c.id === r.cliente_id);
-      const dataEvento = new Date(r.data_evento);
-      const dataDevolucao = new Date(dataEvento);
-      dataDevolucao.setDate(dataEvento.getDate() + 1);
+      const dataDevolucao = new Date(r.data_devolucao);
 
       return {
         ...r,
         nomeCliente: cliente ? cliente.cliente : 'Cliente não encontrado',
-        dataDevolucao: dataDevolucao
+        dataDevolucaoObj: dataDevolucao
       };
     })
-    .sort((a, b) => a.dataDevolucao.getTime() - b.dataDevolucao.getTime())
+    .sort((a, b) => a.dataDevolucaoObj.getTime() - b.dataDevolucaoObj.getTime())
     .slice(0, 6);
+
+  const toggleListaNegra = async (id: number, statusAtual: boolean) => {
+    try {
+      await db.from('cadastro').update({ lista_negra: !statusAtual }).eq('id', id);
+      fetchData(); 
+    } catch (err: any) { alert(err.message); }
+  };
 
   const excluirCliente = async (id: number, nome: string) => {
     const temReservasAtivas = reservas.some(r => r.cliente_id === id && r.status !== 'Pago');
@@ -92,13 +106,6 @@ const CustomerList: React.FC = () => {
         fetchData();
       } catch (err: any) { alert(err.message); } finally { setLoading(false); }
     }
-  };
-
-  const toggleListaNegra = async (id: number, statusAtual: boolean) => {
-    try {
-      await db.from('cadastro').update({ lista_negra: !statusAtual }).eq('id', id);
-      fetchData(); 
-    } catch (err: any) { alert(err.message); }
   };
 
   const clientesExibidos = clientes.filter(c => {
@@ -127,7 +134,7 @@ const CustomerList: React.FC = () => {
           <button onClick={() => setAbaAtiva('negra')} className={`pb-2 px-4 font-bold text-xs ${abaAtiva === 'negra' ? 'border-b-2 border-red-600 text-red-600' : 'text-gray-400'}`}>LISTA NEGRA</button>
         </div>
 
-        <div className="overflow-hidden rounded-[32px] border border-gray-100 bg-white">
+        <div className="overflow-hidden rounded-[32px] border border-gray-100 bg-white shadow-sm">
           <table className="w-full text-left">
             <thead>
               <tr className="bg-gray-50 uppercase text-[10px] font-bold text-gray-400">
@@ -139,11 +146,19 @@ const CustomerList: React.FC = () => {
             <tbody>
               {clientesExibidos.map((item) => (
                 <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
-                  <td className="p-6 font-bold text-gray-800">{item.cliente}</td>
+                  <td className="p-6 font-bold text-gray-800">
+                    {/* CLIQUE PARA HISTÓRICO */}
+                    <button 
+                      onClick={() => onSelectCustomer(item.id)}
+                      className="hover:text-[#b24a2b] transition-all hover:underline text-left"
+                    >
+                      {item.cliente}
+                    </button>
+                  </td>
                   <td className="p-6 text-sm text-gray-600">{item.telefone}</td>
                   <td className="p-6 text-center flex justify-center gap-2">
-                    <button onClick={() => toggleListaNegra(item.id, item.lista_negra)} className="p-2 text-gray-300 hover:text-red-600"><i className="fa-solid fa-user-slash"></i></button>
-                    <button onClick={() => excluirCliente(item.id, item.cliente)} className="p-2 text-gray-300 hover:text-red-600"><i className="fa-solid fa-trash-can"></i></button>
+                    <button onClick={() => toggleListaNegra(item.id, item.lista_negra)} className="p-2 text-gray-300 hover:text-red-600" title="Lista Negra"><i className="fa-solid fa-user-slash"></i></button>
+                    <button onClick={() => excluirCliente(item.id, item.cliente)} className="p-2 text-gray-300 hover:text-red-600" title="Excluir"><i className="fa-solid fa-trash-can"></i></button>
                   </td>
                 </tr>
               ))}
@@ -152,7 +167,7 @@ const CustomerList: React.FC = () => {
         </div>
       </div>
 
-      {/* BARRA LATERAL DE DEVOLUÇÕES */}
+      {/* BARRA LATERAL COM ALERTAS */}
       <div className="w-full lg:w-80">
         <div className="bg-[#b24a2b] rounded-[32px] p-6 text-white shadow-xl h-fit">
           <h2 className="font-bold text-sm mb-6 flex items-center gap-2">
@@ -160,27 +175,34 @@ const CustomerList: React.FC = () => {
           </h2>
 
           <div className="space-y-4">
-            {proximasDevolucoes.map(dev => (
-              <div key={dev.id} className="bg-white/10 rounded-2xl p-4 border border-white/5 relative group">
-                <div className="flex justify-between items-start mb-1">
-                  <span className="text-[9px] font-black bg-white text-[#b24a2b] px-2 py-0.5 rounded">
-                    {dev.dataDevolucao.toLocaleDateString('pt-BR')}
-                  </span>
-                  
-                  {/* BOTÃO RÁPIDO DE DEVOLUÇÃO */}
-                  <button 
-                    onClick={() => confirmarPagamentoEDevolver(dev)}
-                    className="w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-400 transition-all shadow-lg"
-                    title="Confirmar Devolução e Recebimento"
-                  >
-                    <i className="fa-solid fa-check text-[10px]"></i>
-                  </button>
+            {proximasDevolucoes.map(dev => {
+              const atrasado = verificarAtraso(dev.dataDevolucaoObj);
+              return (
+                <div 
+                  key={dev.id} 
+                  className={`rounded-2xl p-4 border transition-all relative ${
+                    atrasado ? 'bg-red-600 border-white/40 shadow-2xl scale-105' : 'bg-white/10 border-white/5'
+                  }`}
+                >
+                  <div className="flex justify-between items-start mb-1">
+                    <div className="flex flex-col gap-1">
+                      <span className={`text-[9px] font-black px-2 py-0.5 rounded w-fit ${atrasado ? 'bg-white text-red-600 animate-bounce' : 'bg-white text-[#b24a2b]'}`}>
+                        {atrasado ? '⚠️ ATRASADO' : 'DATA DE ENTREGA'}
+                      </span>
+                      <span className="text-[10px] font-bold">{dev.dataDevolucaoObj.toLocaleDateString('pt-BR')}</span>
+                    </div>
+                    <button 
+                      onClick={() => confirmarPagamentoEDevolver(dev)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${atrasado ? 'bg-white text-red-600' : 'bg-green-500 text-white'}`}
+                    >
+                      <i className="fa-solid fa-check text-xs"></i>
+                    </button>
+                  </div>
+                  <p className="font-bold text-sm mt-3 uppercase">{dev.nomeCliente}</p>
+                  <p className="text-[10px] italic opacity-70">{dev.item} ({dev.quantidade}un)</p>
                 </div>
-                
-                <p className="font-bold text-xs mt-2">{dev.nomeCliente}</p>
-                <p className="text-[10px] opacity-70 italic">{dev.item} ({dev.quantidade}un)</p>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       </div>

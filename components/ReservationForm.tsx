@@ -14,15 +14,16 @@ const ReservationForm: React.FC = () => {
     dataDevolucao: '' 
   });
 
+  // Função para carregar dados que chamaremos no início e após cada reserva
+  const carregarDados = async () => {
+    const resClientes = await db.from('cadastro').select('id, cliente');
+    const resEstoque = await db.from('estoque').select('id, item, disponivel, reservado, preco, codigo_interno');
+    
+    if (resClientes.data) setClientes(resClientes.data);
+    if (resEstoque.data) setEstoque(resEstoque.data);
+  };
+
   useEffect(() => {
-    const carregarDados = async () => {
-      const resClientes = await db.from('cadastro').select('id, cliente');
-      // Importante: Agora selecionamos também o codigo_interno
-      const resEstoque = await db.from('estoque').select('id, item, disponivel, reservado, preco, codigo_interno');
-      
-      if (resClientes.data) setClientes(resClientes.data);
-      if (resEstoque.data) setEstoque(resEstoque.data);
-    };
     carregarDados();
   }, []);
 
@@ -31,13 +32,23 @@ const ReservationForm: React.FC = () => {
     setLoading(true);
 
     try {
+      // 1. Localiza o item no estoque carregado
       const itemEstoque = estoque.find(i => i.item === reserva.item);
-      if (!itemEstoque || itemEstoque.disponivel < reserva.quantidade) {
-        alert("Quantidade insuficiente no estoque!");
+
+      // 2. VALIDAÇÃO DE ESTOQUE MELHORADA
+      if (!itemEstoque) {
+        alert("Erro: Item não encontrado no sistema.");
         setLoading(false);
         return;
       }
 
+      if (itemEstoque.disponivel < reserva.quantidade) {
+        alert(`🚨 ESTOQUE INSUFICIENTE!\n\nVocê tentou reservar ${reserva.quantidade} unidades, mas no momento existem apenas ${itemEstoque.disponivel} unidades de "${itemEstoque.item}" disponíveis.`);
+        setLoading(false);
+        return;
+      }
+
+      // 3. Se passou na validação, insere a reserva
       const { error: erroReserva } = await db.from('reservas').insert([{
         cliente_id: parseInt(reserva.clienteId),
         item: reserva.item,
@@ -48,16 +59,22 @@ const ReservationForm: React.FC = () => {
 
       if (erroReserva) throw erroReserva;
 
-      await db.from('estoque').update({ 
+      // 4. Atualiza o estoque no banco de dados
+      const { error: erroEstoque } = await db.from('estoque').update({ 
         disponivel: itemEstoque.disponivel - reserva.quantidade,
         reservado: itemEstoque.reservado + reserva.quantidade 
-      }).eq('id', itemEstoque.id); // Usando ID para maior precisão
+      }).eq('id', itemEstoque.id);
+
+      if (erroEstoque) throw erroEstoque;
 
       alert("🎉 Reserva concluída com sucesso!");
+      
+      // 5. Reseta o formulário e recarrega os dados para atualizar os números na tela
       setReserva({ clienteId: '', item: '', quantidade: 0, data: '', dataDevolucao: '' });
+      await carregarDados();
       
     } catch (err: any) {
-      alert("Erro: " + err.message);
+      alert("Erro ao processar: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -88,7 +105,6 @@ const ReservationForm: React.FC = () => {
               <option value="">O que será alugado?</option>
               {estoque.map(i => (
                 <option key={i.id} value={i.item}>
-                  {/* Exibe o código interno entre colchetes para fácil identificação */}
                   [{i.codigo_interno || 'S/C'}] {i.item} (Disponível: {i.disponivel})
                 </option>
               ))}
@@ -111,8 +127,12 @@ const ReservationForm: React.FC = () => {
           </div>
         </div>
 
-        <button disabled={loading} className="w-full p-5 bg-[#b24a2b] text-white font-black rounded-2xl hover:bg-[#943a20] transition-all shadow-lg active:scale-95">
-          {loading ? 'PROCESSANDO...' : 'FINALIZAR RESERVA'}
+        <button 
+          disabled={loading} 
+          type="submit"
+          className={`w-full p-5 text-white font-black rounded-2xl transition-all shadow-lg active:scale-95 ${loading ? 'bg-gray-400' : 'bg-[#b24a2b] hover:bg-[#943a20]'}`}
+        >
+          {loading ? 'VERIFICANDO ESTOQUE...' : 'FINALIZAR RESERVA'}
         </button>
       </form>
     </div>
