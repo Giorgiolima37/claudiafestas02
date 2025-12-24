@@ -31,72 +31,155 @@ const InventoryHistory: React.FC<InventoryHistoryProps> = ({ clientId, onBack })
     carregarHistorico();
   }, [clientId]);
 
-  // FUNÇÃO DE IMPRESSÃO PROFISSIONAL A4
-  const imprimirPedido = (item: any) => {
+  const imprimirDocumentacaoCompleta = (item: any) => {
     const janelaImpressao = window.open('', '_blank');
     if (!janelaImpressao) return;
+
+    // Link da imagem do logotipo hospedado
+    const logoUrl = "https://raw.githubusercontent.com/seu-usuario/seu-repositorio/main/public/logo.jpg"; 
+
+    const valorUnitario = 4.00; 
+    const valorTotal = item.quantidade * valorUnitario;
 
     const conteudo = `
       <html>
         <head>
-          <title>Pedido - Claudia Festas</title>
+          <title>Documentação - Claudia Festas</title>
           <style>
-            body { font-family: sans-serif; padding: 40px; color: #333; }
-            .header { text-align: center; border-bottom: 2px solid #b24a2b; padding-bottom: 20px; margin-bottom: 30px; }
-            .header h1 { color: #b24a2b; margin: 0; font-size: 28px; }
-            .info-section { display: grid; grid-template-cols: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
-            .box { border: 1px solid #eee; padding: 15px; rounded: 10px; }
-            .box h3 { margin-top: 0; font-size: 12px; color: #999; text-transform: uppercase; }
-            table { width: 100%; border-collapse: collapse; margin-top: 20px; }
-            th { background: #fdf8f6; color: #b24a2b; text-align: left; padding: 12px; border-bottom: 2px solid #eee; }
-            td { padding: 12px; border-bottom: 1px solid #eee; font-weight: bold; }
-            .footer { margin-top: 50px; text-align: center; font-size: 12px; color: #666; }
-            .assinatura { margin-top: 80px; border-top: 1px solid #333; width: 300px; margin-left: auto; margin-right: auto; padding-top: 10px; }
-            @media print { .no-print { display: none; } }
+            @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;700;900&display=swap');
+            body { font-family: 'Inter', sans-serif; color: #000; margin: 0; padding: 0; }
+            .pagina { 
+              height: 297mm; 
+              width: 210mm; 
+              padding: 15mm; 
+              box-sizing: border-box; 
+              page-break-after: always; 
+              position: relative;
+            }
+            
+            /* Cabeçalho com Logotipo */
+            .header { 
+              display: flex; 
+              align-items: center; 
+              justify-content: center; 
+              gap: 20px; 
+              border-bottom: 3px solid #b24a2b; 
+              padding-bottom: 15px; 
+              margin-bottom: 20px;
+            }
+            .logo-img { width: 90px; height: 90px; object-fit: contain; }
+            .header-text { text-align: left; }
+            .header h1 { color: #b24a2b; margin: 0; font-size: 24px; font-weight: 900; text-transform: uppercase; }
+            .header p { margin: 2px 0; font-weight: bold; font-size: 14px; }
+            
+            .titulo-sessao { text-align: center; font-size: 20px; font-weight: bold; margin: 20px 0; text-decoration: underline; text-transform: uppercase; }
+            
+            table { width: 100%; border-collapse: collapse; margin: 20px 0; }
+            th, td { border: 1px solid #000; padding: 10px; text-align: center; font-weight: bold; font-size: 12px; }
+            .left { text-align: left; }
+            
+            .info-box { border: 2px solid #000; padding: 12px; margin-bottom: 20px; border-radius: 5px; font-size: 13px; line-height: 1.5; }
+            .clausulas { font-size: 10.5px; text-align: justify; line-height: 1.4; }
+            .clausulas p { margin: 5px 0; }
+            
+            .datas-destaque { text-align: center; margin: 25px 0; font-weight: bold; border: 2px dashed #000; padding: 12px; font-size: 14px; text-transform: uppercase; }
+            
+            .assinaturas { display: flex; justify-content: space-around; margin-top: 60px; }
+            .campo { border-top: 2px solid #000; width: 230px; text-align: center; padding-top: 8px; font-size: 11px; font-weight: bold; text-transform: uppercase; }
+
+            @media print {
+              body { padding: 0; }
+              .pagina { height: auto; page-break-after: always; border: none; }
+              .no-print { display: none; }
+            }
           </style>
         </head>
         <body>
-          <div class="header">
-            <h1>CLAUDIA FESTAS</h1>
-            <p>Gestão Inteligente de Eventos e Locações</p>
-          </div>
-
-          <div class="info-section">
-            <div class="box">
-              <h3>Dados do Cliente</h3>
-              <p><strong>Nome:</strong> ${item.cadastro.cliente}</p>
-              <p><strong>Contato:</strong> ${item.cadastro.telefone || 'N/A'}</p>
+          
+          <div class="pagina">
+            <div class="header">
+              <img src="${logoUrl}" class="logo-img" onerror="this.style.display='none'">
+              <div class="header-text">
+                <h1>CLAUDIA FESTAS</h1>
+                <p>Guia de Remessa e Conferência de Materiais</p>
+              </div>
             </div>
-            <div class="box">
-              <h3>Detalhes da Locação</h3>
-              <p><strong>Data do Evento:</strong> ${new Date(item.data_evento).toLocaleDateString('pt-BR')}</p>
-              <p><strong>Data Devolução:</strong> ${new Date(item.data_devolucao).toLocaleDateString('pt-BR')}</p>
+            
+            <div class="titulo-sessao">GUIA DE ITENS ALUGADOS</div>
+            
+            <div class="info-box">
+              <strong>LOCATÁRIO:</strong> ${item.cadastro.cliente.toUpperCase()} <br>
+              <strong>CONTATO:</strong> ${item.cadastro.telefone || 'N/A'} <br>
+              <strong>ENDEREÇO:</strong> ${item.cadastro.endereco || 'Informado no contrato'}
+            </div>
+
+            <table>
+              <thead>
+                <tr>
+                  <th width="10%">QTD</th>
+                  <th class="left">DESCRIÇÃO DO MATERIAL</th>
+                  <th width="20%">SAÍDA (OK)</th>
+                  <th width="20%">RETORNO (OK)</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr>
+                  <td>${item.quantidade}</td>
+                  <td class="left">${item.item.toUpperCase()}</td>
+                  <td>[  ]</td>
+                  <td>[  ]</td>
+                </tr>
+                ${Array(10).fill('<tr><td>&nbsp;</td><td></td><td>[  ]</td><td>[  ]</td></tr>').join('')}
+              </tbody>
+            </table>
+            
+            <p style="font-size: 11px; font-weight: bold; text-align: center; margin-top: 40px;">
+              * O locatário declara ter recebido e conferido os itens acima em perfeito estado.
+            </p>
+          </div>
+
+          <div class="pagina">
+            <div class="header">
+              <img src="${logoUrl}" class="logo-img" onerror="this.style.display='none'">
+              <div class="header-text">
+                <h1>LOCAÇÃO DE ARTIGOS PARA FESTAS</h1>
+                <p>Fone: 48 98412.3233 | Biguaçu - SC</p>
+              </div>
+            </div>
+
+            <div class="titulo-sessao">CONTRATO DE LOCAÇÃO</div>
+
+            <div class="info-box">
+               LOCADORA: CLAUDIA FESTAS (CNPJ 29.639.830.0001.45) <br>
+               Rua Bernardino Prudêncio de Amorim, 667, Jardim Janaína
+            </div>
+
+            <div class="clausulas">
+              <p><strong>Cláusula 1ª.</strong> Itens entregues em perfeito estado de conservação e limpeza, de propriedade da LOCADORA.</p>
+              <p><strong>Cláusula 2ª.</strong> Vedada a sublocação, cessão ou empréstimo dos itens a terceiros.</p>
+              <p><strong>Cláusula 5ª. NA QUEBRA DE UTENSÍLIOS SERÁ COBRADO:</strong> Mesa R$80,00 | Cadeira R$45,00 | Prato R$15,00 | Talher R$8,00 | Taça R$10,00 | Toalha Oxford R$25,00 a R$35,00.</p>
+              <p><strong>Cláusula 6ª.</strong> Louça deve retornar LAVADA, ou será cobrada taxa de 50% sobre o valor da locação.</p>
+            </div>
+
+            <div class="datas-destaque">
+              ENTREGAR DIA: ${new Date(item.data_evento).toLocaleDateString('pt-BR')} <br>
+              RECOLHER DIA: ${new Date(item.data_devolucao).toLocaleDateString('pt-BR')}
+            </div>
+
+            <div class="assinaturas">
+              <div class="campo">CLAUDIA FESTAS</div>
+              <div class="campo">ASSINATURA DO CLIENTE</div>
             </div>
           </div>
 
-          <table>
-            <thead>
-              <tr>
-                <th>Descrição do Item</th>
-                <th>Quantidade</th>
-                <th>Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              <tr>
-                <td>${item.item}</td>
-                <td>${item.quantidade} unidades</td>
-                <td>${item.status === 'Pago' ? 'FINALIZADO' : 'PENDENTE'}</td>
-              </tr>
-            </tbody>
-          </table>
-
-          <div class="footer">
-            <p>Obrigado por escolher a Claudia Festas! Verifique os itens no ato da entrega.</p>
-            <div class="assinatura">Assinatura do Cliente</div>
-          </div>
-
-          <script>window.print(); setTimeout(() => window.close(), 500);</script>
+          <script>
+            window.onload = () => { 
+              setTimeout(() => {
+                window.print(); 
+                window.close();
+              }, 800);
+            }
+          </script>
         </body>
       </html>
     `;
@@ -134,16 +217,16 @@ const InventoryHistory: React.FC<InventoryHistoryProps> = ({ clientId, onBack })
               </div>
             </div>
 
-            <div className="flex gap-10">
+            <div className="flex gap-10 items-center">
               <div className="text-center">
                 <p className="text-[9px] font-black text-gray-300 uppercase">Data</p>
                 <p className="text-xs font-bold text-gray-600">{new Date(item.data_evento).toLocaleDateString('pt-BR')}</p>
               </div>
               <button 
-                onClick={() => imprimirPedido(item)}
+                onClick={() => imprimirDocumentacaoCompleta(item)}
                 className="bg-[#b24a2b] text-white p-3 px-6 rounded-2xl font-black text-[10px] uppercase shadow-lg hover:scale-105 active:scale-95 transition-all flex items-center gap-2"
               >
-                <i className="fa-solid fa-print"></i> Imprimir A4
+                <i className="fa-solid fa-print"></i> Imprimir Documentação
               </button>
             </div>
           </div>
