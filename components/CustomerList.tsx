@@ -1,7 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/supabase';
 
-// Interface para receber a função de clique do App.tsx
 interface CustomerListProps {
   onSelectCustomer: (id: number) => void;
 }
@@ -33,7 +32,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Lógica de Alerta de Atraso
   const verificarAtraso = (dataDevolucao: Date) => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
@@ -42,49 +40,67 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     return hoje > dataDev;
   };
 
-  const confirmarPagamentoEDevolver = async (reserva: any) => {
-    const confirmacao = window.confirm(`Confirmar devolução de "${reserva.item}" para ${reserva.nomeCliente}?`);
+  // FUNÇÃO DE BAIXA COLETIVA (Para pedidos agrupados)
+  const confirmarDevolucaoPedido = async (pedido: any) => {
+    const confirmacao = window.confirm(`Confirmar devolução completa de ${pedido.itens.length} itens para ${pedido.nomeCliente}?`);
     if (!confirmacao) return;
 
     try {
       setLoading(true);
-      await db.from('reservas').update({ status: 'Pago' }).eq('id', reserva.id);
       
-      const { data: itemEstoque } = await db.from('estoque').select('*').eq('item', reserva.item).single();
-      
-      if (itemEstoque) {
-        await db.from('estoque').update({ 
-            disponivel: itemEstoque.disponivel + reserva.quantidade,
-            reservado: Math.max(0, itemEstoque.reservado - reserva.quantidade)
-        }).eq('item', reserva.item);
+      for (const item of pedido.itens) {
+        // 1. Atualiza status da reserva individual
+        await db.from('reservas').update({ status: 'Pago' }).eq('id', item.id);
+        
+        // 2. Repõe estoque
+        const { data: itemEstoque } = await db.from('estoque').select('*').eq('item', item.item).single();
+        if (itemEstoque) {
+          await db.from('estoque').update({ 
+              disponivel: itemEstoque.disponivel + item.quantidade,
+              reservado: Math.max(0, itemEstoque.reservado - item.quantidade)
+          }).eq('item', item.item);
 
-        await db.from('movimentacao_caixa').insert([{
-              descricao: `Aluguel Finalizado: ${reserva.item}`,
-              valor: reserva.quantidade * (itemEstoque.preco || 0),
-              tipo: 'Receita',
-              cliente_id: reserva.cliente_id,
-              data: new Date().toISOString()
-        }]);
+          // 3. Registra no Caixa
+          await db.from('movimentacao_caixa').insert([{
+                descricao: `Pedido Finalizado: ${item.item}`,
+                valor: item.quantidade * (itemEstoque.preco || 0),
+                tipo: 'Receita',
+                cliente_id: item.cliente_id,
+                data: new Date().toISOString()
+          }]);
+        }
       }
+
       fetchData(); 
-      alert("Devolução concluída com sucesso!");
+      alert("Pedido agrupado devolvido com sucesso!");
     } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
-  const proximasDevolucoes = reservas
-    .filter(r => r.status !== 'Pago')
-    .map(r => {
-      const cliente = clientes.find(c => c.id === r.cliente_id);
-      const dataDevolucao = new Date(r.data_devolucao);
+  // LÓGICA DE AGRUPAMENTO DE PEDIDOS NA BARRA LATERAL
+  const proximasDevolucoesAgrupadas = () => {
+    const pendentes = reservas.filter(r => r.status !== 'Pago');
+    const grupos: { [key: string]: any } = {};
 
-      return {
-        ...r,
-        nomeCliente: cliente ? cliente.cliente : 'Cliente não encontrado',
-        dataDevolucaoObj: dataDevolucao
-      };
-    })
-    .sort((a, b) => a.dataDevolucaoObj.getTime() - b.dataDevolucaoObj.getTime())
-    .slice(0, 6);
+    pendentes.forEach(r => {
+      const cliente = clientes.find(c => c.id === r.cliente_id);
+      const dataChave = r.data_devolucao; // Chave para agrupar (Data + Cliente)
+      const chaveUnica = `${r.cliente_id}_${dataChave}`;
+
+      if (!grupos[chaveUnica]) {
+        grupos[chaveUnica] = {
+          cliente_id: r.cliente_id,
+          nomeCliente: cliente ? cliente.cliente : 'Cliente não encontrado',
+          dataDevolucaoObj: new Date(r.data_devolucao),
+          itens: []
+        };
+      }
+      grupos[chaveUnica].itens.push(r);
+    });
+
+    return Object.values(grupos)
+      .sort((a, b) => a.dataDevolucaoObj.getTime() - b.dataDevolucaoObj.getTime())
+      .slice(0, 6);
+  };
 
   const toggleListaNegra = async (id: number, statusAtual: boolean) => {
     try {
@@ -117,8 +133,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 animate-in fade-in duration-700">
-      
-      {/* LISTA PRINCIPAL */}
       <div className="flex-1">
         <header className="mb-8 flex justify-between items-center">
             <h1 className="text-[#b24a2b] text-3xl font-bold italic">Gestão de Clientes</h1>
@@ -147,7 +161,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
               {clientesExibidos.map((item) => (
                 <tr key={item.id} className="border-b border-gray-50 hover:bg-gray-50 transition-colors">
                   <td className="p-6 font-bold text-gray-800">
-                    {/* CLIQUE PARA HISTÓRICO */}
                     <button 
                       onClick={() => onSelectCustomer(item.id)}
                       className="hover:text-[#b24a2b] transition-all hover:underline text-left"
@@ -167,7 +180,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         </div>
       </div>
 
-      {/* BARRA LATERAL COM ALERTAS */}
+      {/* BARRA LATERAL COM PEDIDOS AGRUPADOS */}
       <div className="w-full lg:w-80">
         <div className="bg-[#b24a2b] rounded-[32px] p-6 text-white shadow-xl h-fit">
           <h2 className="font-bold text-sm mb-6 flex items-center gap-2">
@@ -175,34 +188,49 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
           </h2>
 
           <div className="space-y-4">
-            {proximasDevolucoes.map(dev => {
-              const atrasado = verificarAtraso(dev.dataDevolucaoObj);
+            {proximasDevolucoesAgrupadas().map((pedido: any) => {
+              const atrasado = verificarAtraso(pedido.dataDevolucaoObj);
               return (
                 <div 
-                  key={dev.id} 
+                  key={`${pedido.cliente_id}_${pedido.dataDevolucaoObj.getTime()}`} 
                   className={`rounded-2xl p-4 border transition-all relative ${
                     atrasado ? 'bg-red-600 border-white/40 shadow-2xl scale-105' : 'bg-white/10 border-white/5'
                   }`}
                 >
-                  <div className="flex justify-between items-start mb-1">
+                  <div className="flex justify-between items-start mb-2">
                     <div className="flex flex-col gap-1">
                       <span className={`text-[9px] font-black px-2 py-0.5 rounded w-fit ${atrasado ? 'bg-white text-red-600 animate-bounce' : 'bg-white text-[#b24a2b]'}`}>
                         {atrasado ? '⚠️ ATRASADO' : 'DATA DE ENTREGA'}
                       </span>
-                      <span className="text-[10px] font-bold">{dev.dataDevolucaoObj.toLocaleDateString('pt-BR')}</span>
+                      <span className="text-[10px] font-bold">{pedido.dataDevolucaoObj.toLocaleDateString('pt-BR')}</span>
                     </div>
                     <button 
-                      onClick={() => confirmarPagamentoEDevolver(dev)}
-                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${atrasado ? 'bg-white text-red-600' : 'bg-green-500 text-white'}`}
+                      onClick={() => confirmarDevolucaoPedido(pedido)}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-lg ${atrasado ? 'bg-white text-red-600 hover:bg-gray-100' : 'bg-green-500 text-white hover:bg-green-400'}`}
+                      title="Dar baixa em todo o pedido"
                     >
                       <i className="fa-solid fa-check text-xs"></i>
                     </button>
                   </div>
-                  <p className="font-bold text-sm mt-3 uppercase">{dev.nomeCliente}</p>
-                  <p className="text-[10px] italic opacity-70">{dev.item} ({dev.quantidade}un)</p>
+                  
+                  <p className="font-bold text-sm uppercase mb-2">{pedido.nomeCliente}</p>
+                  
+                  {/* LISTA DE ITENS DO PEDIDO */}
+                  <div className="space-y-1 border-t border-white/10 pt-2">
+                    {pedido.itens.map((i: any) => (
+                      <p key={i.id} className="text-[10px] italic opacity-90 flex justify-between">
+                        <span>• {i.item}</span>
+                        <span className="font-bold">({i.quantidade}un)</span>
+                      </p>
+                    ))}
+                  </div>
                 </div>
               );
             })}
+            
+            {proximasDevolucoesAgrupadas().length === 0 && (
+              <p className="text-[10px] text-center opacity-50 py-4">Nenhum pedido pendente.</p>
+            )}
           </div>
         </div>
       </div>
