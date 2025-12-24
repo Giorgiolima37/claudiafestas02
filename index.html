@@ -10,7 +10,6 @@
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" />
     
     <script src="https://cdn.tailwindcss.com"></script>
@@ -20,20 +19,16 @@
           extend: {
             colors: {
               brand: {
-                primary: '#B24D2D', // Terracota do seu logo
-                secondary: '#F7E7D9', // Creme do fundo
+                primary: '#B24D2D', // Terracota
+                secondary: '#F7E7D9', // Creme
                 accent: '#F2C6B4'
               }
             },
-            fontFamily: {
-              sans: ['Inter', 'sans-serif'],
-            }
+            fontFamily: { sans: ['Inter', 'sans-serif'] }
           }
         }
       }
     </script>
-    
-    <link rel="stylesheet" href="/index.css">
 
     <script type="importmap">
     {
@@ -49,6 +44,6 @@
   <body class="bg-brand-secondary text-slate-800 antialiased font-sans">
     <div id="root"></div>
     
-    <script type="module" src="/index.tsx"></script>
+    <script type="module" src="./index.tsx"></script>
   </body>
 </html>

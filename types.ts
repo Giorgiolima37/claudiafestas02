@@ -21,5 +21,5 @@ export interface Estoque {
   [key: string]: InventoryItem;
 }
 
-// Adicionado 'CAIXA' para corrigir o erro no App.tsx
-export type Screen = 'CADASTRO' | 'LISTAGEM' | 'LISTA_NEGRA' | 'RESERVA' | 'ESTOQUE' | 'CAIXA';
+// Adicionado 'HISTORICO' para suportar a nova tela de movimentações
+export type Screen = 'CADASTRO' | 'LISTAGEM' | 'LISTA_NEGRA' | 'RESERVA' | 'ESTOQUE' | 'CAIXA' | 'HISTORICO';

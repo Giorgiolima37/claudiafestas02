@@ -5,59 +5,72 @@ import CustomerRegistration from './components/CustomerRegistration';
 import CustomerList from './components/CustomerList';
 import ReservationForm from './components/ReservationForm';
 import InventoryDashboard from './components/InventoryDashboard';
-import FinanceDashboard from './components/FinanceDashboard'; // Importação do Caixa
+import FinanceDashboard from './components/FinanceDashboard';
+import InventoryHistory from './components/InventoryHistory'; // Importando a nova tela
 
 const App: React.FC = () => {
-  // Define a tela inicial como LISTAGEM conforme o padrão das fotos
   const [currentScreen, setCurrentScreen] = useState<Screen>('LISTAGEM');
+  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
 
-  const navigateTo = (screen: Screen) => setCurrentScreen(screen);
+  const navigateTo = (screen: Screen) => {
+    setCurrentScreen(screen);
+    setIsSidebarOpen(false); // Fecha a barra ao navegar no celular
+  };
 
-  // Lógica de navegação entre as telas
   const renderScreen = () => {
     switch (currentScreen) {
-      case 'CADASTRO':
-        return <CustomerRegistration onSaved={() => navigateTo('LISTAGEM')} />;
-      case 'LISTAGEM':
-        return <CustomerList />;
-      case 'RESERVA':
-        return <ReservationForm onFinished={() => navigateTo('LISTAGEM')} />;
-      case 'ESTOQUE':
-        return <InventoryDashboard />;
-      case 'CAIXA':
-        return <FinanceDashboard />; // Renderiza a tela financeira
-      default:
-        return <CustomerList />;
+      case 'CADASTRO': return <CustomerRegistration onSaved={() => navigateTo('LISTAGEM')} />;
+      case 'LISTAGEM': return <CustomerList />;
+      case 'RESERVA': return <ReservationForm onFinished={() => navigateTo('LISTAGEM')} />;
+      case 'ESTOQUE': return <InventoryDashboard />;
+      case 'HISTORICO': return <InventoryHistory />; // Nova rota para o Histórico
+      case 'CAIXA': return <FinanceDashboard />;
+      default: return <CustomerList />;
     }
   };
 
   return (
-    <div className="flex min-h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100">
-      {/* Sidebar lateral fixa */}
-      <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} />
-      
-      <main className="flex-1 flex flex-col p-4 md:p-10 transition-all duration-500 overflow-y-auto">
-        {/* Botões de atalho superior para navegação rápida */}
-        <div className="flex gap-4 mb-8">
+    <div className="flex flex-col md:flex-row min-h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100">
+      {/* Botão de Menu para Celular */}
+      <div className="md:hidden flex items-center justify-between p-4 bg-[#B24D2D] text-white shadow-md">
+        <span className="font-bold tracking-tight">Claudia Festas</span>
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-2xl p-2">
+          <i className={`fa-solid ${isSidebarOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
+        </button>
+      </div>
+
+      {/* Sidebar - Agora com controle de visibilidade no mobile */}
+      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-64 h-full`}>
+        <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} />
+      </div>
+
+      <main className="flex-1 flex flex-col p-4 md:p-10 overflow-y-auto">
+        {/* Atalhos rápidos - Ajustados para mobile */}
+        <div className="flex gap-3 mb-6 md:mb-8 justify-center md:justify-start">
           <button 
             onClick={() => navigateTo('CADASTRO')}
-            className="flex items-center justify-center w-12 h-12 bg-white/50 hover:bg-white text-[#B24D2D] rounded-xl shadow-sm transition-all active:scale-95"
-            title="Novo Cadastro"
+            className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm active:scale-95 border border-orange-100"
           >
-            <i className="fa-solid fa-user-plus text-lg"></i>
+            <i className="fa-solid fa-user-plus"></i>
           </button>
           <button 
             onClick={() => navigateTo('CAIXA')}
-            className="flex items-center justify-center w-12 h-12 bg-white/50 hover:bg-white text-[#B24D2D] rounded-xl shadow-sm transition-all active:scale-95"
-            title="Ver Caixa"
+            className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm active:scale-95 border border-orange-100"
           >
-            <i className="fa-solid fa-file-invoice-dollar text-lg"></i>
+            <i className="fa-solid fa-file-invoice-dollar"></i>
+          </button>
+          {/* Novo Atalho Rápido para Histórico (Opcional) */}
+          <button 
+            onClick={() => navigateTo('HISTORICO')}
+            className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm active:scale-95 border border-orange-100"
+          >
+            <i className="fa-solid fa-clock-rotate-left"></i>
           </button>
         </div>
 
-        {/* Container que envolve todas as telas com bordas arredondadas */}
-        <div className="flex-1 flex items-start justify-center pb-12">
-          <div className="w-full max-w-6xl bg-white/80 backdrop-blur-sm rounded-[32px] p-4 md:p-10 shadow-[0_20px_50px_rgba(0,0,0,0.05)] border border-white/20 animate-in fade-in zoom-in duration-700">
+        {/* Container Principal Responsivo */}
+        <div className="flex-1 flex items-start justify-center pb-8">
+          <div className="w-full max-w-6xl bg-white rounded-3xl md:rounded-[32px] p-5 md:p-10 shadow-xl border border-white/20">
             {renderScreen()}
           </div>
         </div>
