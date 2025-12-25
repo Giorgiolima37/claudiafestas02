@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/supabase';
 
+// Interface para receber a função de clique do App.tsx
 interface CustomerListProps {
   onSelectCustomer: (id: number) => void;
 }
@@ -48,8 +49,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     try {
       setLoading(true);
       
+      // Processa cada item do pedido agrupado
       for (const item of pedido.itens) {
-        // 1. Atualiza status da reserva individual
+        // 1. Atualiza status
         await db.from('reservas').update({ status: 'Pago' }).eq('id', item.id);
         
         // 2. Repõe estoque
@@ -72,19 +74,19 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
       }
 
       fetchData(); 
-      alert("Pedido agrupado devolvido com sucesso!");
+      alert("Pedido completo devolvido com sucesso!");
     } catch (err: any) { alert(err.message); } finally { setLoading(false); }
   };
 
-  // LÓGICA DE AGRUPAMENTO DE PEDIDOS NA BARRA LATERAL
+  // LÓGICA DE AGRUPAMENTO DE PEDIDOS
   const proximasDevolucoesAgrupadas = () => {
     const pendentes = reservas.filter(r => r.status !== 'Pago');
     const grupos: { [key: string]: any } = {};
 
     pendentes.forEach(r => {
       const cliente = clientes.find(c => c.id === r.cliente_id);
-      const dataChave = r.data_devolucao; // Chave para agrupar (Data + Cliente)
-      const chaveUnica = `${r.cliente_id}_${dataChave}`;
+      // Criamos uma chave única combinando o ID do cliente e a data
+      const chaveUnica = `${r.cliente_id}_${r.data_devolucao}`;
 
       if (!grupos[chaveUnica]) {
         grupos[chaveUnica] = {
@@ -98,7 +100,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     });
 
     return Object.values(grupos)
-      .sort((a, b) => a.dataDevolucaoObj.getTime() - b.dataDevolucaoObj.getTime())
+      .sort((a: any, b: any) => a.dataDevolucaoObj.getTime() - b.dataDevolucaoObj.getTime())
       .slice(0, 6);
   };
 
@@ -133,6 +135,8 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
   return (
     <div className="flex flex-col lg:flex-row gap-8 animate-in fade-in duration-700">
+      
+      {/* LISTA PRINCIPAL DE CLIENTES */}
       <div className="flex-1">
         <header className="mb-8 flex justify-between items-center">
             <h1 className="text-[#b24a2b] text-3xl font-bold italic">Gestão de Clientes</h1>
@@ -163,7 +167,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                   <td className="p-6 font-bold text-gray-800">
                     <button 
                       onClick={() => onSelectCustomer(item.id)}
-                      className="hover:text-[#b24a2b] transition-all hover:underline text-left"
+                      className="hover:text-[#b24a2b] transition-all hover:underline text-left uppercase"
                     >
                       {item.cliente}
                     </button>
@@ -207,7 +211,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                     <button 
                       onClick={() => confirmarDevolucaoPedido(pedido)}
                       className={`w-8 h-8 rounded-full flex items-center justify-center transition-all shadow-lg ${atrasado ? 'bg-white text-red-600 hover:bg-gray-100' : 'bg-green-500 text-white hover:bg-green-400'}`}
-                      title="Dar baixa em todo o pedido"
+                      title="Dar baixa em tudo"
                     >
                       <i className="fa-solid fa-check text-xs"></i>
                     </button>
@@ -215,8 +219,8 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                   
                   <p className="font-bold text-sm uppercase mb-2">{pedido.nomeCliente}</p>
                   
-                  {/* LISTA DE ITENS DO PEDIDO */}
-                  <div className="space-y-1 border-t border-white/10 pt-2">
+                  {/* LISTA DETALHADA DE ITENS UNIFICADOS */}
+                  <div className="space-y-1 border-t border-white/10 pt-2 mt-2">
                     {pedido.itens.map((i: any) => (
                       <p key={i.id} className="text-[10px] italic opacity-90 flex justify-between">
                         <span>• {i.item}</span>
@@ -229,7 +233,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             })}
             
             {proximasDevolucoesAgrupadas().length === 0 && (
-              <p className="text-[10px] text-center opacity-50 py-4">Nenhum pedido pendente.</p>
+              <p className="text-[10px] text-center opacity-50 py-4 italic">Nenhum pedido pendente.</p>
             )}
           </div>
         </div>
