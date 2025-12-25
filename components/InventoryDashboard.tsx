@@ -4,6 +4,7 @@ import { db } from '../services/supabase';
 const InventoryDashboard: React.FC = () => {
   const [itens, setItens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const [busca, setBusca] = useState(''); // Estado para o texto da pesquisa
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -23,6 +24,12 @@ const InventoryDashboard: React.FC = () => {
 
   useEffect(() => { fetchEstoque(); }, []);
 
+  // Lógica para filtrar os itens conforme a busca
+  const itensFiltrados = itens.filter(item => 
+    item.item.toLowerCase().includes(busca.toLowerCase()) || 
+    (item.codigo_interno && item.codigo_interno.toLowerCase().includes(busca.toLowerCase()))
+  );
+
   const handleOpenEditModal = (item: any) => {
     setEditingItem({ ...item });
     setIsEditModalOpen(true);
@@ -34,7 +41,7 @@ const InventoryDashboard: React.FC = () => {
       .from('estoque')
       .update({
         item: editingItem.item,
-        codigo_interno: editingItem.codigo_interno, // Salvando o novo código
+        codigo_interno: editingItem.codigo_interno,
         disponivel: parseInt(editingItem.disponivel),
         preco: parseFloat(editingItem.preco)
       })
@@ -51,7 +58,7 @@ const InventoryDashboard: React.FC = () => {
   const adicionarNovoItem = async () => {
     const nome = prompt("Nome do novo material:");
     if (!nome) return;
-    const codigo = prompt(`Código interno para ${nome}:`); // Pede o código na criação
+    const codigo = prompt(`Código interno para ${nome}:`);
     const quantidade = prompt(`Quantidade de ${nome}:`, "100");
     const preco = prompt(`Preço de ${nome}:`, "10.00");
 
@@ -71,13 +78,25 @@ const InventoryDashboard: React.FC = () => {
 
   return (
     <div className="max-w-7xl mx-auto p-6 animate-in fade-in duration-700">
-      <header className="mb-12 flex justify-between items-center">
+      <header className="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
         <h1 className="text-5xl font-black text-gray-900 italic">Painel de <span className="text-[#b24a2b]">Estoque</span></h1>
         
-        <div className="flex gap-4">
+        <div className="flex items-center gap-4 w-full md:w-auto">
+          {/* BARRA DE PESQUISA COM LUPA */}
+          <div className="relative flex-1 md:w-80">
+            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <input 
+              type="text"
+              placeholder="Pesquisar produto..."
+              value={busca}
+              onChange={(e) => setBusca(e.target.value)}
+              className="w-full pl-12 pr-4 py-4 bg-white border border-gray-100 rounded-full shadow-sm outline-none focus:ring-2 focus:ring-[#b24a2b]/20 transition-all font-medium text-gray-600"
+            />
+          </div>
+
           <button 
             onClick={adicionarNovoItem} 
-            className="bg-[#b24a2b] text-white px-8 py-4 rounded-full font-black uppercase text-xs shadow-lg hover:scale-105 transition-all"
+            className="bg-[#b24a2b] text-white px-8 py-4 rounded-full font-black uppercase text-xs shadow-lg hover:scale-105 transition-all whitespace-nowrap"
           >
             <i className="fa-solid fa-plus mr-2"></i> Novo Material
           </button>
@@ -85,12 +104,11 @@ const InventoryDashboard: React.FC = () => {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10 text-center">
-        {itens.map((item) => (
+        {itensFiltrados.map((item) => (
           <div key={item.id} className="bg-white rounded-[40px] p-10 shadow-sm border border-gray-50 group hover:shadow-xl transition-all relative">
             
-            {/* Tag do Código Interno */}
             <div className="absolute top-6 left-10 bg-gray-100 px-3 py-1 rounded-full text-[10px] font-black text-gray-400 border border-gray-200">
-               ID: {item.codigo_interno || '---'}
+                ID: {item.codigo_interno || '---'}
             </div>
 
             <button 
@@ -103,7 +121,7 @@ const InventoryDashboard: React.FC = () => {
             <div className="flex items-center justify-between mb-8 mt-4 text-left">
               <div className="flex items-center gap-4">
                 <div className="w-14 h-14 bg-orange-50 rounded-2xl flex items-center justify-center text-[#b24a2b]">
-                   <i className={`fa-solid ${item.item.toLowerCase().includes('cadeira') ? 'fa-chair' : 'fa-box-open'} text-2xl`}></i>
+                    <i className={`fa-solid ${item.item.toLowerCase().includes('cadeira') ? 'fa-chair' : 'fa-box-open'} text-2xl`}></i>
                 </div>
                 <h2 className="text-2xl font-black text-gray-800">{item.item}</h2>
               </div>
@@ -125,6 +143,11 @@ const InventoryDashboard: React.FC = () => {
           </div>
         ))}
       </div>
+
+      {/* Caso a busca não retorne nada */}
+      {itensFiltrados.length === 0 && (
+        <div className="text-center py-20 text-gray-400 italic">Nenhum material encontrado com "{busca}"</div>
+      )}
 
       {/* --- MODAL DE EDIÇÃO --- */}
       {isEditModalOpen && editingItem && (
