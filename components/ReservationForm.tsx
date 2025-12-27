@@ -6,8 +6,9 @@ const ReservationForm: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  const [showPaymentModal, setShowPaymentModal] = useState(false);
-  const [metodoSelecionado, setMetodoSelecionado] = useState('');
+  // Estados para o Modal de Frete
+  const [showFreteModal, setShowFreteModal] = useState(false);
+  const [freteAjustado, setFreteAjustado] = useState(0);
 
   const [itensSelecionados, setItensSelecionados] = useState([{ item: '', quantidade: 1 }]);
   
@@ -15,7 +16,7 @@ const ReservationForm: React.FC = () => {
     clienteId: '',
     data: '',
     dataDevolucao: '',
-    taxaEntrega: 0 // Novo estado para a taxa
+    observacoes: '' 
   });
 
   const carregarDados = async () => {
@@ -46,32 +47,27 @@ const ReservationForm: React.FC = () => {
     setItensSelecionados(novaLista);
   };
 
-  // Cálculo atualizado para incluir a taxa de entrega
-  const calcularTotal = () => {
-    const totalItens = itensSelecionados.reduce((acc, current) => {
+  // Calcula o valor apenas dos produtos
+  const calcularSubtotal = () => {
+    return itensSelecionados.reduce((acc, current) => {
       const itemEstoque = estoque.find(i => i.item === current.item);
       return acc + (current.quantidade * (itemEstoque?.preco || 0));
     }, 0);
-    return totalItens + (Number(reservaGeral.taxaEntrega) || 0);
   };
 
-  const handlePreFinalizar = (e: React.FormEvent) => {
+  // Gatilho para abrir o modal de frete
+  const handleAbrirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reservaGeral.clienteId || !reservaGeral.data || !reservaGeral.dataDevolucao) {
       alert("Preencha os dados do cliente e as datas de aluguel e devolução.");
       return;
     }
-    setShowPaymentModal(true);
+    setShowFreteModal(true);
   };
 
-  const finalizarReservaComPagamento = async () => {
-    if (!metodoSelecionado) {
-      alert("Selecione um método de pagamento.");
-      return;
-    }
-
+  const finalizarPedidoCompleto = async () => {
     setLoading(true);
-    setShowPaymentModal(false);
+    setShowFreteModal(false);
 
     try {
       // 1. Validação de estoque
@@ -86,7 +82,7 @@ const ReservationForm: React.FC = () => {
         }
       }
 
-      // 2. Processamento
+      // 2. Processamento e Inserção
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
         const valorItemTotal = selecionado.quantidade * itemEstoque.preco;
@@ -98,9 +94,11 @@ const ReservationForm: React.FC = () => {
           data_evento: reservaGeral.data,
           data_devolucao: reservaGeral.dataDevolucao,
           status: 'Pendente',
-          forma_pagamento: metodoSelecionado, 
+          forma_pagamento: 'Não Informado',
           valor_total: valorItemTotal,
-          codigo_item: itemEstoque.codigo_interno || 'S/C'
+          taxa_entrega: freteAjustado, // Salvando o frete ajustado
+          codigo_item: itemEstoque.codigo_interno || 'S/C',
+          observacoes: reservaGeral.observacoes 
         }]);
 
         if (erroReserva) throw erroReserva;
@@ -111,7 +109,7 @@ const ReservationForm: React.FC = () => {
         }).eq('id', itemEstoque.id);
 
         await db.from('movimentacao_caixa').insert([{
-            descricao: `Reserva Múltipla: ${selecionado.item} (${metodoSelecionado})`,
+            descricao: `Reserva Múltipla: ${selecionado.item}`,
             valor: valorItemTotal,
             tipo: 'Receita',
             cliente_id: parseInt(reservaGeral.clienteId),
@@ -119,22 +117,22 @@ const ReservationForm: React.FC = () => {
         }]);
       }
 
-      // 3. Registrar Taxa de Entrega no Caixa (se houver)
-      if (reservaGeral.taxaEntrega > 0) {
+      // 3. Registrar o frete no caixa separadamente se houver valor
+      if (freteAjustado > 0) {
         await db.from('movimentacao_caixa').insert([{
-          descricao: `Taxa de Entrega - Cliente ID: ${reservaGeral.clienteId}`,
-          valor: reservaGeral.taxaEntrega,
+          descricao: `Taxa de Entrega - Pedido Cliente ID: ${reservaGeral.clienteId}`,
+          valor: freteAjustado,
           tipo: 'Receita',
           cliente_id: parseInt(reservaGeral.clienteId),
           data: new Date().toISOString()
         }]);
       }
 
-      alert(`🎉 Pedido finalizado com sucesso via ${metodoSelecionado}!`);
+      alert(`🎉 Pedido finalizado com sucesso!`);
       
-      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', taxaEntrega: 0 });
+      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
-      setMetodoSelecionado('');
+      setFreteAjustado(0);
       await carregarDados();
       
     } catch (err: any) {
@@ -149,7 +147,7 @@ const ReservationForm: React.FC = () => {
     <div className="animate-in fade-in duration-500">
       <h1 className="text-center text-[#b24a2b] text-3xl font-black mb-8 italic uppercase tracking-tighter">Nova Reserva Múltipla</h1>
       
-      <form onSubmit={handlePreFinalizar} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
+      <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
@@ -167,19 +165,6 @@ const ReservationForm: React.FC = () => {
           <div className="flex flex-col relative">
             <label className="text-[10px] font-black text-[#b24a2b] ml-4 mb-2 uppercase tracking-widest">Data de Devolução</label>
             <input type="date" required className="w-full p-4 bg-orange-50 border-2 border-[#f2c6b4] rounded-2xl outline-none font-bold text-[#b24a2b] focus:border-[#b24a2b] transition-all" value={reservaGeral.dataDevolucao} onChange={(e) => setReservaGeral({...reservaGeral, dataDevolucao: e.target.value})} />
-            
-            {/* BOTÃO/INPUT DE TAXA DE ENTREGA POSICIONADO CONFORME A FOTO */}
-            <div className="absolute -bottom-16 right-0 flex flex-col items-end">
-                <label className="text-[9px] font-black text-[#b24a2b] uppercase mr-4 mb-1">Taxa de entrega</label>
-                <input 
-                    type="number" 
-                    step="0.01"
-                    placeholder="R$ 0,00"
-                    className="w-32 p-3 bg-[#b24a2b] text-white rounded-2xl text-center font-bold outline-none shadow-lg placeholder:text-orange-200 focus:ring-2 ring-orange-300 transition-all"
-                    value={reservaGeral.taxaEntrega || ''}
-                    onChange={(e) => setReservaGeral({...reservaGeral, taxaEntrega: parseFloat(e.target.value) || 0})}
-                />
-            </div>
           </div>
         </div>
 
@@ -233,36 +218,74 @@ const ReservationForm: React.FC = () => {
           </button>
         </div>
 
-        <button disabled={loading} type="submit" className={`w-full p-6 text-white font-black rounded-[25px] transition-all shadow-xl active:scale-95 mt-4 uppercase tracking-widest text-xs ${loading ? 'bg-gray-400' : 'bg-[#b24a2b] hover:bg-[#943a20]'}`}>
-          {loading ? 'PROCESSANDO RESERVAS...' : 'FINALIZAR PEDIDO COMPLETO'}
-        </button>
+        <div className="flex flex-col gap-6 pt-4 items-center">
+          <button 
+            disabled={loading} 
+            type="submit" 
+            className={`w-full p-6 text-white font-black rounded-[25px] transition-all shadow-xl active:scale-95 uppercase tracking-widest text-xs ${loading ? 'bg-gray-400' : 'bg-[#b24a2b] hover:bg-[#943a20]'}`}
+          >
+            {loading ? 'PROCESSANDO RESERVAS...' : 'FINALIZAR PEDIDO COMPLETO'}
+          </button>
+
+          <div className="w-full max-w-sm flex flex-col items-center">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Campo de OBS</label>
+            <textarea 
+              placeholder="Digite aqui observações ou detalhes extras..."
+              className="w-full p-5 bg-[#b24a2b] text-white rounded-[25px] text-center font-bold outline-none shadow-lg placeholder:text-orange-200 focus:ring-4 ring-orange-200 transition-all resize-none min-h-[80px]"
+              value={reservaGeral.observacoes}
+              onChange={(e) => setReservaGeral({...reservaGeral, observacoes: e.target.value})}
+            />
+          </div>
+        </div>
       </form>
 
-      {showPaymentModal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[50px] p-10 w-full max-w-md shadow-2xl border border-gray-100">
-            <div className="text-center mb-8">
-              <h2 className="text-2xl font-black text-gray-800 uppercase italic tracking-tighter">Pagamento</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Geral (com taxa)</p>
-              <p className="text-4xl font-black text-[#b24a2b] mt-3">R$ {calcularTotal().toFixed(2).replace('.', ',')}</p>
+      {/* MODAL DE CONFIRMAÇÃO DE FRETE */}
+      {showFreteModal && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-[40px] p-8 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-black text-gray-800 uppercase italic">Confirmar Frete</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Ajuste o valor antes de finalizar</p>
             </div>
 
-            <div className="grid grid-cols-2 gap-4 mb-10">
-              {['Dinheiro', 'Débito', 'Crédito', 'PIX'].map((m) => (
+            <div className="space-y-6">
+              <div className="flex flex-col items-center">
+                <label className="text-[9px] font-black text-[#b24a2b] uppercase mb-2">Valor do Frete (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="w-full p-4 bg-orange-50 border-2 border-orange-200 rounded-2xl text-center font-black text-2xl text-[#b24a2b] outline-none"
+                  value={freteAjustado}
+                  onChange={(e) => setFreteAjustado(parseFloat(e.target.value) || 0)}
+                  autoFocus
+                />
+              </div>
+
+              <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-2">
+                  <span>Subtotal Itens:</span>
+                  <span>R$ {calcularSubtotal().toFixed(2).replace('.', ',')}</span>
+                </div>
+                <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
+                  <span>Total Geral:</span>
+                  <span className="text-[#b24a2b]">R$ {(calcularSubtotal() + freteAjustado).toFixed(2).replace('.', ',')}</span>
+                </div>
+              </div>
+
+              <div className="flex gap-3">
                 <button 
-                  key={m} 
-                  type="button" 
-                  onClick={() => setMetodoSelecionado(m)} 
-                  className={`p-6 rounded-[30px] border-2 transition-all font-black uppercase text-[10px] tracking-widest ${metodoSelecionado === m ? 'border-[#b24a2b] bg-orange-50 text-[#b24a2b]' : 'border-gray-100 text-gray-400 hover:bg-gray-50'}`}
+                  onClick={() => setShowFreteModal(false)} 
+                  className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
                 >
-                  {m}
+                  Voltar
                 </button>
-              ))}
-            </div>
-
-            <div className="flex gap-4">
-              <button onClick={() => { setShowPaymentModal(false); setMetodoSelecionado(''); }} className="flex-1 p-5 bg-gray-100 text-gray-400 rounded-[20px] font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all">Sair</button>
-              <button onClick={finalizarReservaComPagamento} className="flex-1 p-5 bg-[#b24a2b] text-white rounded-[20px] font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] transition-all">Confirmar</button>
+                <button 
+                  onClick={finalizarPedidoCompleto} 
+                  className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] transition-all"
+                >
+                  Confirmar e Salvar
+                </button>
+              </div>
             </div>
           </div>
         </div>

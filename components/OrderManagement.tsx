@@ -1,6 +1,5 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/supabase';
-// Importação da sua logo local
 import logoImg from '../logo.png'; 
 
 const OrderManagement: React.FC = () => {
@@ -38,18 +37,19 @@ const OrderManagement: React.FC = () => {
   const verificarUrgencia = (dataDevolucao: string) => {
     const hoje = new Date();
     const dataDev = new Date(dataDevolucao);
-    const diferencaEmMs = dataDev.getTime() - hoje.getTime();
-    const diferencaEmHoras = diferencaEmMs / (1000 * 60 * 60);
-    return diferencaEmHoras > 0 && diferencaEmHoras <= 24;
+    const dMs = dataDev.getTime() - hoje.getTime();
+    const dH = dMs / (1000 * 60 * 60);
+    return dH > 0 && dH <= 24;
   };
 
   const gerarContrato = (pedido: any) => {
     const cliente = clientes.find(c => c.id === pedido.cliente_id) || {};
-    // Auto soma dos itens para gerar o subtotal
     const subtotalItens = pedido.itens.reduce((acc: number, cur: any) => acc + (cur.valor_total || 0), 0);
+    const taxaEntrega = pedido.itens[0].taxa_entrega || 0;
+    const totalGeral = subtotalItens + taxaEntrega;
     
-    const dataEntrega = new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR');
-    const dataRecolher = new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR');
+    const dEnt = new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR');
+    const dRec = new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR');
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -113,32 +113,33 @@ const OrderManagement: React.FC = () => {
                 <tr>
                   <td>1</td>
                   <td class="align-left">TAXA DE ENTREGA</td>
-                  <td> </td>
-                  <td> </td>
+                  <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
+                  <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
                 </tr>
                 <tr>
-                  <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL ITENS R$</td>
-                  <td class="total-box">R$ ${subtotalItens.toFixed(2).replace('.', ',')}</td>
+                  <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL GERAL R$</td>
+                  <td class="total-box">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
                 </tr>
               </tbody>
             </table>
             <div class="clauses-container">
               <div class="clause-text"><strong>Cláusula 1ª:</strong> Bens em bom estado de conservação de propriedade da LOCADORA.</div>
+              <div class="clause-text"><strong>Cláusula 2ª:</strong> O LOCATÁRIO obriga-se a devolver os bens nas mesmas condições recebidas.</div>
+              <div class="clause-text"><strong>Cláusula 3ª:</strong> O período de locação é o estipulado neste documento.</div>
+              <div class="clause-text"><strong>Cláusula 4ª:</strong> A devolução fora do prazo acarretará multa de 50% da diária por dia de atraso.</div>
               <div class="clause-text"><strong>Cláusula 5ª:</strong> Quebras: Mesa R$80 - Cadeira R$45 - Prato R$15 - Talher R$8 - Taça R$10.</div>
               <div class="clause-text"><strong>Cláusula 6ª:</strong> Louça deve retornar lavada ou taxa de 50%.</div>
             </div>
             <div class="obs-container">
-              <strong>OBS:</strong> ____________________________________________________________________________________________________________________________________________________________________________________________________________________
+              <strong>OBS:</strong> ${pedido.observacoes || '____________________________________________________________________________________________________________________________________________________________________________________________________________________'}
             </div>
             <div class="footer-contract">
-              <div class="logistics-info">ENTREGAR: ${dataEntrega} SABADO<br>RECOLHER: ${dataRecolher} DOMINGO</div>
+              <div class="logistics-info">ENTREGAR: ${dEnt} SABADO<br>RECOLHER: ${dRec} DOMINGO</div>
               <div class="sig-line">LOCATÁRIO</div>
               <div class="sig-line">CLAUDIA FESTAS</div>
             </div>
           </div>
-          <script>
-            window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 300); }
-          </script>
+          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 300); }</script>
         </body>
       </html>
     `);
@@ -178,6 +179,7 @@ const OrderManagement: React.FC = () => {
         <style>body { font-family: sans-serif; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }</style></head>
         <body>
           <h2 style="text-align: center">📋 ROMANEIO DE CONFERÊNCIA</h2>
+          <p><strong>OBS:</strong> ${pedido.observacoes || '--'}</p>
           <table>
             <thead><tr><th>CÓDIGO</th><th>ITEM</th><th>QTD</th></tr></thead>
             <tbody>
@@ -199,15 +201,18 @@ const OrderManagement: React.FC = () => {
     pendentes.forEach(r => {
       const cliente = clientes.find(c => c.id === r.cliente_id);
       const nomeCliente = cliente ? cliente.cliente : 'Desconhecido';
-      const idCliente = String(r.cliente_id);
-      const termoBusca = busca.toLowerCase();
-      const bateBusca = !busca || nomeCliente.toLowerCase().includes(termoBusca) || idCliente.includes(termoBusca);
-      const eUrgente = verificarUrgencia(r.data_devolucao);
-      const bateFiltroUrgencia = !filtroUrgentes || eUrgente;
-      if (bateBusca && bateFiltroUrgencia) {
+      const bateBusca = !busca || nomeCliente.toLowerCase().includes(busca.toLowerCase()) || String(r.cliente_id).includes(busca);
+      if (bateBusca && (!filtroUrgentes || verificarUrgencia(r.data_devolucao))) {
         const chave = `${r.cliente_id}_${r.data_evento}`;
         if (!grupos[chave]) {
-          grupos[chave] = { nomeCliente, telefone: cliente?.telefone, dataDevolucao: r.data_devolucao, cliente_id: r.cliente_id, itens: [] };
+          grupos[chave] = { 
+            nomeCliente, 
+            telefone: cliente?.telefone, 
+            dataDevolucao: r.data_devolucao, 
+            cliente_id: r.cliente_id, 
+            observacoes: r.observacoes || '', 
+            itens: [] 
+          };
         }
         grupos[chave].itens.push(r);
       }
@@ -230,46 +235,55 @@ const OrderManagement: React.FC = () => {
       <header className="mb-12 text-center">
         <h1 className="text-4xl font-black text-gray-800 italic uppercase">Gestão de Pedidos</h1>
         <div className="flex flex-col items-center gap-4 mt-8">
-          <div className="relative w-full max-w-md">
-            <input type="text" placeholder="PROCURAR POR NOME OU ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full px-6 py-4 bg-white border-2 border-gray-100 rounded-full text-xs text-center font-bold outline-none focus:border-[#b24a2b] shadow-sm transition-all" />
-          </div>
+          <input type="text" placeholder="PROCURAR POR NOME OU ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full max-w-md px-6 py-4 bg-white border-2 border-gray-100 rounded-full text-xs text-center font-bold outline-none focus:border-[#b24a2b] shadow-sm transition-all" />
           <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-amber-500 border-amber-500 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'}`}>
             {filtroUrgentes ? '✕ Mostrar todos' : `⏳ Ver devoluções em 24h`}
             {totalUrgentes > 0 && !filtroUrgentes && <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[9px] animate-pulse">{totalUrgentes}</span>}
           </button>
         </div>
       </header>
+
       <div className="flex flex-col items-center gap-8 w-full mt-12">
         {pedidosAgrupadosEFiltrados().map((pedido: any, idx) => {
           const atrasado = verificarAtraso(pedido.dataDevolucao);
           const urgente = verificarUrgencia(pedido.dataDevolucao);
           return (
-            <div key={idx} className={`w-full max-w-md rounded-[45px] p-8 border-2 shadow-xl transition-all ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200 shadow-amber-100' : 'bg-white border-gray-50'}`}>
+            <div key={idx} className={`w-full max-w-md rounded-[45px] p-8 border-2 shadow-xl ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-50'}`}>
               <div className="flex justify-between items-start mb-6">
                 <div className="flex flex-col gap-1">
-                  {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white animate-bounce">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
+                  {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
                   <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.cliente_id}</span>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-brands fa-whatsapp"></i></button>
-                  <button onClick={() => gerarRomaneio(pedido)} className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-list-check"></i></button>
-                  <button onClick={() => gerarContrato(pedido)} className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-file-contract"></i></button>
-                  <button onClick={() => confirmarDevolucao(pedido)} className="w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-check"></i></button>
+                  <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center"><i className="fa-brands fa-whatsapp"></i></button>
+                  <button onClick={() => gerarRomaneio(pedido)} className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-list-check"></i></button>
+                  <button onClick={() => gerarContrato(pedido)} className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-file-contract"></i></button>
+                  <button onClick={() => confirmarDevolucao(pedido)} className="w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-check"></i></button>
                 </div>
               </div>
+
               <h3 className="font-black text-3xl text-gray-800 uppercase tracking-tighter mb-1">{pedido.nomeCliente}</h3>
               <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-400'}`}>Devolução: {new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR')}</p>
-              <div className="space-y-4 border-t border-gray-100 pt-8">
+              
+              <div className="space-y-4 border-t border-gray-100 pt-8 mb-6">
                 {pedido.itens.map((i: any) => (
                   <div key={i.id} className="flex flex-col gap-1">
                     <div className="flex justify-between text-xs font-semibold">
                       <span className="uppercase text-gray-500 italic">• {i.item} <span className="text-blue-600 font-bold ml-2">[{i.codigo_item || 'S/C'}]</span></span>
                       <span className="font-black text-gray-900">x{i.quantidade}</span>
                     </div>
+                    {/* RESTAURADO: EXIBIÇÃO DO CÓDIGO INTERNO ABAIXO DO ITEM */}
                     <span className="text-[9px] text-gray-400 font-bold uppercase ml-4">CÓDIGO INTERNO: {i.codigo_item || 'S/C'}</span>
                   </div>
                 ))}
               </div>
+
+              {pedido.observacoes && (
+                <div className="bg-gray-50 p-5 rounded-[25px] border border-dashed border-gray-200">
+                  <span className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest block mb-2">Notas da Reserva:</span>
+                  <p className="text-xs font-bold text-gray-600 italic">"{pedido.observacoes}"</p>
+                </div>
+              )}
             </div>
           );
         })}
