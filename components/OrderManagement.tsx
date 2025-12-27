@@ -45,9 +45,8 @@ const OrderManagement: React.FC = () => {
 
   const gerarContrato = (pedido: any) => {
     const cliente = clientes.find(c => c.id === pedido.cliente_id) || {};
+    // Auto soma dos itens para gerar o subtotal
     const subtotalItens = pedido.itens.reduce((acc: number, cur: any) => acc + (cur.valor_total || 0), 0);
-    const taxaEntrega = 20.00; 
-    const totalGeral = subtotalItens + taxaEntrega;
     
     const dataEntrega = new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR');
     const dataRecolher = new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR');
@@ -63,7 +62,6 @@ const OrderManagement: React.FC = () => {
             @page { size: portrait; margin: 1cm; }
             body { font-family: 'Arial', sans-serif; color: #000; line-height: 1.1; font-size: 10px; margin: 0; padding: 0; }
             .contract-container { width: 100%; border: 2px solid #000; padding: 20px; box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; }
-            
             .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
             .company-info { width: 75%; }
             .company-name { font-size: 20px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 5px; }
@@ -71,22 +69,17 @@ const OrderManagement: React.FC = () => {
             .company-address { font-size: 9px; font-weight: bold; }
             .logo-circle { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
             .logo-circle img { width: 100%; height: auto; object-fit: contain; }
-
             .main-title { text-align: center; font-size: 32px; font-weight: 900; margin: 15px 0; letter-spacing: 12px; }
-            
             .client-section { font-size: 11px; margin-bottom: 15px; font-weight: bold; text-transform: uppercase; line-height: 1.4; }
-            .intro-text { font-size: 10px; font-weight: normal; text-transform: none; margin-top: 5px; text-align: justify; }
-
             table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
             th, td { border: 2px solid #000; padding: 6px; text-align: center; font-weight: 900; }
             th { font-size: 11px; text-transform: uppercase; }
             .align-left { text-align: left; padding-left: 10px; }
             .total-box { font-size: 16px; background-color: #f2f2f2; }
-
-            .clauses-container { font-size: 9px; text-align: justify; margin-bottom: 20px; flex-grow: 1; }
+            .clauses-container { font-size: 9px; text-align: justify; margin-bottom: 10px; }
             .clause-text { margin-bottom: 6px; }
-
-            .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: 40px; }
+            .obs-container { border: 1px solid #000; padding: 5px; margin: 10px 0; min-height: 40px; font-size: 10px; }
+            .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 20px; }
             .logistics-info { font-weight: 900; font-size: 12px; line-height: 1.6; }
             .sig-line { width: 220px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 8px; font-size: 11px; }
           </style>
@@ -99,31 +92,15 @@ const OrderManagement: React.FC = () => {
                 <div class="company-contact">Fone: 48 98412.3233</div>
                 <div class="company-address">Rua Bernardino Prudêncio de Amorim, 667, Jardim Janaína, Biguaçu, SC</div>
               </div>
-              <div class="logo-circle">
-                <img src="${logoImg}" alt="Claudia Festas">
-              </div>
+              <div class="logo-circle"><img src="${logoImg}" alt="Logo"></div>
             </div>
-
             <div class="main-title">CONTRATO</div>
-
             <div class="client-section">
               LOCATÁRIO: ${pedido.nomeCliente.toUpperCase()} | CEL: ${pedido.telefone || '________________'}<br>
               ENDEREÇO: ${cliente.endereco || '____________________________________________________'}<br>
-              <div class="intro-text">
-                Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como locatário, tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante descritos, sobre as cláusulas e condições seguintes).
-                Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
-              </div>
             </div>
-
             <table>
-              <thead>
-                <tr>
-                  <th width="40">QTD</th>
-                  <th>DESCRIÇÃO DO BEM</th>
-                  <th width="100">VALOR U.</th>
-                  <th width="120">VALOR TOTAL</th>
-                </tr>
-              </thead>
+              <thead><tr><th width="40">QTD</th><th>DESCRIÇÃO DO BEM</th><th width="100">VALOR U.</th><th width="120">VALOR TOTAL</th></tr></thead>
               <tbody>
                 ${pedido.itens.map((i: any) => `
                   <tr>
@@ -136,42 +113,31 @@ const OrderManagement: React.FC = () => {
                 <tr>
                   <td>1</td>
                   <td class="align-left">TAXA DE ENTREGA</td>
-                  <td>R$ 20,00</td>
-                  <td>R$ 20,00</td>
+                  <td> </td>
+                  <td> </td>
                 </tr>
                 <tr>
-                  <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL R$</td>
-                  <td class="total-box">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
+                  <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL ITENS R$</td>
+                  <td class="total-box">R$ ${subtotalItens.toFixed(2).replace('.', ',')}</td>
                 </tr>
               </tbody>
             </table>
-
             <div class="clauses-container">
-              <div class="clause-text"><strong>Cláusula 1ª:</strong> O presente contrato tem como utensílios para a festa, todos em bom estado de conservação e limpeza, de propriedade da LOCADORA, que serão locadas ao (à) LOCATÁRIO (a).</div>
-              <div class="clause-text"><strong>Cláusula 2ª:</strong> É vedado ao (à) LOCATÁRIO (a) transferir, sublocar, ceder ou emprestar os bens ora locados a terceiros.</div>
-              <div class="clause-text"><strong>Cláusula 3ª:</strong> A locação terá duração conforme data abaixo descrita quando os bens serão entregues pelo (a) LOCADOR (A) no endereço indicado pelo (a) LOCATÁRIO, e finalizando no dia combinada abaixo quando os bens serão retirados pelo (a) LOCADOR (a).</div>
-              <div class="clause-text"><strong>Cláusula 4ª:</strong> A LOCADORA se isenta de qualquer erro de manuseio do usuário LOCATÁRIO, que venha acarretar acidentes durante a locação.</div>
-              <div class="clause-text"><strong>Cláusula 5ª:</strong> Na quebra de utensílios será cobrado. (Mesa R$ 80,00 - cadeira R$ 45,00 - prato R$ 15,00 - talher unid. R$ 8,00 - taça R$ 10,00 - toalha Oxford 1,50mt. R$ 25,00 - toalha Oxford 2,80mt. 35,00 - toalha amas. 2,80mt R$ 25,00. Outros produtos serão avaliados o valor).</div>
-              <div class="clause-text"><strong>Cláusula 6ª:</strong> Uso da louça: toda louça deverá ser devolvida lavada, caso não retorne lavada será cobrado a 50% locação de cada item devolvido sujo.</div>
+              <div class="clause-text"><strong>Cláusula 1ª:</strong> Bens em bom estado de conservação de propriedade da LOCADORA.</div>
+              <div class="clause-text"><strong>Cláusula 5ª:</strong> Quebras: Mesa R$80 - Cadeira R$45 - Prato R$15 - Talher R$8 - Taça R$10.</div>
+              <div class="clause-text"><strong>Cláusula 6ª:</strong> Louça deve retornar lavada ou taxa de 50%.</div>
             </div>
-
+            <div class="obs-container">
+              <strong>OBS:</strong> ____________________________________________________________________________________________________________________________________________________________________________________________________________________
+            </div>
             <div class="footer-contract">
-              <div class="logistics-info">
-                ENTREGAR DIA: ${dataEntrega} SABADO<br>
-                RECOLHER DIA: ${dataRecolher} DOMINGO
-              </div>
+              <div class="logistics-info">ENTREGAR: ${dataEntrega} SABADO<br>RECOLHER: ${dataRecolher} DOMINGO</div>
               <div class="sig-line">LOCATÁRIO</div>
               <div class="sig-line">CLAUDIA FESTAS</div>
             </div>
           </div>
           <script>
-            // Pequeno delay para garantir que a imagem carregue antes de abrir o print
-            window.onload = () => { 
-                setTimeout(() => {
-                    window.print(); 
-                    window.close(); 
-                }, 300);
-            }
+            window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 300); }
           </script>
         </body>
       </html>
@@ -230,18 +196,14 @@ const OrderManagement: React.FC = () => {
   const pedidosAgrupadosEFiltrados = () => {
     const pendentes = reservas.filter(r => r.status?.toLowerCase() !== 'finalizado');
     const grupos: { [key: string]: any } = {};
-    
     pendentes.forEach(r => {
       const cliente = clientes.find(c => c.id === r.cliente_id);
       const nomeCliente = cliente ? cliente.cliente : 'Desconhecido';
       const idCliente = String(r.cliente_id);
-      
       const termoBusca = busca.toLowerCase();
       const bateBusca = !busca || nomeCliente.toLowerCase().includes(termoBusca) || idCliente.includes(termoBusca);
-      
       const eUrgente = verificarUrgencia(r.data_devolucao);
       const bateFiltroUrgencia = !filtroUrgentes || eUrgente;
-
       if (bateBusca && bateFiltroUrgencia) {
         const chave = `${r.cliente_id}_${r.data_evento}`;
         if (!grupos[chave]) {
@@ -267,77 +229,36 @@ const OrderManagement: React.FC = () => {
     <div className="max-w-4xl mx-auto pb-20 animate-in fade-in duration-700">
       <header className="mb-12 text-center">
         <h1 className="text-4xl font-black text-gray-800 italic uppercase">Gestão de Pedidos</h1>
-        
         <div className="flex flex-col items-center gap-4 mt-8">
           <div className="relative w-full max-w-md">
-            <input 
-              type="text" 
-              placeholder="PROCURAR POR NOME OU ID..." 
-              value={busca} 
-              onChange={(e) => setBusca(e.target.value)} 
-              className="w-full px-6 py-4 bg-white border-2 border-gray-100 rounded-full text-xs text-center font-bold uppercase tracking-widest outline-none focus:border-[#b24a2b] shadow-sm transition-all" 
-            />
+            <input type="text" placeholder="PROCURAR POR NOME OU ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full px-6 py-4 bg-white border-2 border-gray-100 rounded-full text-xs text-center font-bold outline-none focus:border-[#b24a2b] shadow-sm transition-all" />
           </div>
-
-          <button 
-            onClick={() => setFiltroUrgentes(!filtroUrgentes)}
-            className={`px-6 py-3 rounded-full font-black text-[10px] uppercase tracking-widest transition-all border-2 flex items-center gap-3 ${
-              filtroUrgentes 
-              ? 'bg-amber-500 border-amber-500 text-white shadow-lg' 
-              : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'
-            }`}
-          >
+          <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-amber-500 border-amber-500 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'}`}>
             {filtroUrgentes ? '✕ Mostrar todos' : `⏳ Ver devoluções em 24h`}
-            {totalUrgentes > 0 && !filtroUrgentes && (
-              <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[9px] animate-pulse">
-                {totalUrgentes}
-              </span>
-            )}
+            {totalUrgentes > 0 && !filtroUrgentes && <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[9px] animate-pulse">{totalUrgentes}</span>}
           </button>
         </div>
       </header>
-
       <div className="flex flex-col items-center gap-8 w-full mt-12">
         {pedidosAgrupadosEFiltrados().map((pedido: any, idx) => {
           const atrasado = verificarAtraso(pedido.dataDevolucao);
           const urgente = verificarUrgencia(pedido.dataDevolucao);
-          
           return (
-            <div key={idx} className={`w-full max-w-md rounded-[45px] p-8 border-2 shadow-xl transition-all ${
-              atrasado ? 'bg-red-50 border-red-200' : 
-              urgente ? 'bg-amber-50 border-amber-200 shadow-amber-100' : 
-              'bg-white border-gray-50'
-            }`}>
+            <div key={idx} className={`w-full max-w-md rounded-[45px] p-8 border-2 shadow-xl transition-all ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200 shadow-amber-100' : 'bg-white border-gray-50'}`}>
               <div className="flex justify-between items-start mb-6">
                 <div className="flex flex-col gap-1">
-                  {atrasado ? (
-                    <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white animate-bounce">
-                      ⚠️ ATRASADO
-                    </span>
-                  ) : urgente ? (
-                    <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">
-                      ⏳ DEVOLUÇÃO EM BREVE
-                    </span>
-                  ) : (
-                    <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">
-                      NO PRAZO
-                    </span>
-                  )}
+                  {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white animate-bounce">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
                   <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.cliente_id}</span>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full shadow flex items-center justify-center transition-transform hover:scale-110"><i className="fa-brands fa-whatsapp"></i></button>
-                  <button onClick={() => gerarRomaneio(pedido)} className="w-10 h-10 bg-purple-600 text-white rounded-full shadow flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-list-check"></i></button>
-                  <button onClick={() => gerarContrato(pedido)} className="w-10 h-10 bg-blue-500 text-white rounded-full shadow flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-file-contract"></i></button>
-                  <button onClick={() => confirmarDevolucao(pedido)} className="w-12 h-12 bg-green-600 text-white rounded-full shadow flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-check"></i></button>
+                  <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-brands fa-whatsapp"></i></button>
+                  <button onClick={() => gerarRomaneio(pedido)} className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-list-check"></i></button>
+                  <button onClick={() => gerarContrato(pedido)} className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-file-contract"></i></button>
+                  <button onClick={() => confirmarDevolucao(pedido)} className="w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center transition-transform hover:scale-110"><i className="fa-solid fa-check"></i></button>
                 </div>
               </div>
-              
               <h3 className="font-black text-3xl text-gray-800 uppercase tracking-tighter mb-1">{pedido.nomeCliente}</h3>
-              <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-400'}`}>
-                Devolução: {new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR')}
-              </p>
-              
+              <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-400'}`}>Devolução: {new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR')}</p>
               <div className="space-y-4 border-t border-gray-100 pt-8">
                 {pedido.itens.map((i: any) => (
                   <div key={i.id} className="flex flex-col gap-1">
@@ -345,9 +266,7 @@ const OrderManagement: React.FC = () => {
                       <span className="uppercase text-gray-500 italic">• {i.item} <span className="text-blue-600 font-bold ml-2">[{i.codigo_item || 'S/C'}]</span></span>
                       <span className="font-black text-gray-900">x{i.quantidade}</span>
                     </div>
-                    <span className="text-[9px] text-gray-400 font-bold uppercase ml-4">
-                      CÓDIGO INTERNO: {i.codigo_item || 'S/C'}
-                    </span>
+                    <span className="text-[9px] text-gray-400 font-bold uppercase ml-4">CÓDIGO INTERNO: {i.codigo_item || 'S/C'}</span>
                   </div>
                 ))}
               </div>
