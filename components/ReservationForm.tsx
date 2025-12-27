@@ -14,7 +14,8 @@ const ReservationForm: React.FC = () => {
   const [reservaGeral, setReservaGeral] = useState({
     clienteId: '',
     data: '',
-    dataDevolucao: '' 
+    dataDevolucao: '',
+    taxaEntrega: 0 // Novo estado para a taxa
   });
 
   const carregarDados = async () => {
@@ -45,11 +46,13 @@ const ReservationForm: React.FC = () => {
     setItensSelecionados(novaLista);
   };
 
+  // Cálculo atualizado para incluir a taxa de entrega
   const calcularTotal = () => {
-    return itensSelecionados.reduce((acc, current) => {
+    const totalItens = itensSelecionados.reduce((acc, current) => {
       const itemEstoque = estoque.find(i => i.item === current.item);
       return acc + (current.quantidade * (itemEstoque?.preco || 0));
     }, 0);
+    return totalItens + (Number(reservaGeral.taxaEntrega) || 0);
   };
 
   const handlePreFinalizar = (e: React.FormEvent) => {
@@ -71,7 +74,7 @@ const ReservationForm: React.FC = () => {
     setShowPaymentModal(false);
 
     try {
-      // 1. Validação prévia de estoque para todos os itens
+      // 1. Validação de estoque
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
         if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
@@ -83,12 +86,11 @@ const ReservationForm: React.FC = () => {
         }
       }
 
-      // 2. Processamento das inserções e atualizações
+      // 2. Processamento
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
         const valorItemTotal = selecionado.quantidade * itemEstoque.preco;
 
-        // Inserção na tabela reservas usando colunas sincronizadas
         const { error: erroReserva } = await db.from('reservas').insert([{
           cliente_id: parseInt(reservaGeral.clienteId),
           item: selecionado.item,
@@ -103,15 +105,13 @@ const ReservationForm: React.FC = () => {
 
         if (erroReserva) throw erroReserva;
 
-        // Atualização do estoque
         await db.from('estoque').update({ 
           disponivel: itemEstoque.disponivel - selecionado.quantidade,
           reservado: itemEstoque.reservado + selecionado.quantidade 
         }).eq('id', itemEstoque.id);
 
-        // Registro no Caixa
         await db.from('movimentacao_caixa').insert([{
-            descricao: `Venda Direta: ${selecionado.item} (${metodoSelecionado})`,
+            descricao: `Reserva Múltipla: ${selecionado.item} (${metodoSelecionado})`,
             valor: valorItemTotal,
             tipo: 'Receita',
             cliente_id: parseInt(reservaGeral.clienteId),
@@ -119,10 +119,20 @@ const ReservationForm: React.FC = () => {
         }]);
       }
 
+      // 3. Registrar Taxa de Entrega no Caixa (se houver)
+      if (reservaGeral.taxaEntrega > 0) {
+        await db.from('movimentacao_caixa').insert([{
+          descricao: `Taxa de Entrega - Cliente ID: ${reservaGeral.clienteId}`,
+          valor: reservaGeral.taxaEntrega,
+          tipo: 'Receita',
+          cliente_id: parseInt(reservaGeral.clienteId),
+          data: new Date().toISOString()
+        }]);
+      }
+
       alert(`🎉 Pedido finalizado com sucesso via ${metodoSelecionado}!`);
       
-      // Limpeza do formulário
-      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '' });
+      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', taxaEntrega: 0 });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setMetodoSelecionado('');
       await carregarDados();
@@ -154,13 +164,26 @@ const ReservationForm: React.FC = () => {
             <input type="date" required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold focus:border-[#b24a2b] transition-all" value={reservaGeral.data} onChange={(e) => setReservaGeral({...reservaGeral, data: e.target.value})} />
           </div>
 
-          <div className="flex flex-col">
+          <div className="flex flex-col relative">
             <label className="text-[10px] font-black text-[#b24a2b] ml-4 mb-2 uppercase tracking-widest">Data de Devolução</label>
             <input type="date" required className="w-full p-4 bg-orange-50 border-2 border-[#f2c6b4] rounded-2xl outline-none font-bold text-[#b24a2b] focus:border-[#b24a2b] transition-all" value={reservaGeral.dataDevolucao} onChange={(e) => setReservaGeral({...reservaGeral, dataDevolucao: e.target.value})} />
+            
+            {/* BOTÃO/INPUT DE TAXA DE ENTREGA POSICIONADO CONFORME A FOTO */}
+            <div className="absolute -bottom-16 right-0 flex flex-col items-end">
+                <label className="text-[9px] font-black text-[#b24a2b] uppercase mr-4 mb-1">Taxa de entrega</label>
+                <input 
+                    type="number" 
+                    step="0.01"
+                    placeholder="R$ 0,00"
+                    className="w-32 p-3 bg-[#b24a2b] text-white rounded-2xl text-center font-bold outline-none shadow-lg placeholder:text-orange-200 focus:ring-2 ring-orange-300 transition-all"
+                    value={reservaGeral.taxaEntrega || ''}
+                    onChange={(e) => setReservaGeral({...reservaGeral, taxaEntrega: parseFloat(e.target.value) || 0})}
+                />
+            </div>
           </div>
         </div>
 
-        <div className="space-y-4 pt-4">
+        <div className="space-y-4 pt-10">
           <label className="text-[10px] font-black text-gray-400 uppercase ml-4 block tracking-widest">Materiais Selecionados</label>
           {itensSelecionados.map((linha, index) => (
             <div key={index} className="flex flex-col md:flex-row gap-4 items-end bg-gray-50/50 p-6 rounded-[30px] border border-gray-100">
@@ -220,6 +243,7 @@ const ReservationForm: React.FC = () => {
           <div className="bg-white rounded-[50px] p-10 w-full max-w-md shadow-2xl border border-gray-100">
             <div className="text-center mb-8">
               <h2 className="text-2xl font-black text-gray-800 uppercase italic tracking-tighter">Pagamento</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest">Total Geral (com taxa)</p>
               <p className="text-4xl font-black text-[#b24a2b] mt-3">R$ {calcularTotal().toFixed(2).replace('.', ',')}</p>
             </div>
 
