@@ -98,6 +98,20 @@ const InventoryDashboard: React.FC = () => {
     }
   };
 
+  // --- NOVA FUNÇÃO DE EXCLUSÃO ---
+  const handleDeleteItem = async (id: number) => {
+    if (window.confirm("Tem certeza que deseja excluir este item do estoque?")) {
+      try {
+        const { error } = await db.from('estoque').delete().eq('id', id);
+        if (error) throw error;
+        alert("Item excluído com sucesso!");
+        fetchEstoque();
+      } catch (err: any) {
+        alert("Erro ao excluir item: " + err.message);
+      }
+    }
+  };
+
   if (loading) return <div className="text-center p-20 font-bold text-[#b24a2b] animate-pulse uppercase tracking-widest">Sincronizando Estoque...</div>;
 
   return (
@@ -155,12 +169,23 @@ const InventoryDashboard: React.FC = () => {
                 )}
             </div>
 
+            {/* BOTÃO DE EDIÇÃO */}
             <button 
               onClick={() => handleOpenEditModal(item)}
               className="absolute top-6 right-8 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 p-2.5 rounded-full hover:bg-[#b24a2b] hover:text-white text-gray-400 shadow-sm"
             >
               <i className="fa-solid fa-pen text-xs"></i>
             </button>
+
+            {/* --- NOVO BOTÃO DE EXCLUIR --- */}
+            <button 
+              onClick={() => handleDeleteItem(item.id)}
+              className="absolute top-6 right-20 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2.5 rounded-full hover:bg-red-500 hover:text-white text-red-400 shadow-sm mr-2"
+              title="Excluir Item"
+            >
+              <i className="fa-solid fa-trash text-xs"></i>
+            </button>
+            {/* ----------------------------- */}
 
             <div className="flex flex-col items-center mb-8 mt-10 text-center">
               <div className="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center text-[#b24a2b] mb-4 shadow-inner">

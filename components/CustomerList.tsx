@@ -8,6 +8,7 @@ interface CustomerListProps {
 const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   const [clientes, setClientes] = useState<any[]>([]);
   const [reservas, setReservas] = useState<any[]>([]);
+  const [estoque, setEstoque] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [abaAtiva, setAbaAtiva] = useState<'normais' | 'negra'>('normais');
   const [busca, setBusca] = useState('');
@@ -16,12 +17,20 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   const [novoIdValor, setNovoIdValor] = useState('');
   const [clienteDetalhado, setClienteDetalhado] = useState<any | null>(null);
 
+  // Estados para o Modal de Edição de Pedido
+  const [modalAberto, setModalAberto] = useState(false);
+  const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any[]>([]);
+  const [dadosPedidoFixo, setDadosPedidoFixo] = useState<any>(null);
+  const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
+  const [novaQtdItem, setNovaQtdItem] = useState(1);
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClientes, resReservas] = await Promise.all([
-        db.from('cadastro').select('*').order('cliente'),
-        db.from('reservas').select('*').order('data_evento', { ascending: false })
+      const [resClientes, resReservas, resEstoque] = await Promise.all([
+        db.from('cadastro').select('*'),
+        db.from('reservas').select('*').order('data_evento', { ascending: false }),
+        db.from('estoque').select('*').order('item')
       ]);
 
       if (resClientes.error) throw resClientes.error;
@@ -29,6 +38,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
       setClientes(resClientes.data || []);
       setReservas(resReservas.data || []);
+      setEstoque(resEstoque.data || []);
     } catch (err: any) {
       console.error("Erro ao carregar dados:", err.message);
     } finally {
@@ -38,8 +48,51 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // --- FUNÇÃO PARA ALTERAR LISTA NEGRA ---
+  const toggleListaNegra = async (cliente: any) => {
+    const novoStatus = !cliente.lista_negra;
+    // const acao = novoStatus ? "adicionar à Lista Negra" : "remover da Lista Negra"; // Removed unused var
+    const msgConfirmacao = novoStatus 
+        ? `⚠️ ATENÇÃO!\n\nDeseja enviar ${cliente.cliente} para a LISTA NEGRA?\nO cliente não aparecerá nas buscas padrões até que a situação seja regularizada.`
+        : `🎉 ÓTIMA NOTÍCIA!\n\nDeseja remover ${cliente.cliente} da Lista Negra e torná-lo ativo novamente?`;
+
+    if (!window.confirm(msgConfirmacao)) return;
+
+    try {
+        const { error } = await db
+            .from('cadastro')
+            .update({ lista_negra: novoStatus })
+            .eq('id', cliente.id);
+
+        if (error) throw error;
+
+        alert(`Sucesso! Cliente ${novoStatus ? 'bloqueado' : 'liberado'}.`);
+        fetchData(); 
+    } catch (err: any) {
+        alert("Erro ao atualizar status: " + err.message);
+    }
+  };
+
   const salvarNovoId = async (clienteIdInterno: number) => {
     try {
+      if (novoIdValor && novoIdValor.trim() !== '') {
+        const idParaChecar = novoIdValor.trim();
+        
+        const { data: duplicados, error: erroCheck } = await db
+           .from('cadastro')
+           .select('id')
+           .eq('id-client', idParaChecar)
+           .neq('id', clienteIdInterno);
+
+        if (erroCheck) throw erroCheck;
+
+        if (duplicados && duplicados.length > 0) {
+           alert(`⛔ AÇÃO BLOQUEADA!\nO ID "${idParaChecar}" já pertence a outro cliente.\nPor favor, escolha outro.`);
+           setEditandoId(null);
+           return; 
+        }
+      }
+
       const { error } = await db
         .from('cadastro')
         .update({ 'id-client': novoIdValor })
@@ -52,21 +105,164 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
       alert("Erro ao salvar ID: " + err.message);
     }
   };
+  
+  // --- LÓGICA DE ABRIR O PEDIDO PARA EDIÇÃO ---
+  const handleAbrirEdicao = (itemClicado: any) => {
+    const itensDoPedido = reservas.filter(r => 
+        r.cliente_id === itemClicado.cliente_id && 
+        r.data_evento === itemClicado.data_evento
+    );
 
-  // LÓGICA DE BUSCA ATUALIZADA PARA NOME E ID
+    const itensFormatados = itensDoPedido.map(i => ({...i, _originalQty: i.quantidade}));
+
+    setPedidoEmEdicao(itensFormatados);
+    setDadosPedidoFixo({
+        cliente_id: itemClicado.cliente_id,
+        data_evento: itemClicado.data_evento,
+        data_devolucao: itemClicado.data_devolucao
+    });
+    setModalAberto(true);
+  };
+
+  // --- LÓGICA DENTRO DO MODAL ---
+  const handleAlterarQtdExistente = (index: number, novaQtd: number) => {
+    const lista = [...pedidoEmEdicao];
+    lista[index].quantidade = novaQtd;
+    setPedidoEmEdicao(lista);
+  };
+
+  const handleRemoverItemLista = (index: number) => {
+     if(!window.confirm("Tem certeza que deseja remover este item do pedido?")) return;
+     const lista = [...pedidoEmEdicao];
+     if (lista[index].id) {
+         lista[index]._deleted = true;
+     } else {
+         lista.splice(index, 1);
+     }
+     setPedidoEmEdicao(lista);
+  };
+
+  const handleAdicionarNovoItem = () => {
+    if (!novoItemSelecionado) return alert("Selecione um produto.");
+    if (novaQtdItem < 1) return alert("Quantidade inválida.");
+
+    const produtoEstoque = estoque.find(e => e.item === novoItemSelecionado);
+    if (!produtoEstoque) return;
+
+    setPedidoEmEdicao([...pedidoEmEdicao, {
+        item: produtoEstoque.item,
+        quantidade: novaQtdItem,
+        valor_total: produtoEstoque.preco * novaQtdItem,
+        codigo_item: produtoEstoque.codigo_interno,
+        _isNew: true,
+        _basePrice: produtoEstoque.preco
+    }]);
+
+    setNovoItemSelecionado('');
+    setNovaQtdItem(1);
+  };
+
+  const handleSalvarAlteracoes = async () => {
+    if (!dadosPedidoFixo) return;
+    setLoading(true);
+
+    try {
+        for (const item of pedidoEmEdicao) {
+            const produtoEstoque = estoque.find(e => e.item === item.item);
+            if (!produtoEstoque) continue;
+
+            if (item._deleted) {
+                await db.from('estoque').update({
+                    disponivel: produtoEstoque.disponivel + item._originalQty,
+                    reservado: Math.max(0, produtoEstoque.reservado - item._originalQty)
+                }).eq('id', produtoEstoque.id);
+                await db.from('reservas').delete().eq('id', item.id);
+                continue;
+            }
+
+            if (item._isNew) {
+                if (produtoEstoque.disponivel < item.quantidade) {
+                    alert(`Estoque insuficiente para adicionar: ${item.item}`);
+                    throw new Error("Estoque insuficiente");
+                }
+                await db.from('estoque').update({
+                    disponivel: produtoEstoque.disponivel - item.quantidade,
+                    reservado: produtoEstoque.reservado + item.quantidade
+                }).eq('id', produtoEstoque.id);
+                await db.from('reservas').insert([{
+                    cliente_id: dadosPedidoFixo.cliente_id,
+                    item: item.item,
+                    quantidade: item.quantidade,
+                    data_evento: dadosPedidoFixo.data_evento,
+                    data_devolucao: dadosPedidoFixo.data_devolucao,
+                    status: 'Pendente',
+                    forma_pagamento: 'Ajuste',
+                    valor_total: item.valor_total,
+                    codigo_item: item.codigo_item
+                }]);
+                continue;
+            }
+
+            if (item.quantidade !== item._originalQty) {
+                const diferenca = item.quantidade - item._originalQty;
+                if (diferenca > 0 && produtoEstoque.disponivel < diferenca) {
+                    alert(`Estoque insuficiente para aumentar qtd de: ${item.item}`);
+                    throw new Error("Estoque insuficiente");
+                }
+
+                await db.from('estoque').update({
+                    disponivel: produtoEstoque.disponivel - diferenca,
+                    reservado: produtoEstoque.reservado + diferenca
+                }).eq('id', produtoEstoque.id);
+
+                const precoUnitario = item.valor_total / item._originalQty;
+                const novoTotal = precoUnitario * item.quantidade;
+
+                await db.from('reservas').update({
+                    quantidade: item.quantidade,
+                    valor_total: novoTotal
+                }).eq('id', item.id);
+            }
+        }
+
+        alert("Pedido atualizado com sucesso!");
+        setModalAberto(false);
+        const { data: novasReservas } = await db.from('reservas').select('*').order('data_evento', { ascending: false });
+        if (novasReservas) setReservas(novasReservas);
+        if (clienteDetalhado) {
+            setClienteDetalhado({
+                ...clienteDetalhado, 
+                historico: novasReservas?.filter(r => r.cliente_id === clienteDetalhado.id)
+            });
+        }
+        const { data: novoEstoque } = await db.from('estoque').select('*');
+        if (novoEstoque) setEstoque(novoEstoque);
+
+    } catch (err: any) {
+        if (err.message !== "Estoque insuficiente") alert("Erro ao salvar: " + err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  // --- LÓGICA DE FILTRO E ORDENAÇÃO NUMÉRICA ---
   const clientesExibidos = clientes.filter(c => {
     const correspondeAba = abaAtiva === 'normais' ? !c.lista_negra : c.lista_negra;
-    
     const termoBusca = busca.toLowerCase();
     const nomeCliente = (c.cliente || '').toLowerCase();
-    const idCliente = String(c['id-client'] || '').toLowerCase(); // Converte ID para string para busca
-
+    const idCliente = String(c['id-client'] || '').toLowerCase();
     const correspondeBusca = nomeCliente.includes(termoBusca) || idCliente.includes(termoBusca);
-
     return correspondeAba && correspondeBusca;
+  }).sort((a, b) => {
+    const idA = a['id-client'] ? parseInt(a['id-client']) : Infinity;
+    const idB = b['id-client'] ? parseInt(b['id-client']) : Infinity;
+    return idA - idB;
   });
 
-  if (loading) return <div className="text-center p-20 font-bold text-[#b24a2b] animate-pulse uppercase tracking-[0.3em]">Sincronizando Clientes...</div>;
+  // --- CONTAGEM DA LISTA NEGRA ---
+  const totalListaNegra = clientes.filter(c => c.lista_negra).length;
+
+  if (loading && !modalAberto) return <div className="text-center p-20 font-bold text-[#b24a2b] animate-pulse uppercase tracking-[0.3em]">Sincronizando Clientes...</div>;
 
   return (
     <div className="w-full animate-in fade-in duration-700">
@@ -99,9 +295,10 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
               </button>
               <button 
                 onClick={() => setAbaAtiva('negra')} 
-                className={`pb-4 px-2 font-black text-[10px] uppercase tracking-[0.2em] transition-all ${abaAtiva === 'negra' ? 'border-b-4 border-red-600 text-red-600' : 'text-gray-300 hover:text-gray-400'}`}
+                // AQUI ESTÁ O AJUSTE: text-red-600 agora é fixo
+                className={`pb-4 px-2 font-black text-[10px] uppercase tracking-[0.2em] transition-all text-red-600 ${abaAtiva === 'negra' ? 'border-b-4 border-red-600' : 'opacity-60 hover:opacity-100'}`}
               >
-                Lista Negra
+                Lista Negra {totalListaNegra > 0 && <span className="ml-1">({totalListaNegra})</span>}
               </button>
             </div>
 
@@ -113,6 +310,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                     <th className="p-8">Bairro</th>
                     <th className="p-8">Contato / WhatsApp</th>
                     <th className="p-8 text-center">ID</th>
+                    <th className="p-8 text-center">AÇÃO</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
@@ -162,6 +360,25 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           </span>
                         )}
                       </td>
+                      
+                      {/* --- COLUNA DE AÇÃO (LISTA NEGRA) --- */}
+                      <td className="p-8 text-center">
+                        <button 
+                            onClick={(e) => {
+                                e.stopPropagation();
+                                toggleListaNegra(item);
+                            }}
+                            title={item.lista_negra ? "Restaurar Cliente" : "Enviar para Lista Negra"}
+                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm mx-auto ${
+                                item.lista_negra 
+                                ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                                : 'bg-red-100 text-red-600 hover:bg-red-200'
+                            }`}
+                        >
+                            <i className={`fa-solid ${item.lista_negra ? 'fa-user-check' : 'fa-ban'}`}></i>
+                        </button>
+                      </td>
+
                     </tr>
                   ))}
                 </tbody>
@@ -195,9 +412,21 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             {new Date(h.data_evento).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
-                        <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase ${h.status === 'Finalizado' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
-                          {h.status}
-                        </span>
+                        
+                        <div className="flex flex-col items-end gap-1">
+                            <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase ${h.status === 'Finalizado' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
+                            {h.status}
+                            </span>
+                            
+                            {h.status !== 'Finalizado' && (
+                                <button 
+                                    onClick={() => handleAbrirEdicao(h)}
+                                    className="text-[9px] font-black text-gray-800 hover:text-[#b24a2b] transition-colors uppercase mt-1 flex items-center gap-1"
+                                >
+                                    <i className="fa-solid fa-pen"></i> Editar pedido
+                                </button>
+                            )}
+                        </div>
                       </div>
                     ))}
                   </div>
@@ -232,6 +461,91 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
           </div>
         )}
       </div>
+
+      {/* --- MODAL DE EDIÇÃO DE PEDIDO --- */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[35px] p-8 w-full max-w-2xl shadow-2xl border border-gray-100 animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {new Date(dadosPedidoFixo?.data_evento).toLocaleDateString()}</p>
+                    </div>
+                    <button onClick={() => setModalAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+                </div>
+
+                <div className="bg-gray-50 rounded-3xl p-6 mb-6">
+                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens no Pedido</h4>
+                    <div className="space-y-3">
+                        {pedidoEmEdicao.map((item, idx) => {
+                            if (item._deleted) return null; 
+                            return (
+                                <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                                    <div className="flex-1">
+                                        <p className="text-xs font-black text-gray-700 uppercase">{item.item} {item._isNew && <span className="text-green-500 text-[8px] ml-2">(NOVO)</span>}</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg">
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Qtd:</span>
+                                            <input 
+                                                type="number" 
+                                                className="w-12 bg-transparent text-center font-black text-sm outline-none"
+                                                value={item.quantidade}
+                                                min="1"
+                                                onChange={(e) => handleAlterarQtdExistente(idx, parseInt(e.target.value))}
+                                            />
+                                        </div>
+                                        <button onClick={() => handleRemoverItemLista(idx)} className="text-red-400 hover:text-red-600 transition-colors">
+                                            <i className="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {pedidoEmEdicao.filter(i => !i._deleted).length === 0 && <p className="text-center text-xs text-gray-400 italic">Nenhum item neste pedido.</p>}
+                    </div>
+                </div>
+
+                <div className="border-t border-dashed border-gray-200 pt-6 mb-8">
+                    <h4 className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest mb-4">+ Adicionar Novo Item</h4>
+                    <div className="flex gap-3">
+                        <select 
+                            className="flex-1 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-600"
+                            value={novoItemSelecionado}
+                            onChange={(e) => setNovoItemSelecionado(e.target.value)}
+                        >
+                            <option value="">Selecione um produto...</option>
+                            {estoque.map(e => (
+                                <option key={e.id} value={e.item}>
+                                    {e.item} (Disp: {e.disponivel})
+                                </option>
+                            ))}
+                        </select>
+                        <input 
+                            type="number" 
+                            min="1"
+                            placeholder="Qtd"
+                            className="w-20 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-center"
+                            value={novaQtdItem}
+                            onChange={(e) => setNovaQtdItem(parseInt(e.target.value))}
+                        />
+                        <button 
+                            onClick={handleAdicionarNovoItem}
+                            className="bg-green-500 hover:bg-green-600 text-white w-12 rounded-xl flex items-center justify-center transition-all shadow-lg"
+                        >
+                            <i className="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+                    <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

@@ -5,19 +5,29 @@ import logoImg from '../logo.png';
 const OrderManagement: React.FC = () => {
   const [clientes, setClientes] = useState<any[]>([]);
   const [reservas, setReservas] = useState<any[]>([]);
+  const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
   const [filtroUrgentes, setFiltroUrgentes] = useState(false);
 
+  // Estados para o Modal de Edição
+  const [modalAberto, setModalAberto] = useState(false);
+  const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any[]>([]);
+  const [dadosPedidoFixo, setDadosPedidoFixo] = useState<any>(null);
+  const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
+  const [novaQtdItem, setNovaQtdItem] = useState(1);
+
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClientes, resReservas] = await Promise.all([
+      const [resClientes, resReservas, resEstoque] = await Promise.all([
         db.from('cadastro').select('*'),
-        db.from('reservas').select('*').order('data_evento', { ascending: false })
+        db.from('reservas').select('*').order('data_evento', { ascending: false }),
+        db.from('estoque').select('*').order('item')
       ]);
       setClientes(resClientes.data || []);
       setReservas(resReservas.data || []);
+      setEstoque(resEstoque.data || []);
     } catch (err: any) {
       console.error("Erro ao sincronizar dados:", err.message);
     } finally {
@@ -42,11 +52,139 @@ const OrderManagement: React.FC = () => {
     return dH > 0 && dH <= 24;
   };
 
+  // --- FUNÇÕES DE EDIÇÃO ---
+
+  const handleAbrirEdicao = (pedidoAgrupado: any) => {
+    const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({...i, _originalQty: i.quantidade}));
+    
+    setPedidoEmEdicao(itensFormatados);
+    setDadosPedidoFixo({
+        cliente_id: pedidoAgrupado.cliente_id,
+        data_evento: pedidoAgrupado.itens[0].data_evento, 
+        data_devolucao: pedidoAgrupado.dataDevolucao
+    });
+    setModalAberto(true);
+  };
+
+  const handleAlterarQtdExistente = (index: number, novaQtd: number) => {
+    const lista = [...pedidoEmEdicao];
+    lista[index].quantidade = novaQtd;
+    setPedidoEmEdicao(lista);
+  };
+
+  const handleRemoverItemLista = (index: number) => {
+     if(!window.confirm("Tem certeza que deseja remover este item?")) return;
+     const lista = [...pedidoEmEdicao];
+     if (lista[index].id) {
+         lista[index]._deleted = true;
+     } else {
+         lista.splice(index, 1);
+     }
+     setPedidoEmEdicao(lista);
+  };
+
+  const handleAdicionarNovoItem = () => {
+    if (!novoItemSelecionado) return alert("Selecione um produto.");
+    if (novaQtdItem < 1) return alert("Quantidade inválida.");
+
+    const produtoEstoque = estoque.find(e => e.item === novoItemSelecionado);
+    if (!produtoEstoque) return;
+
+    setPedidoEmEdicao([...pedidoEmEdicao, {
+        item: produtoEstoque.item,
+        quantidade: novaQtdItem,
+        valor_total: produtoEstoque.preco * novaQtdItem,
+        codigo_item: produtoEstoque.codigo_interno,
+        _isNew: true,
+        _basePrice: produtoEstoque.preco
+    }]);
+
+    setNovoItemSelecionado('');
+    setNovaQtdItem(1);
+  };
+
+  const handleSalvarAlteracoes = async () => {
+    if (!dadosPedidoFixo) return;
+    setLoading(true);
+
+    try {
+        for (const item of pedidoEmEdicao) {
+            const produtoEstoque = estoque.find(e => e.item === item.item);
+            if (!produtoEstoque) continue;
+
+            if (item._deleted) {
+                await db.from('estoque').update({
+                    disponivel: produtoEstoque.disponivel + item._originalQty,
+                    reservado: Math.max(0, produtoEstoque.reservado - item._originalQty)
+                }).eq('id', produtoEstoque.id);
+                await db.from('reservas').delete().eq('id', item.id);
+                continue;
+            }
+
+            if (item._isNew) {
+                if (produtoEstoque.disponivel < item.quantidade) {
+                    alert(`Estoque insuficiente para adicionar: ${item.item}`);
+                    throw new Error("Estoque insuficiente");
+                }
+                await db.from('estoque').update({
+                    disponivel: produtoEstoque.disponivel - item.quantidade,
+                    reservado: produtoEstoque.reservado + item.quantidade
+                }).eq('id', produtoEstoque.id);
+                await db.from('reservas').insert([{
+                    cliente_id: dadosPedidoFixo.cliente_id,
+                    item: item.item,
+                    quantidade: item.quantidade,
+                    data_evento: dadosPedidoFixo.data_evento,
+                    data_devolucao: dadosPedidoFixo.data_devolucao,
+                    status: 'Pendente',
+                    forma_pagamento: 'Ajuste',
+                    valor_total: item.valor_total,
+                    codigo_item: item.codigo_item
+                }]);
+                continue;
+            }
+
+            if (item.quantidade !== item._originalQty) {
+                const diferenca = item.quantidade - item._originalQty;
+                if (diferenca > 0 && produtoEstoque.disponivel < diferenca) {
+                    alert(`Estoque insuficiente para aumentar qtd de: ${item.item}`);
+                    throw new Error("Estoque insuficiente");
+                }
+                await db.from('estoque').update({
+                    disponivel: produtoEstoque.disponivel - diferenca,
+                    reservado: produtoEstoque.reservado + diferenca
+                }).eq('id', produtoEstoque.id);
+
+                const precoUnitario = item.valor_total / item._originalQty;
+                const novoTotal = precoUnitario * item.quantidade;
+
+                await db.from('reservas').update({
+                    quantidade: item.quantidade,
+                    valor_total: novoTotal
+                }).eq('id', item.id);
+            }
+        }
+        alert("Pedido atualizado com sucesso!");
+        setModalAberto(false);
+        fetchData();
+    } catch (err: any) {
+        if (err.message !== "Estoque insuficiente") alert("Erro ao salvar: " + err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  // -------------------------
+
   const gerarContrato = (pedido: any) => {
     const cliente = clientes.find(c => c.id === pedido.cliente_id) || {};
     const subtotalItens = pedido.itens.reduce((acc: number, cur: any) => acc + (cur.valor_total || 0), 0);
     const taxaEntrega = pedido.itens[0].taxa_entrega || 0;
-    const totalGeral = subtotalItens + taxaEntrega;
+    
+    // --- LÓGICA DE DESCONTO NO CONTRATO ---
+    const desconto = pedido.itens[0].desconto || 0; 
+    const totalGeral = subtotalItens + taxaEntrega - desconto;
+    // --------------------------------------
     
     const dEnt = new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR');
     const dRec = new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR');
@@ -60,28 +198,39 @@ const OrderManagement: React.FC = () => {
           <title>CONTRATO - ${pedido.nomeCliente}</title>
           <style>
             @page { size: portrait; margin: 1cm; }
-            body { font-family: 'Arial', sans-serif; color: #000; line-height: 1.1; font-size: 10px; margin: 0; padding: 0; }
-            .contract-container { width: 100%; border: 2px solid #000; padding: 20px; box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
+            body { font-family: 'Arial', sans-serif; color: #000; line-height: 1.3; font-size: 14px; margin: 0; padding: 0; }
+            
+            .contract-container { width: 100%; border: 2px solid #000; padding: 25px; box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
             .company-info { width: 75%; }
-            .company-name { font-size: 20px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 5px; }
-            .company-contact { font-size: 14px; font-weight: 900; margin-bottom: 5px; }
-            .company-address { font-size: 9px; font-weight: bold; }
-            .logo-circle { width: 100px; height: 100px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
+            
+            .company-name { font-size: 26px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 5px; }
+            .company-contact { font-size: 18px; font-weight: 900; margin-bottom: 5px; }
+            .company-address { font-size: 12px; font-weight: bold; }
+            
+            .logo-circle { width: 110px; height: 110px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
             .logo-circle img { width: 100%; height: auto; object-fit: contain; }
-            .main-title { text-align: center; font-size: 32px; font-weight: 900; margin: 15px 0; letter-spacing: 12px; }
-            .client-section { font-size: 11px; margin-bottom: 15px; font-weight: bold; text-transform: uppercase; line-height: 1.4; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            th, td { border: 2px solid #000; padding: 6px; text-align: center; font-weight: 900; }
-            th { font-size: 11px; text-transform: uppercase; }
+            
+            .main-title { text-align: center; font-size: 40px; font-weight: 900; margin: 20px 0; letter-spacing: 12px; }
+            
+            .client-section { font-size: 15px; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; line-height: 1.5; }
+            
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
+            th, td { border: 2px solid #000; padding: 8px; text-align: center; font-weight: 900; }
+            th { font-size: 15px; text-transform: uppercase; background-color: #f0f0f0; }
+            td { font-size: 15px; }
+            
             .align-left { text-align: left; padding-left: 10px; }
-            .total-box { font-size: 16px; background-color: #f2f2f2; }
-            .clauses-container { font-size: 9px; text-align: justify; margin-bottom: 10px; }
-            .clause-text { margin-bottom: 6px; }
-            .obs-container { border: 1px solid #000; padding: 5px; margin: 10px 0; min-height: 40px; font-size: 10px; }
+            .total-box { font-size: 20px; background-color: #f2f2f2; }
+            
+            .clauses-container { font-size: 14px; text-align: justify; margin-bottom: 15px; }
+            .clause-text { margin-bottom: 8px; }
+            
+            .obs-container { border: 1px solid #000; padding: 8px; margin: 15px 0; min-height: 50px; font-size: 14px; }
+            
             .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 20px; }
-            .logistics-info { font-weight: 900; font-size: 12px; line-height: 1.6; }
-            .sig-line { width: 220px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 8px; font-size: 11px; }
+            .logistics-info { font-weight: 900; font-size: 16px; line-height: 1.6; }
+            .sig-line { width: 250px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 10px; font-size: 14px; }
           </style>
         </head>
         <body>
@@ -116,8 +265,18 @@ const OrderManagement: React.FC = () => {
                   <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
                   <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
                 </tr>
+                
+                ${desconto > 0 ? `
                 <tr>
-                  <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL GERAL R$</td>
+                  <td>1</td>
+                  <td class="align-left" style="color: red;">DESCONTO PROMOCIONAL</td>
+                  <td style="color: red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
+                  <td style="color: red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
+                </tr>
+                ` : ''}
+
+                <tr>
+                  <td colspan="3" style="text-align: right; border-right: none; font-size: 16px;">TOTAL GERAL R$</td>
                   <td class="total-box">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
                 </tr>
               </tbody>
@@ -210,6 +369,7 @@ const OrderManagement: React.FC = () => {
             telefone: cliente?.telefone, 
             dataDevolucao: r.data_devolucao, 
             cliente_id: r.cliente_id, 
+            idPersonalizado: cliente?.['id-client'], 
             observacoes: r.observacoes || '', 
             itens: [] 
           };
@@ -228,7 +388,7 @@ const OrderManagement: React.FC = () => {
       }, {})
   ).length;
 
-  if (loading) return <div className="p-20 text-center text-[#b24a2b] font-bold uppercase tracking-widest">Carregando Gestão...</div>;
+  if (loading && !modalAberto) return <div className="p-20 text-center text-[#b24a2b] font-bold uppercase tracking-widest">Carregando Gestão...</div>;
 
   return (
     <div className="max-w-4xl mx-auto pb-20 animate-in fade-in duration-700">
@@ -252,7 +412,7 @@ const OrderManagement: React.FC = () => {
               <div className="flex justify-between items-start mb-6">
                 <div className="flex flex-col gap-1">
                   {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
-                  <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.cliente_id}</span>
+                  <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
                 </div>
                 <div className="flex gap-2">
                   <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center"><i className="fa-brands fa-whatsapp"></i></button>
@@ -263,6 +423,14 @@ const OrderManagement: React.FC = () => {
               </div>
 
               <h3 className="font-black text-3xl text-gray-800 uppercase tracking-tighter mb-1">{pedido.nomeCliente}</h3>
+              
+              <button 
+                onClick={() => handleAbrirEdicao(pedido)}
+                className="mt-2 mb-6 border-2 border-black text-black text-[10px] font-black uppercase px-6 py-2 rounded-full hover:bg-black hover:text-white transition-all shadow-sm"
+              >
+                Editar Pedido
+              </button>
+
               <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-400'}`}>Devolução: {new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR')}</p>
               
               <div className="space-y-4 border-t border-gray-100 pt-8 mb-6">
@@ -272,7 +440,6 @@ const OrderManagement: React.FC = () => {
                       <span className="uppercase text-gray-500 italic">• {i.item} <span className="text-blue-600 font-bold ml-2">[{i.codigo_item || 'S/C'}]</span></span>
                       <span className="font-black text-gray-900">x{i.quantidade}</span>
                     </div>
-                    {/* RESTAURADO: EXIBIÇÃO DO CÓDIGO INTERNO ABAIXO DO ITEM */}
                     <span className="text-[9px] text-gray-400 font-bold uppercase ml-4">CÓDIGO INTERNO: {i.codigo_item || 'S/C'}</span>
                   </div>
                 ))}
@@ -288,6 +455,91 @@ const OrderManagement: React.FC = () => {
           );
         })}
       </div>
+
+      {/* --- MODAL DE EDIÇÃO DE PEDIDO --- */}
+      {modalAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[35px] p-8 w-full max-w-2xl shadow-2xl border border-gray-100 animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+                <div className="flex justify-between items-start mb-6">
+                    <div>
+                        <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {new Date(dadosPedidoFixo?.data_evento).toLocaleDateString()}</p>
+                    </div>
+                    <button onClick={() => setModalAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+                </div>
+
+                <div className="bg-gray-50 rounded-3xl p-6 mb-6">
+                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens no Pedido</h4>
+                    <div className="space-y-3">
+                        {pedidoEmEdicao.map((item, idx) => {
+                            if (item._deleted) return null; 
+                            return (
+                                <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
+                                    <div className="flex-1">
+                                        <p className="text-xs font-black text-gray-700 uppercase">{item.item} {item._isNew && <span className="text-green-500 text-[8px] ml-2">(NOVO)</span>}</p>
+                                    </div>
+                                    <div className="flex items-center gap-4">
+                                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg">
+                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Qtd:</span>
+                                            <input 
+                                                type="number" 
+                                                className="w-12 bg-transparent text-center font-black text-sm outline-none"
+                                                value={item.quantidade}
+                                                min="1"
+                                                onChange={(e) => handleAlterarQtdExistente(idx, parseInt(e.target.value))}
+                                            />
+                                        </div>
+                                        <button onClick={() => handleRemoverItemLista(idx)} className="text-red-400 hover:text-red-600 transition-colors">
+                                            <i className="fa-solid fa-trash-can"></i>
+                                        </button>
+                                    </div>
+                                </div>
+                            );
+                        })}
+                        {pedidoEmEdicao.filter(i => !i._deleted).length === 0 && <p className="text-center text-xs text-gray-400 italic">Nenhum item neste pedido.</p>}
+                    </div>
+                </div>
+
+                <div className="border-t border-dashed border-gray-200 pt-6 mb-8">
+                    <h4 className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest mb-4">+ Adicionar Novo Item</h4>
+                    <div className="flex gap-3">
+                        <select 
+                            className="flex-1 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-600"
+                            value={novoItemSelecionado}
+                            onChange={(e) => setNovoItemSelecionado(e.target.value)}
+                        >
+                            <option value="">Selecione um produto...</option>
+                            {estoque.map(e => (
+                                <option key={e.id} value={e.item}>
+                                    {e.item} (Disp: {e.disponivel})
+                                </option>
+                            ))}
+                        </select>
+                        <input 
+                            type="number" 
+                            min="1"
+                            placeholder="Qtd"
+                            className="w-20 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-center"
+                            value={novaQtdItem}
+                            onChange={(e) => setNovaQtdItem(parseInt(e.target.value))}
+                        />
+                        <button 
+                            onClick={handleAdicionarNovoItem}
+                            className="bg-green-500 hover:bg-green-600 text-white w-12 rounded-xl flex items-center justify-center transition-all shadow-lg"
+                        >
+                            <i className="fa-solid fa-plus"></i>
+                        </button>
+                    </div>
+                </div>
+
+                <div className="flex gap-3">
+                    <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+                    <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };

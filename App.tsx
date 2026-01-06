@@ -28,7 +28,7 @@ const App: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === 'claudia2025') {
+    if (passwordInput === '123456') {
       setIsAuthenticated(true);
       setError(false);
       sessionStorage.setItem('claudia_auth', 'true');

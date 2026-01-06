@@ -6,9 +6,10 @@ const ReservationForm: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // Estados para o Modal de Frete
+  // Estados para o Modal de Frete e Desconto
   const [showFreteModal, setShowFreteModal] = useState(false);
   const [freteAjustado, setFreteAjustado] = useState(0);
+  const [desconto, setDesconto] = useState(0); 
 
   const [itensSelecionados, setItensSelecionados] = useState([{ item: '', quantidade: 1 }]);
   
@@ -47,7 +48,6 @@ const ReservationForm: React.FC = () => {
     setItensSelecionados(novaLista);
   };
 
-  // Calcula o valor apenas dos produtos
   const calcularSubtotal = () => {
     return itensSelecionados.reduce((acc, current) => {
       const itemEstoque = estoque.find(i => i.item === current.item);
@@ -55,7 +55,6 @@ const ReservationForm: React.FC = () => {
     }, 0);
   };
 
-  // Gatilho para abrir o modal de frete
   const handleAbrirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reservaGeral.clienteId || !reservaGeral.data || !reservaGeral.dataDevolucao) {
@@ -65,12 +64,44 @@ const ReservationForm: React.FC = () => {
     setShowFreteModal(true);
   };
 
+  // --- FUNÇÃO: GERAR ARQUIVO DE CALENDÁRIO (.ics) ---
+  const gerarArquivoCalendario = () => {
+    const cliente = clientes.find(c => c.id == reservaGeral.clienteId)?.cliente || "Cliente";
+    const itensDescricao = itensSelecionados.map(i => `${i.quantidade}x ${i.item}`).join('\\n');
+    const formatData = (dataStr: string) => dataStr.replace(/-/g, '');
+    
+    const titulo = `ENTREGA: ${cliente}`;
+    const descricao = `Itens Alugados:\\n${itensDescricao}\\n\\nObs: ${reservaGeral.observacoes}`;
+    const inicio = formatData(reservaGeral.data);
+    const fim = formatData(reservaGeral.dataDevolucao);
+
+    const icsContent = `BEGIN:VCALENDAR
+VERSION:2.0
+PRODID:-//ClaudiaFestas//Gestao//PT
+BEGIN:VEVENT
+UID:${new Date().getTime()}@claudiafestas.com
+DTSTAMP:${formatData(new Date().toISOString().split('T')[0])}T000000Z
+DTSTART;VALUE=DATE:${inicio}
+DTEND;VALUE=DATE:${fim}
+SUMMARY:${titulo}
+DESCRIPTION:${descricao}
+END:VEVENT
+END:VCALENDAR`;
+
+    const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
+    const link = document.createElement('a');
+    link.href = window.URL.createObjectURL(blob);
+    link.setAttribute('download', `reserva_${cliente.replace(/\s+/g, '_')}.ics`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   const finalizarPedidoCompleto = async () => {
     setLoading(true);
     setShowFreteModal(false);
 
     try {
-      // 1. Validação de estoque
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
         if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
@@ -82,11 +113,11 @@ const ReservationForm: React.FC = () => {
         }
       }
 
-      // 2. Processamento e Inserção
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
         const valorItemTotal = selecionado.quantidade * itemEstoque.preco;
 
+        // AGORA SALVA NA COLUNA "desconto" QUE VOCÊ CRIOU
         const { error: erroReserva } = await db.from('reservas').insert([{
           cliente_id: parseInt(reservaGeral.clienteId),
           item: selecionado.item,
@@ -96,7 +127,8 @@ const ReservationForm: React.FC = () => {
           status: 'Pendente',
           forma_pagamento: 'Não Informado',
           valor_total: valorItemTotal,
-          taxa_entrega: freteAjustado, // Salvando o frete ajustado
+          taxa_entrega: freteAjustado,
+          desconto: desconto, // <--- Aqui está o segredo
           codigo_item: itemEstoque.codigo_interno || 'S/C',
           observacoes: reservaGeral.observacoes 
         }]);
@@ -117,7 +149,6 @@ const ReservationForm: React.FC = () => {
         }]);
       }
 
-      // 3. Registrar o frete no caixa separadamente se houver valor
       if (freteAjustado > 0) {
         await db.from('movimentacao_caixa').insert([{
           descricao: `Taxa de Entrega - Pedido Cliente ID: ${reservaGeral.clienteId}`,
@@ -128,11 +159,24 @@ const ReservationForm: React.FC = () => {
         }]);
       }
 
-      alert(`🎉 Pedido finalizado com sucesso!`);
+      if (desconto > 0) {
+        await db.from('movimentacao_caixa').insert([{
+          descricao: `Desconto Aplicado - Pedido Cliente ID: ${reservaGeral.clienteId}`,
+          valor: desconto,
+          tipo: 'Despesa',
+          cliente_id: parseInt(reservaGeral.clienteId),
+          data: new Date().toISOString()
+        }]);
+      }
+
+      if(window.confirm("🎉 Pedido Salvo! Deseja adicionar à agenda do computador?")) {
+          gerarArquivoCalendario();
+      }
       
       setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
+      setDesconto(0); 
       await carregarDados();
       
     } catch (err: any) {
@@ -239,16 +283,16 @@ const ReservationForm: React.FC = () => {
         </div>
       </form>
 
-      {/* MODAL DE CONFIRMAÇÃO DE FRETE */}
+      {/* MODAL DE CONFIRMAÇÃO DE FRETE E DESCONTO */}
       {showFreteModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-[40px] p-8 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
             <div className="text-center mb-6">
               <h2 className="text-xl font-black text-gray-800 uppercase italic">Confirmar Frete</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Ajuste o valor antes de finalizar</p>
+              <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Ajuste valores antes de finalizar</p>
             </div>
 
-            <div className="space-y-6">
+            <div className="space-y-4">
               <div className="flex flex-col items-center">
                 <label className="text-[9px] font-black text-[#b24a2b] uppercase mb-2">Valor do Frete (R$)</label>
                 <input 
@@ -261,18 +305,43 @@ const ReservationForm: React.FC = () => {
                 />
               </div>
 
+              <div className="flex flex-col items-center">
+                <label className="text-[9px] font-black text-green-600 uppercase mb-2">Desconto para Cliente (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="w-full p-4 bg-green-50 border-2 border-green-200 rounded-2xl text-center font-black text-2xl text-green-600 outline-none"
+                  value={desconto}
+                  onChange={(e) => setDesconto(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+
               <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
                 <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-2">
                   <span>Subtotal Itens:</span>
                   <span>R$ {calcularSubtotal().toFixed(2).replace('.', ',')}</span>
                 </div>
+                {desconto > 0 && (
+                   <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
+                     <span>Desconto:</span>
+                     <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
+                   </div>
+                )}
                 <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
                   <span>Total Geral:</span>
-                  <span className="text-[#b24a2b]">R$ {(calcularSubtotal() + freteAjustado).toFixed(2).replace('.', ',')}</span>
+                  <span className="text-[#b24a2b]">R$ {(calcularSubtotal() + freteAjustado - desconto).toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
 
-              <div className="flex gap-3">
+              <button 
+                type="button" 
+                onClick={gerarArquivoCalendario}
+                className="w-full p-3 mb-2 bg-blue-50 text-blue-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-calendar-days"></i> Baixar Arquivo de Agenda
+              </button>
+
+              <div className="flex gap-3 pt-2">
                 <button 
                   onClick={() => setShowFreteModal(false)} 
                   className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
