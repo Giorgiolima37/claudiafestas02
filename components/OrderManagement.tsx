@@ -293,7 +293,7 @@ const OrderManagement: React.FC = () => {
               <strong>OBS:</strong> ${pedido.observacoes || '____________________________________________________________________________________________________________________________________________________________________________________________________________________'}
             </div>
             <div class="footer-contract">
-              <div class="logistics-info">ENTREGAR: ${dEnt} SABADO<br>RECOLHER: ${dRec} DOMINGO</div>
+              <div class="logistics-info">ENTREGAR: ${dEnt}<br>RECOLHER: ${dRec}</div>
               <div class="sig-line">LOCATÁRIO</div>
               <div class="sig-line">CLAUDIA FESTAS</div>
             </div>
