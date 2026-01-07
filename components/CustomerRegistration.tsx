@@ -71,7 +71,14 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <FormInput label="NOME DO CLIENTE" id="nome" value={formData.nome} onChange={handleChange} required />
           <FormInput label="TELEFONE" id="tel" value={formData.tel} onChange={handleChange} required />
-          <FormInput label="DOCUMENTO / CPF" id="doc" value={formData.doc} onChange={handleChange} required />
+          <FormInput 
+            label="DOCUMENTO (CPF / CNPJ)" 
+            id="doc" 
+            value={formData.doc} 
+            onChange={handleChange} 
+            required
+            maxLength={18} // Limite suficiente para CNPJ formatado (XX.XXX.XXX/0001-XX)
+          />
           <FormInput label="BAIRRO" id="bairro" value={formData.bairro} onChange={handleChange} required />
         </div>
         
@@ -96,7 +103,7 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
   );
 };
 
-const FormInput: React.FC<{ label: string; id: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean }> = ({ label, id, value, onChange, required }) => (
+const FormInput: React.FC<{ label: string; id: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean; maxLength?: number }> = ({ label, id, value, onChange, required, maxLength }) => (
   <div className="flex flex-col group w-full">
     <label htmlFor={id} className="text-[10px] font-bold text-gray-400 ml-2 mb-1 uppercase tracking-widest group-focus-within:text-[#b24a2b]">
       {label}
@@ -106,6 +113,7 @@ const FormInput: React.FC<{ label: string; id: string; value: string; onChange: 
       value={value}
       onChange={onChange}
       required={required}
+      maxLength={maxLength}
       className="w-full p-3.5 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-[#f2c6b4] focus:bg-white outline-none transition-all text-sm"
     />
   </div>

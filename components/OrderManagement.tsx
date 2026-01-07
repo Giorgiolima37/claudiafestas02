@@ -189,6 +189,13 @@ const OrderManagement: React.FC = () => {
     const dEnt = new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR');
     const dRec = new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR');
 
+    // --- NOVA LÓGICA: DETECTAR CPF OU CNPJ ---
+    // Remove tudo que não for número para contar
+    const documentoLimpo = (cliente.documento || '').replace(/\D/g, '');
+    // Se tiver mais de 11 números, assume que é CNPJ
+    const labelDocumento = documentoLimpo.length > 11 ? 'CNPJ' : 'CPF';
+    // -----------------------------------------
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -197,40 +204,55 @@ const OrderManagement: React.FC = () => {
         <head>
           <title>CONTRATO - ${pedido.nomeCliente}</title>
           <style>
-            @page { size: portrait; margin: 1cm; }
-            body { font-family: 'Arial', sans-serif; color: #000; line-height: 1.3; font-size: 14px; margin: 0; padding: 0; }
+            @page { size: portrait; margin: 1.2cm; }
+            body { 
+                font-family: 'Arial', sans-serif; 
+                color: #000; 
+                line-height: 1.4; 
+                font-size: 13px;
+                margin: 0; padding: 0; 
+            }
             
-            .contract-container { width: 100%; border: 2px solid #000; padding: 25px; box-sizing: border-box; min-height: 98vh; display: flex; flex-direction: column; }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 15px; }
-            .company-info { width: 75%; }
+            .contract-container { 
+                width: 100%; 
+                border: 1px solid #000; 
+                padding: 20px; 
+                box-sizing: border-box; 
+                min-height: 98vh;
+                display: flex; 
+                flex-direction: column; 
+            }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+            .company-info { width: 80%; }
             
-            .company-name { font-size: 26px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 5px; }
-            .company-contact { font-size: 18px; font-weight: 900; margin-bottom: 5px; }
+            .company-name { font-size: 24px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 5px; }
+            .company-contact { font-size: 16px; font-weight: 900; margin-bottom: 5px; }
             .company-address { font-size: 12px; font-weight: bold; }
             
-            .logo-circle { width: 110px; height: 110px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
+            .logo-circle { width: 90px; height: 90px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
             .logo-circle img { width: 100%; height: auto; object-fit: contain; }
             
-            .main-title { text-align: center; font-size: 40px; font-weight: 900; margin: 20px 0; letter-spacing: 12px; }
+            .main-title { text-align: center; font-size: 30px; font-weight: 900; margin: 20px 0; letter-spacing: 5px; }
             
-            .client-section { font-size: 15px; margin-bottom: 20px; font-weight: bold; text-transform: uppercase; line-height: 1.5; }
+            .intro-text { font-size: 20px; margin-bottom: 20px; text-align: justify; line-height: 1.5; }
+            .intro-text strong { text-transform: uppercase; }
             
-            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; }
-            th, td { border: 2px solid #000; padding: 8px; text-align: center; font-weight: 900; }
-            th { font-size: 15px; text-transform: uppercase; background-color: #f0f0f0; }
-            td { font-size: 15px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
+            th, td { border: 1px solid #000; padding: 8px; text-align: center; font-weight: 900; }
+            th { font-size: 13px; text-transform: uppercase; background-color: #f0f0f0; }
+            td { font-size: 13px; }
             
             .align-left { text-align: left; padding-left: 10px; }
-            .total-box { font-size: 20px; background-color: #f2f2f2; }
+            .total-box { font-size: 15px; background-color: #f2f2f2; }
             
-            .clauses-container { font-size: 14px; text-align: justify; margin-bottom: 15px; }
-            .clause-text { margin-bottom: 8px; }
+            .clauses-container { font-size: 20px; text-align: justify; margin-bottom: 20px; line-height: 1.4; }
+            .clause-text { margin-bottom: 10px; }
             
-            .obs-container { border: 1px solid #000; padding: 8px; margin: 15px 0; min-height: 50px; font-size: 14px; }
+            .obs-container { border: 1px solid #000; padding: 10px; margin: 20px 0; min-height: 50px; font-size: 13px; }
             
-            .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 20px; }
-            .logistics-info { font-weight: 900; font-size: 16px; line-height: 1.6; }
-            .sig-line { width: 250px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 10px; font-size: 14px; }
+            .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 10px; }
+            .logistics-info { font-weight: 900; font-size: 14px; line-height: 1.5; }
+            .sig-line { width: 250px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 10px; font-size: 13px; }
           </style>
         </head>
         <body>
@@ -243,13 +265,18 @@ const OrderManagement: React.FC = () => {
               </div>
               <div class="logo-circle"><img src="${logoImg}" alt="Logo"></div>
             </div>
+            
             <div class="main-title">CONTRATO</div>
-            <div class="client-section">
-              LOCATÁRIO: ${pedido.nomeCliente.toUpperCase()} | CEL: ${pedido.telefone || '________________'}<br>
-              ENDEREÇO: ${cliente.endereco || '____________________________________________________'}<br>
+
+            <div class="intro-text">
+              Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, ${labelDocumento}: <strong>${cliente.documento || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante descritos, sobre as cláusulas e condições seguintes).<br>
+              Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
             </div>
+            
+            <div style="font-weight:bold; font-size:13px; margin-bottom:5px;">DESCRIÇÃO DO BEM</div>
+
             <table>
-              <thead><tr><th width="40">QTD</th><th>DESCRIÇÃO DO BEM</th><th width="100">VALOR U.</th><th width="120">VALOR TOTAL</th></tr></thead>
+              <thead><tr><th width="50">QTD</th><th>DESCRIÇÃO</th><th width="100">VALOR U.</th><th width="110">TOTAL</th></tr></thead>
               <tbody>
                 ${pedido.itens.map((i: any) => `
                   <tr>
@@ -276,21 +303,23 @@ const OrderManagement: React.FC = () => {
                 ` : ''}
 
                 <tr>
-                  <td colspan="3" style="text-align: right; border-right: none; font-size: 16px;">TOTAL GERAL R$</td>
+                  <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL GERAL R$</td>
                   <td class="total-box">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
                 </tr>
               </tbody>
             </table>
+            
             <div class="clauses-container">
-              <div class="clause-text"><strong>Cláusula 1ª:</strong> Bens em bom estado de conservação de propriedade da LOCADORA.</div>
-              <div class="clause-text"><strong>Cláusula 2ª:</strong> O LOCATÁRIO obriga-se a devolver os bens nas mesmas condições recebidas.</div>
-              <div class="clause-text"><strong>Cláusula 3ª:</strong> O período de locação é o estipulado neste documento.</div>
-              <div class="clause-text"><strong>Cláusula 4ª:</strong> A devolução fora do prazo acarretará multa de 50% da diária por dia de atraso.</div>
-              <div class="clause-text"><strong>Cláusula 5ª:</strong> Quebras: Mesa R$80 - Cadeira R$45 - Prato R$15 - Talher R$8 - Taça R$10.</div>
-              <div class="clause-text"><strong>Cláusula 6ª:</strong> Louça deve retornar lavada ou taxa de 50%.</div>
+              <div class="clause-text"><strong>Cláusula 1ª.</strong> O presente contrato tem como utensílios para a festa, todas em bom estado de conservação e limpeza, de propriedade da LOCADORA, que serão locadas ao (à) LOCATÁRIO (a).</div>
+              <div class="clause-text"><strong>Cláusula 2ª.</strong> É vedado ao (à) LOCATÁRIO (a) transferir, sublocar, ceder ou emprestar os bens ora locados a terceiros.</div>
+              <div class="clause-text"><strong>Cláusula 3ª.</strong> A locação terá duração conforme data abaixo descrita quando os bens serão entregues pelo (a) LOCADOR (A) no endereço indicado pelo (a) LOCATÁRIO, e finalizando no dia combinada abaixo quando os bens serão retirados pelo (a) LOCADOR (a).</div>
+              <div class="clause-text"><strong>Cláusula 4ª.</strong> A LOCADORA se isenta de qualquer erro de manuseio do usuário LOCATÁRIO, que venha acarretar acidentes durante a locação.</div>
+              <div class="clause-text"><strong>Cláusula 5ª.</strong> Na quebra de utensílios será cobrado. (Mesa R$80,00 - cadeira R$ 45,00 - prato R$ 15,00 - talher unid. R$ 8,00 – taça R$ 10,00 - toalha Oxford 1,50mt. R$ 25,00 - toalha Oxford 2,80mt. 35,00 - toalha amas. 2,80mt R$ 25,00. (Outros produtos serão avaliados o valor)</div>
+              <div class="clause-text"><strong>Cláusula 6ª.</strong> Uso da louça: toda louça deverá ser devolvida lavada, caso não retorne lavada será cobrado a 50% locação de cada item devolvido sujo.</div>
             </div>
+
             <div class="obs-container">
-              <strong>OBS:</strong> ${pedido.observacoes || '____________________________________________________________________________________________________________________________________________________________________________________________________________________'}
+              <strong>OBS:</strong> ${pedido.observacoes || '____________________________________________________________________________________________________________________________________________________________________________________'}
             </div>
             <div class="footer-contract">
               <div class="logistics-info">ENTREGAR: ${dEnt}<br>RECOLHER: ${dRec}</div>
