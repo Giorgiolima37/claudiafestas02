@@ -10,7 +10,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
   const menuItems = [
     { id: 'LISTAGEM', label: 'Clientes', icon: 'fa-users' },
     { id: 'RESERVA', label: 'Reservas', icon: 'fa-calendar-check' },
-    { id: 'PEDIDOS', label: 'Pedidos', icon: 'fa-rectangle-list' }, // Botão reativado abaixo de Reservas
+    { id: 'PEDIDOS', label: 'Pedidos', icon: 'fa-rectangle-list' }, 
     { id: 'ESTOQUE', label: 'Estoque', icon: 'fa-boxes-stacked' },
     { id: 'CAIXA', label: 'Caixa', icon: 'fa-file-invoice-dollar' },
     { id: 'NFSe-Biguaçu', label: 'NFSe-Biguaçu', icon: 'fa-file-shield' }
@@ -27,7 +27,13 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.id as Screen)}
+            onClick={() => {
+              if (item.id === 'NFSe-Biguaçu') {
+                window.open('https://nfse-bigua.atende.net/autoatendimento/servicos/nfse?redirected=1', '_blank');
+              } else {
+                onNavigate(item.id as Screen);
+              }
+            }}
             className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all duration-300 ${
               activeScreen === item.id 
                 ? 'bg-white text-[#B24D2D] shadow-lg scale-105' 

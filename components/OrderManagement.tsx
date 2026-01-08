@@ -255,26 +255,26 @@ const OrderManagement: React.FC = () => {
             .logo-circle { width: 90px; height: 90px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
             .logo-circle img { width: 100%; height: auto; object-fit: contain; }
             
-            .main-title { text-align: center; font-size: 30px; font-weight: 900; margin: 20px 0; letter-spacing: 5px; }
+            .main-title { text-align: center; font-size: 20px; font-weight: 900; margin: 20px 0; letter-spacing: 5px; }
             
-            .intro-text { font-size: 20px; margin-bottom: 20px; text-align: justify; line-height: 1.5; }
+            .intro-text { font-size: 10px; margin-bottom: 20px; text-align: justify; line-height: 1.5; }
             .intro-text strong { text-transform: uppercase; }
             
             table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
             th, td { border: 1px solid #000; padding: 8px; text-align: center; font-weight: 900; }
-            th { font-size: 13px; text-transform: uppercase; background-color: #f0f0f0; }
-            td { font-size: 13px; }
+            th { font-size: 10px; text-transform: uppercase; background-color: #f0f0f0; }
+            td { font-size: 10px; }
             
             .align-left { text-align: left; padding-left: 10px; }
-            .total-box { font-size: 15px; background-color: #f2f2f2; }
+            .total-box { font-size: 12px; background-color: #f2f2f2; }
             
-            .clauses-container { font-size: 20px; text-align: justify; margin-bottom: 20px; line-height: 1.4; }
+            .clauses-container { font-size: 10px; text-align: justify; margin-bottom: 20px; line-height: 1.4; }
             .clause-text { margin-bottom: 10px; }
             
             .obs-container { border: 1px solid #000; padding: 10px; margin: 20px 0; min-height: 50px; font-size: 13px; }
             
             .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 10px; }
-            .logistics-info { font-weight: 900; font-size: 14px; line-height: 1.5; }
+            .logistics-info { font-weight: 900; font-size: 10px; line-height: 1.5; }
             .sig-line { width: 250px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 10px; font-size: 13px; }
           </style>
         </head>
