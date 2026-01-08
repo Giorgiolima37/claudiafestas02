@@ -37,16 +37,32 @@ const OrderManagement: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // --- NOVA FUNÇÃO PARA CORRIGIR DATA (REMOVE O PROBLEMA DO DIA ANTERIOR) ---
+  const formatarDataBR = (dataString: string) => {
+    if (!dataString) return '--/--/----';
+    // Pega apenas a parte YYYY-MM-DD e ignora o horário/fuso
+    const parteData = dataString.split('T')[0]; 
+    const [ano, mes, dia] = parteData.split('-');
+    return `${dia}/${mes}/${ano}`;
+  };
+  // -------------------------------------------------------------------------
+
   const verificarAtraso = (dataDevolucao: string) => {
     const hoje = new Date();
     hoje.setHours(0, 0, 0, 0);
-    const dataDev = new Date(dataDevolucao);
+    // Para comparação lógica, usamos new Date, mas para exibição usamos a formatarDataBR
+    const dataDev = new Date(dataDevolucao); 
+    // Ajuste de fuso apenas para comparação correta
+    dataDev.setMinutes(dataDev.getMinutes() + dataDev.getTimezoneOffset());
+    
     return hoje > dataDev;
   };
 
   const verificarUrgencia = (dataDevolucao: string) => {
     const hoje = new Date();
     const dataDev = new Date(dataDevolucao);
+    dataDev.setMinutes(dataDev.getMinutes() + dataDev.getTimezoneOffset());
+    
     const dMs = dataDev.getTime() - hoje.getTime();
     const dH = dMs / (1000 * 60 * 60);
     return dH > 0 && dH <= 24;
@@ -186,15 +202,22 @@ const OrderManagement: React.FC = () => {
     const totalGeral = subtotalItens + taxaEntrega - desconto;
     // --------------------------------------
     
-    const dEnt = new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR');
-    const dRec = new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR');
+    const dEnt = formatarDataBR(pedido.itens[0].data_evento);
+    const dRec = formatarDataBR(pedido.dataDevolucao);
 
-    // --- NOVA LÓGICA: DETECTAR CPF OU CNPJ ---
-    // Remove tudo que não for número para contar
-    const documentoLimpo = (cliente.documento || '').replace(/\D/g, '');
-    // Se tiver mais de 11 números, assume que é CNPJ
-    const labelDocumento = documentoLimpo.length > 11 ? 'CNPJ' : 'CPF';
-    // -----------------------------------------
+    // --- NOVA LÓGICA: DIA DA SEMANA ---
+    const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
+    
+    const getDiaSemana = (dataStr: string) => {
+       if (!dataStr) return '';
+       const d = new Date(dataStr);
+       d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
+       return diasSemana[d.getDay()];
+    };
+
+    const diaSemanaEnt = getDiaSemana(pedido.itens[0].data_evento);
+    const diaSemanaRec = getDiaSemana(pedido.dataDevolucao);
+    // ----------------------------------
 
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -269,11 +292,14 @@ const OrderManagement: React.FC = () => {
             <div class="main-title">CONTRATO</div>
 
             <div class="intro-text">
-              Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, ${labelDocumento}: <strong>${cliente.documento || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante descritos, sobre as cláusulas e condições seguintes).<br>
+              Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, Município: <strong>${cliente.municipio || '_________________'}</strong>, tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante descritos, sobre as cláusulas e condições seguintes).<br>
               Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
             </div>
             
-            <div style="font-weight:bold; font-size:13px; margin-bottom:5px;">DESCRIÇÃO DO BEM</div>
+            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2px;">
+                <div style="font-weight:bold; font-size:13px;">DESCRIÇÃO DO BEM</div>
+                <div style="font-weight:bold; font-size:14px;">Telefone do cliente: ${pedido.telefone || cliente.telefone || '________________'}</div>
+            </div>
 
             <table>
               <thead><tr><th width="50">QTD</th><th>DESCRIÇÃO</th><th width="100">VALOR U.</th><th width="110">TOTAL</th></tr></thead>
@@ -315,14 +341,16 @@ const OrderManagement: React.FC = () => {
               <div class="clause-text"><strong>Cláusula 3ª.</strong> A locação terá duração conforme data abaixo descrita quando os bens serão entregues pelo (a) LOCADOR (A) no endereço indicado pelo (a) LOCATÁRIO, e finalizando no dia combinada abaixo quando os bens serão retirados pelo (a) LOCADOR (a).</div>
               <div class="clause-text"><strong>Cláusula 4ª.</strong> A LOCADORA se isenta de qualquer erro de manuseio do usuário LOCATÁRIO, que venha acarretar acidentes durante a locação.</div>
               <div class="clause-text"><strong>Cláusula 5ª.</strong> Na quebra de utensílios será cobrado. (Mesa R$80,00 - cadeira R$ 45,00 - prato R$ 15,00 - talher unid. R$ 8,00 – taça R$ 10,00 - toalha Oxford 1,50mt. R$ 25,00 - toalha Oxford 2,80mt. 35,00 - toalha amas. 2,80mt R$ 25,00. (Outros produtos serão avaliados o valor)</div>
-              <div class="clause-text"><strong>Cláusula 6ª.</strong> Uso da louça: toda louça deverá ser devolvida lavada, caso não retorne lavada será cobrado a 50% locação de cada item devolvido sujo.</div>
             </div>
 
             <div class="obs-container">
               <strong>OBS:</strong> ${pedido.observacoes || '____________________________________________________________________________________________________________________________________________________________________________________'}
             </div>
             <div class="footer-contract">
-              <div class="logistics-info">ENTREGAR: ${dEnt}<br>RECOLHER: ${dRec}</div>
+              <div class="logistics-info">
+                ENTREGAR: ${dEnt} <span style="color: #1e40af;">${diaSemanaEnt}</span><br>
+                RECOLHER: ${dRec} <span style="color: #1e40af;">${diaSemanaRec}</span>
+              </div>
               <div class="sig-line">LOCATÁRIO</div>
               <div class="sig-line">CLAUDIA FESTAS</div>
             </div>
@@ -460,7 +488,8 @@ const OrderManagement: React.FC = () => {
                 Editar Pedido
               </button>
 
-              <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-400'}`}>Devolução: {new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR')}</p>
+              {/* CORREÇÃO NA EXIBIÇÃO DA DATA NO CARD */}
+              <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-400'}`}>Devolução: {formatarDataBR(pedido.dataDevolucao)}</p>
               
               <div className="space-y-4 border-t border-gray-100 pt-8 mb-6">
                 {pedido.itens.map((i: any) => (
@@ -492,7 +521,8 @@ const OrderManagement: React.FC = () => {
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {new Date(dadosPedidoFixo?.data_evento).toLocaleDateString()}</p>
+                        {/* CORREÇÃO NA EXIBIÇÃO DA DATA NO MODAL */}
+                        <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
                     </div>
                     <button onClick={() => setModalAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
                 </div>

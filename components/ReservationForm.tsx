@@ -22,7 +22,10 @@ const ReservationForm: React.FC = () => {
 
   const carregarDados = async () => {
     const resClientes = await db.from('cadastro').select('id, cliente');
-    const resEstoque = await db.from('estoque').select('id, item, disponivel, reservado, preco, codigo_interno');
+    // Alteração solicitada: ordenar o estoque por nome do item (ordem alfabética)
+    const resEstoque = await db.from('estoque')
+      .select('id, item, disponivel, reservado, preco, codigo_interno')
+      .order('item', { ascending: true });
     
     if (resClientes.data) setClientes(resClientes.data);
     if (resEstoque.data) setEstoque(resEstoque.data);
@@ -31,6 +34,17 @@ const ReservationForm: React.FC = () => {
   useEffect(() => {
     carregarDados();
   }, []);
+
+  // --- FUNÇÃO PARA OBTER O DIA DA SEMANA ---
+  const obterDiaDaSemana = (dataString: string) => {
+    if (!dataString) return '';
+    const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    // Cria a data ajustando o fuso horário para pegar o dia correto
+    const date = new Date(dataString);
+    date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
+    return dias[date.getDay()];
+  };
+  // -----------------------------------------
 
   const adicionarLinhaItem = () => {
     setItensSelecionados([...itensSelecionados, { item: '', quantidade: 1 }]);
@@ -204,11 +218,17 @@ END:VCALENDAR`;
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Data de Aluguel</label>
             <input type="date" required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold focus:border-[#b24a2b] transition-all" value={reservaGeral.data} onChange={(e) => setReservaGeral({...reservaGeral, data: e.target.value})} />
+            {reservaGeral.data && (
+                <span className="text-[10px] font-bold text-blue-600 ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.data)}</span>
+            )}
           </div>
 
           <div className="flex flex-col relative">
             <label className="text-[10px] font-black text-[#b24a2b] ml-4 mb-2 uppercase tracking-widest">Data de Devolução</label>
             <input type="date" required className="w-full p-4 bg-orange-50 border-2 border-[#f2c6b4] rounded-2xl outline-none font-bold text-[#b24a2b] focus:border-[#b24a2b] transition-all" value={reservaGeral.dataDevolucao} onChange={(e) => setReservaGeral({...reservaGeral, dataDevolucao: e.target.value})} />
+            {reservaGeral.dataDevolucao && (
+                <span className="text-[10px] font-bold text-[#b24a2b] ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataDevolucao)}</span>
+            )}
           </div>
         </div>
 

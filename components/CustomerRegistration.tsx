@@ -6,8 +6,8 @@ interface RegistrationProps {
 }
 
 const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
-  // Adicionei o idClient no estado inicial
-  const [formData, setFormData] = useState({ nome: '', tel: '', doc: '', end: '', bairro: '', idClient: '' });
+  // Mantive o estado interno como 'doc' para não quebrar a lógica, apenas mudei o envio
+  const [formData, setFormData] = useState({ nome: '', tel: '', doc: '', end: '', bairro: '', municipio: '', idClient: '' });
   const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -19,7 +19,6 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
       if (formData.idClient && formData.idClient.trim() !== '') {
         const idParaVerificar = formData.idClient.trim();
 
-        // Consulta o banco para ver se o ID existe
         const { data: duplicados, error: erroBusca } = await db
           .from('cadastro')
           .select('id')
@@ -27,11 +26,10 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
 
         if (erroBusca) throw erroBusca;
 
-        // Se encontrou algum registro, bloqueia e avisa
         if (duplicados && duplicados.length > 0) {
           alert(`⛔ BLOQUEADO: O ID "${idParaVerificar}" já pertence a outro cliente!\n\nPor favor, escolha um número diferente.`);
           setLoading(false);
-          return; // Para tudo aqui, não deixa salvar
+          return; 
         }
       }
       // ------------------------------------
@@ -39,10 +37,11 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
       const { error } = await db.from("cadastro").insert([{ 
         cliente: formData.nome,
         telefone: formData.tel,
-        documento: formData.doc,
+        'identificação': formData.doc, // Alterado para salvar na coluna correta do banco
         endereco: formData.end,
         bairro: formData.bairro,
-        'id-client': formData.idClient // Salva o ID verificado
+        municipio: formData.municipio, 
+        'id-client': formData.idClient
       }]);
 
       if (error) throw error;
@@ -72,19 +71,24 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
           <FormInput label="NOME DO CLIENTE" id="nome" value={formData.nome} onChange={handleChange} required />
           <FormInput label="TELEFONE" id="tel" value={formData.tel} onChange={handleChange} required />
           <FormInput 
-            label="DOCUMENTO (CPF / CNPJ)" 
+            label="IDENTIFICAÇÃO" 
             id="doc" 
             value={formData.doc} 
             onChange={handleChange} 
             required
-            maxLength={18} // Limite suficiente para CNPJ formatado (XX.XXX.XXX/0001-XX)
+            maxLength={18} 
           />
-          <FormInput label="BAIRRO" id="bairro" value={formData.bairro} onChange={handleChange} required />
+          <FormInput label="ENDEREÇO COMPLETO" id="end" value={formData.end} onChange={handleChange} required />
         </div>
         
-        {/* Campo de ID Adicionado */}
+        {/* Nova linha para Bairro e Município */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
-             <FormInput label="ENDEREÇO COMPLETO" id="end" value={formData.end} onChange={handleChange} required />
+             <FormInput label="BAIRRO" id="bairro" value={formData.bairro} onChange={handleChange} required />
+             <FormInput label="MUNICÍPIO" id="municipio" value={formData.municipio} onChange={handleChange} required />
+        </div>
+
+        {/* Linha do ID */}
+        <div className="grid grid-cols-1 md:grid-cols-1 gap-4 md:gap-6">
              <div className="relative">
                 <FormInput label="ID PERSONALIZADO (ÚNICO)" id="idClient" value={formData.idClient} onChange={handleChange} />
                 <span className="text-[8px] text-gray-400 font-bold absolute right-2 top-0">*Opcional</span>

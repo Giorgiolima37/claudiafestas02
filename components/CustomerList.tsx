@@ -24,6 +24,11 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
   const [novaQtdItem, setNovaQtdItem] = useState(1);
 
+  // --- NOVOS ESTADOS PARA EDIÇÃO DE CLIENTE ---
+  const [modalEdicaoClienteAberto, setModalEdicaoClienteAberto] = useState(false);
+  const [dadosClienteEdicao, setDadosClienteEdicao] = useState<any>({});
+  // --------------------------------------------
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -51,10 +56,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   // --- FUNÇÃO PARA ALTERAR LISTA NEGRA ---
   const toggleListaNegra = async (cliente: any) => {
     const novoStatus = !cliente.lista_negra;
-    // const acao = novoStatus ? "adicionar à Lista Negra" : "remover da Lista Negra"; // Removed unused var
     const msgConfirmacao = novoStatus 
-        ? `⚠️ ATENÇÃO!\n\nDeseja enviar ${cliente.cliente} para a LISTA NEGRA?\nO cliente não aparecerá nas buscas padrões até que a situação seja regularizada.`
-        : `🎉 ÓTIMA NOTÍCIA!\n\nDeseja remover ${cliente.cliente} da Lista Negra e torná-lo ativo novamente?`;
+      ? `⚠️ ATENÇÃO!\n\nDeseja enviar ${cliente.cliente} para a LISTA NEGRA?\nO cliente não aparecerá nas buscas padrões até que a situação seja regularizada.`
+      : `🎉 ÓTIMA NOTÍCIA!\n\nDeseja remover ${cliente.cliente} da Lista Negra e torná-lo ativo novamente?`;
 
     if (!window.confirm(msgConfirmacao)) return;
 
@@ -105,6 +109,42 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
       alert("Erro ao salvar ID: " + err.message);
     }
   };
+
+  // --- NOVA FUNÇÃO: SALVAR EDIÇÃO DO CLIENTE ---
+  const handleSalvarEdicaoCliente = async () => {
+    if (!dadosClienteEdicao.cliente || !dadosClienteEdicao.telefone) return alert("Nome e Telefone são obrigatórios.");
+    
+    try {
+        setLoading(true);
+        // Atualiza no banco usando a coluna correta 'identificação'
+        const { error } = await db.from('cadastro').update({
+            cliente: dadosClienteEdicao.cliente,
+            telefone: dadosClienteEdicao.telefone,
+            identificação: dadosClienteEdicao.identificação, 
+            endereco: dadosClienteEdicao.endereco,
+            bairro: dadosClienteEdicao.bairro,
+            municipio: dadosClienteEdicao.municipio
+        }).eq('id', dadosClienteEdicao.id);
+
+        if (error) throw error;
+
+        alert("Dados do cliente atualizados com sucesso!");
+        setModalEdicaoClienteAberto(false);
+        
+        // Atualiza o estado local para refletir a mudança imediatamente
+        const novoCliente = { ...clienteDetalhado, ...dadosClienteEdicao };
+        setClienteDetalhado(novoCliente);
+        
+        // Atualiza a lista geral de clientes em memória
+        setClientes(prev => prev.map(c => c.id === novoCliente.id ? novoCliente : c));
+
+    } catch (err: any) {
+        alert("Erro ao atualizar cliente: " + err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+  // ---------------------------------------------
   
   // --- LÓGICA DE ABRIR O PEDIDO PARA EDIÇÃO ---
   const handleAbrirEdicao = (itemClicado: any) => {
@@ -124,7 +164,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     setModalAberto(true);
   };
 
-  // --- LÓGICA DENTRO DO MODAL ---
+  // ... (restante das funções de edição de pedido mantidas) ...
   const handleAlterarQtdExistente = (index: number, novaQtd: number) => {
     const lista = [...pedidoEmEdicao];
     lista[index].quantidade = novaQtd;
@@ -245,7 +285,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     }
   };
 
-  // --- LÓGICA DE FILTRO E ORDENAÇÃO NUMÉRICA ---
   const clientesExibidos = clientes.filter(c => {
     const correspondeAba = abaAtiva === 'normais' ? !c.lista_negra : c.lista_negra;
     const termoBusca = busca.toLowerCase();
@@ -259,10 +298,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     return idA - idB;
   });
 
-  // --- CONTAGEM DA LISTA NEGRA ---
   const totalListaNegra = clientes.filter(c => c.lista_negra).length;
 
-  if (loading && !modalAberto) return <div className="text-center p-20 font-bold text-[#b24a2b] animate-pulse uppercase tracking-[0.3em]">Sincronizando Clientes...</div>;
+  if (loading && !modalAberto && !modalEdicaoClienteAberto) return <div className="text-center p-20 font-bold text-[#b24a2b] animate-pulse uppercase tracking-[0.3em]">Sincronizando Clientes...</div>;
 
   return (
     <div className="w-full animate-in fade-in duration-700">
@@ -295,7 +333,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
               </button>
               <button 
                 onClick={() => setAbaAtiva('negra')} 
-                // AQUI ESTÁ O AJUSTE: text-red-600 agora é fixo
                 className={`pb-4 px-2 font-black text-[10px] uppercase tracking-[0.2em] transition-all text-red-600 ${abaAtiva === 'negra' ? 'border-b-4 border-red-600' : 'opacity-60 hover:opacity-100'}`}
               >
                 Lista Negra {totalListaNegra > 0 && <span className="ml-1">({totalListaNegra})</span>}
@@ -360,8 +397,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           </span>
                         )}
                       </td>
-                      
-                      {/* --- COLUNA DE AÇÃO (LISTA NEGRA) --- */}
                       <td className="p-8 text-center">
                         <button 
                             onClick={(e) => {
@@ -378,7 +413,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             <i className={`fa-solid ${item.lista_negra ? 'fa-user-check' : 'fa-ban'}`}></i>
                         </button>
                       </td>
-
                     </tr>
                   ))}
                 </tbody>
@@ -412,12 +446,10 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             {new Date(h.data_evento).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
-                        
                         <div className="flex flex-col items-end gap-1">
                             <span className={`px-3 py-1.5 rounded-full text-[8px] font-black uppercase ${h.status === 'Finalizado' ? 'bg-green-100 text-green-600' : 'bg-orange-100 text-orange-600'}`}>
                             {h.status}
                             </span>
-                            
                             {h.status !== 'Finalizado' && (
                                 <button 
                                     onClick={() => handleAbrirEdicao(h)}
@@ -434,20 +466,43 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
                 <div className="space-y-6">
                   <div className="bg-gray-50 rounded-[40px] p-10 border border-gray-100">
-                    <h2 className="text-[#b24a2b] font-black text-[10px] uppercase mb-8 tracking-[0.3em]">Dados Fixos</h2>
+                    {/* --- CABEÇALHO COM BOTÃO DE EDITAR --- */}
+                    <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
+                        <h2 className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.3em]">Dados Fixos</h2>
+                        <button 
+                            onClick={() => {
+                                setDadosClienteEdicao(clienteDetalhado);
+                                setModalEdicaoClienteAberto(true);
+                            }}
+                            className="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-400 rounded-full hover:bg-[#b24a2b] hover:text-white transition-all shadow-sm"
+                            title="Editar Dados do Cliente"
+                        >
+                            <i className="fa-solid fa-pen-to-square text-sm"></i>
+                        </button>
+                    </div>
+                    {/* ------------------------------------ */}
+
                     <div className="space-y-8">
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Contato Principal</span>
                         <span className="font-black text-lg text-gray-800">{clienteDetalhado.telefone}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">CPF / CNPJ</span>
-                        <span className="font-bold text-sm text-gray-800">{clienteDetalhado.documento || 'NÃO CADASTRADO'}</span>
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">IDENTIFICAÇÃO</span>
+                        <span className="font-bold text-sm text-gray-800">{clienteDetalhado.identificação || 'NÃO CADASTRADO'}</span>
                       </div>
-                      <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Localização / Bairro</span>
-                        <span className="font-black text-sm text-[#b24a2b] uppercase">{clienteDetalhado.bairro || 'NÃO INFORMADO'}</span>
+                      
+                      <div className="flex gap-6">
+                          <div className="flex flex-col flex-1">
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Localização / Bairro</span>
+                            <span className="font-black text-sm text-[#b24a2b] uppercase">{clienteDetalhado.bairro || 'NÃO INFORMADO'}</span>
+                          </div>
+                          <div className="flex flex-col flex-1">
+                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Município</span>
+                            <span className="font-black text-sm text-[#b24a2b] uppercase">{clienteDetalhado.municipio || 'NÃO INFORMADO'}</span>
+                          </div>
                       </div>
+
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Endereço Completo</span>
                         <span className="font-bold text-xs text-gray-600 italic leading-relaxed">
@@ -541,6 +596,76 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 <div className="flex gap-3">
                     <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
                     <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Alterações</button>
+                </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- NOVO MODAL DE EDIÇÃO DE CLIENTE --- */}
+      {modalEdicaoClienteAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[35px] p-8 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+                <div className="flex justify-between items-start mb-6">
+                    <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Cliente</h3>
+                    <button onClick={() => setModalEdicaoClienteAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+                </div>
+                
+                <div className="space-y-4">
+                    <div className="flex flex-col">
+                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Nome do Cliente</label>
+                        <input 
+                            className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                            value={dadosClienteEdicao.cliente || ''}
+                            onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, cliente: e.target.value})}
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Telefone</label>
+                        <input 
+                            className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                            value={dadosClienteEdicao.telefone || ''}
+                            onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, telefone: e.target.value})}
+                        />
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Identificação (CPF/CNPJ)</label>
+                        <input 
+                            className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                            value={dadosClienteEdicao.identificação || ''}
+                            onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, identificação: e.target.value})}
+                        />
+                    </div>
+                    <div className="flex gap-4">
+                        <div className="flex flex-col flex-1">
+                            <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Bairro</label>
+                            <input 
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.bairro || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, bairro: e.target.value})}
+                            />
+                        </div>
+                        <div className="flex flex-col flex-1">
+                            <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Município</label>
+                            <input 
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.municipio || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, municipio: e.target.value})}
+                            />
+                        </div>
+                    </div>
+                    <div className="flex flex-col">
+                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Endereço Completo</label>
+                        <textarea 
+                            className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm resize-none h-20"
+                            value={dadosClienteEdicao.endereco || ''}
+                            onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, endereco: e.target.value})}
+                        />
+                    </div>
+                </div>
+
+                <div className="flex gap-3 mt-6">
+                    <button onClick={() => setModalEdicaoClienteAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+                    <button onClick={handleSalvarEdicaoCliente} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Dados</button>
                 </div>
             </div>
         </div>
