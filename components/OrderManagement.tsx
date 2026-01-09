@@ -257,7 +257,7 @@ const OrderManagement: React.FC = () => {
             
             .main-title { text-align: center; font-size: 20px; font-weight: 900; margin: 20px 0; letter-spacing: 5px; }
             
-            .intro-text { font-size: 10px; margin-bottom: 20px; text-align: justify; line-height: 1.5; }
+            .intro-text { font-size: 12px; margin-bottom: 20px; text-align: justify; line-height: 1.5; }
             .intro-text strong { text-transform: uppercase; }
             
             table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
