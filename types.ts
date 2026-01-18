@@ -1,63 +1,25 @@
-export enum UserRole {
-  COMPANY = 'Empresa',
-  WORKER = 'Trabalhador'
-}
-
-export enum JobStatus {
-  OPEN = 'Aberto',
-  PENDING = 'Pendente',
-  FILLED = 'Preenchido',
-  COMPLETED = 'Concluído'
-}
-
-export interface User {
+export interface Cliente {
   id: string;
-  name: string;
-  email: string;
-  role: UserRole;
-  businessName?: string;
-  businessType?: string;
-  location?: string;
-
-  // --- NOVOS CAMPOS DA BIO DA EMPRESA ---
-  municipio?: string;
+  cliente: string;
+  telefone: string;
+  documento?: string; // Adicionado para suportar CPF/CNPJ mostrado nas fotos
+  endereco?: string;
   bairro?: string;
-  // --------------------------------------
-
-  // Campos de Biografia
-  age?: string;
-  address?: string;
-  hasTransport?: boolean;
-  photoUrl?: string;
-  rating?: number;
-  // Novos Campos de Segurança
-  phone?: string;
-  cpf?: string;
+  lista_negra: boolean; // Necessário para a lógica de abas
+  created_at?: string;
 }
 
-export interface Job {
-  id: string;
-  companyId: string;
-  companyName: string;
-  role: string;
-  startTime: string;
-  endTime: string;
-  date: string;
-  dailyRate: number;
-  benefits: string[];
-  description: string;
-  status: JobStatus;
-  appliedWorkerId?: string;
-
-  // --- NOVOS CAMPOS DE LOCALIZAÇÃO (VAGA) ---
-  city?: string;          // Município
-  neighborhood?: string;  // Bairro
+export interface InventoryItem {
+  id: string; // ID vindo do Supabase
+  item: string; // Nome do material
+  disponivel: number;
+  reservado: number; // Ajustado de 'reservada' para 'reservado' conforme o banco
+  preco: number; // Campo essencial para o cálculo do caixa
 }
 
-export interface Application {
-  id: string;
-  jobId: string;
-  workerId: string;
-  workerName: string;
-  status: 'SOLICITADO' | 'ACEITO' | 'RECUSADO';
+export interface Estoque {
+  [key: string]: InventoryItem;
 }
+
+// Adicionado 'HISTORICO' para suportar a nova tela de movimentações
+export type Screen = 'CADASTRO' | 'LISTAGEM' | 'LISTA_NEGRA' | 'RESERVA' | 'ESTOQUE' | 'CAIXA' | 'HISTORICO';
