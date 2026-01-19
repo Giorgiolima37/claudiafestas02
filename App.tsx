@@ -1,157 +1,207 @@
 import React, { useState, useEffect } from 'react';
-import { Screen } from './types';
-import Sidebar from './components/Sidebar';
-import CustomerRegistration from './components/CustomerRegistration';
-import CustomerList from './components/CustomerList';
-import ReservationForm from './components/ReservationForm';
-import InventoryDashboard from './components/InventoryDashboard';
-import FinanceDashboard from './components/FinanceDashboard';
-import InventoryHistory from './components/InventoryHistory';
-import OrderManagement from './components/OrderManagement'; // Importação adicionada
+import { User, UserRole, Job, JobStatus } from './types';
+import { supabase } from './lib/supabase';
+import Login from './components/Login';
+import Register from './components/Register';
+import CompanyDashboard from './components/CompanyDashboard';
+import WorkerDashboard from './components/WorkerDashboard';
+import CreateJob from './components/CreateJob';
+import JobDetails from './components/JobDetails';
+import WorkerProfile from './components/WorkerProfile';
 
 const App: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('LISTAGEM');
-  const [isSidebarOpen, setIsSidebarOpen] = useState(false);
-  const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
-  
-  // ESTADOS DE SEGURANÇA
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [passwordInput, setPasswordInput] = useState('');
-  const [error, setError] = useState(false);
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [view, setView] = useState<'LOGIN' | 'REGISTER' | 'DASHBOARD' | 'CREATE_JOB' | 'JOB_DETAILS' | 'PROFILE'>('LOGIN');
+  const [jobs, setJobs] = useState<Job[]>([]);
+  const [selectedJob, setSelectedJob] = useState<Job | null>(null);
 
   useEffect(() => {
-    const sessionAuth = sessionStorage.getItem('claudia_auth');
-    if (sessionAuth === 'true') {
-      setIsAuthenticated(true);
+    fetchJobs();
+  }, [currentUser]);
+
+  // --- NOVO: Notificação de Som para Trabalhadores ---
+  useEffect(() => {
+    // Só ativa o listener se houver um usuário logado e ele for TRABALHADOR
+    if (currentUser && currentUser.role === UserRole.WORKER) {
+      const channel = supabase
+        .channel('jobs-notification')
+        .on(
+          'postgres_changes',
+          { event: 'INSERT', schema: 'public', table: 'jobs' },
+          (payload) => {
+            console.log('Nova vaga detectada!', payload);
+            
+            // 1. Toca o som (certifique-se que alert.mp3 está na pasta public)
+            const audio = new Audio('/alert.mp3');
+            audio.play().catch((error) => console.log('O navegador bloqueou o som automático:', error));
+
+            // 2. Atualiza a lista de vagas na hora
+            fetchJobs();
+          }
+        )
+        .subscribe();
+
+      // Limpeza ao sair ou mudar de usuário
+      return () => {
+        supabase.removeChannel(channel);
+      };
+    }
+  }, [currentUser]);
+  // ---------------------------------------------------
+
+  async function fetchJobs() {
+    try {
+      // 1. TENTATIVA SEGURA: Busca simples primeiro (para garantir que as vagas não sumam)
+      // Buscamos a tabela 'jobs' e tentamos trazer 'profiles' de forma genérica
+      const { data: jobsData, error: jobsError } = await supabase
+        .from('jobs')
+        .select('*, profiles(business_name, municipio, bairro)');
+
+      if (jobsError) {
+        console.error('Erro ao buscar vagas (tentando fallback):', jobsError);
+        // Se der erro no JOIN, tentamos buscar SÓ as vagas para não deixar a tela em branco
+        const { data: fallbackData } = await supabase.from('jobs').select('*');
+        if (fallbackData) processJobsData(fallbackData);
+        return;
+      }
+
+      if (jobsData) {
+        processJobsData(jobsData);
+      }
+
+    } catch (error) {
+      console.error('Erro geral:', error);
+    }
+  }
+
+  // Função separada para processar os dados e evitar repetição
+  async function processJobsData(data: any[]) {
+    // Busca candidaturas do usuário atual
+    let myApplicationsIds = new Set<string>();
+    if (currentUser && currentUser.role === UserRole.WORKER) {
+      const { data: appsData } = await supabase
+        .from('applications')
+        .select('job_id')
+        .eq('worker_id', currentUser.id);
+      
+      if (appsData) {
+        appsData.forEach((app: any) => myApplicationsIds.add(app.job_id));
+      }
+    }
+
+    const realJobs: Job[] = data.map((item: any) => {
+      const iHaveApplied = myApplicationsIds.has(item.id);
+      
+      // Tenta pegar o profile se ele veio (pode ser um objeto ou array dependendo da versão do Supabase)
+      const profileData = Array.isArray(item.profiles) ? item.profiles[0] : item.profiles;
+
+      return {
+        id: item.id,
+        companyId: item.company_id,
+        // Nome da empresa: prioriza profile, senão usa o da vaga, senão 'Empresa'
+        companyName: profileData?.business_name || item.company_name || 'Empresa',
+        role: item.role,
+        dailyRate: item.daily_rate,
+        description: item.description,
+        
+        // --- AQUI: PUXANDO DA TABELA JOBS ---
+        // Prioridade TOTAL para o que está na tabela jobs (city/neighborhood)
+        // Se estiver vazio lá, tenta o profile. Se não, "Não Informado".
+        city: item.city || profileData?.municipio || 'Não Informado',
+        neighborhood: item.neighborhood || profileData?.bairro || 'Não Informado',
+        // ------------------------------------
+
+        status: iHaveApplied ? JobStatus.PENDING : JobStatus.OPEN,
+        appliedWorkerId: iHaveApplied ? currentUser?.id : undefined,
+        
+        startTime: item.startTime || item.start_time || '08:00',
+        endTime: item.endTime || item.end_time || '17:00',
+        date: item.date || new Date().toISOString(),
+        benefits: item.benefits || ['Vale Transporte', 'Alimentação'] 
+      };
+    });
+
+    setJobs(realJobs);
+  }
+
+  // --- RESTO DO CÓDIGO (Igual) ---
+  useEffect(() => {
+    const savedUser = localStorage.getItem('freeNowUser');
+    if (savedUser) {
+      setCurrentUser(JSON.parse(savedUser));
+      setView('DASHBOARD');
     }
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (passwordInput === '123456') {
-      setIsAuthenticated(true);
-      setError(false);
-      sessionStorage.setItem('claudia_auth', 'true');
-    } else {
-      setError(true);
-      setPasswordInput('');
+  const handleLogin = (user: User) => {
+    setCurrentUser(user);
+    localStorage.setItem('freeNowUser', JSON.stringify(user));
+    setView('DASHBOARD');
+  };
+
+  const handleLogout = () => {
+    setCurrentUser(null);
+    localStorage.removeItem('freeNowUser');
+    setView('LOGIN');
+  };
+
+  const handleUpdateProfile = (updatedUser: User) => {
+    setCurrentUser(updatedUser);
+    localStorage.setItem('freeNowUser', JSON.stringify(updatedUser));
+  };
+
+  const handleCreateJob = (newJob: Job) => {
+    fetchJobs(); 
+    setView('DASHBOARD');
+  };
+
+  const handleDeleteJob = async (jobId: string) => {
+    if (!confirm('Tem certeza que deseja excluir esta vaga?')) return;
+    try {
+      const { error } = await supabase.from('jobs').delete().eq('id', jobId);
+      if (error) {
+        alert('Erro ao excluir.');
+        return;
+      }
+      setJobs(jobs.filter(job => job.id !== jobId));
+    } catch (error) { console.error(error); }
+  };
+
+  const handleApplyToJob = async (jobId: string) => {
+    if (!currentUser) return;
+    try {
+      const { error } = await supabase.from('applications').insert([
+          { job_id: jobId, worker_id: currentUser.id, worker_name: currentUser.name, status: 'PENDING' }
+        ]);
+      if (error) {
+        alert('Erro ao aplicar.');
+        return;
+      }
+      setJobs(prev => prev.map(j => j.id === jobId ? { ...j, status: JobStatus.PENDING, appliedWorkerId: currentUser.id } : j));
+      alert('Vaga aceita!');
+      setView('DASHBOARD');
+    } catch (error) { alert('Erro inesperado.'); }
+  };
+
+  const renderView = () => {
+    switch (view) {
+      case 'LOGIN': return <Login onLogin={handleLogin} onSwitchToRegister={() => setView('REGISTER')} />;
+      case 'REGISTER': return <Register onRegister={handleLogin} onSwitchToLogin={() => setView('LOGIN')} />;
+      case 'DASHBOARD':
+        if (currentUser?.role === UserRole.COMPANY) {
+          return <CompanyDashboard user={currentUser} jobs={jobs.filter(j => j.companyId === currentUser.id)} onLogout={handleLogout} onCreateJob={() => setView('CREATE_JOB')} onDeleteJob={handleDeleteJob} onViewDetails={(job) => { setSelectedJob(job); setView('JOB_DETAILS'); }} />;
+        }
+        return <WorkerDashboard user={currentUser!} jobs={jobs} onLogout={handleLogout} onViewDetails={(job) => { setSelectedJob(job); setView('JOB_DETAILS'); }} onOpenProfile={() => setView('PROFILE')} />;
+      case 'PROFILE': return <WorkerProfile user={currentUser!} onBack={() => setView('DASHBOARD')} onSave={handleUpdateProfile} />;
+      case 'CREATE_JOB': return <CreateJob user={currentUser!} onCancel={() => setView('DASHBOARD')} onCreate={handleCreateJob} />;
+      case 'JOB_DETAILS': return <JobDetails job={selectedJob!} user={currentUser!} onBack={() => setView('DASHBOARD')} onApply={handleApplyToJob} />;
+      default: return <Login onLogin={handleLogin} onSwitchToRegister={() => setView('REGISTER')} />;
     }
   };
-
-  const navigateTo = (screen: Screen) => {
-    setCurrentScreen(screen);
-    setIsSidebarOpen(false); 
-  };
-
-  const abrirHistoricoCliente = (id: number) => {
-    setSelectedClientId(id);
-    setCurrentScreen('HISTORICO');
-  };
-
-  // FUNÇÃO DE RENDERIZAÇÃO AJUSTADA PARA SEPARAR CLIENTES DE PEDIDOS
-  const renderScreen = () => {
-    switch (currentScreen) {
-      case 'CADASTRO': 
-        return <CustomerRegistration onSaved={() => navigateTo('LISTAGEM')} />;
-      case 'LISTAGEM': 
-        // Tela exclusiva para Base de Dados / Cadastros
-        return <CustomerList onSelectCustomer={abrirHistoricoCliente} />;
-      case 'RESERVA': 
-        // Redireciona para PEDIDOS após salvar
-        return <ReservationForm onFinished={() => navigateTo('PEDIDOS')} />;
-      case 'PEDIDOS': 
-        // Tela exclusiva para Gestão de Cards de Reservas
-        return <OrderManagement />;
-      case 'ESTOQUE': 
-        return <InventoryDashboard />;
-      case 'HISTORICO': 
-        return <InventoryHistory clientId={selectedClientId} onBack={() => navigateTo('LISTAGEM')} />;
-      case 'CAIXA': 
-        return <FinanceDashboard />;
-      default: 
-        return <CustomerList onSelectCustomer={abrirHistoricoCliente} />;
-    }
-  };
-
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fdf8f6] p-4">
-        <div className="w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center animate-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-[#B24D2D] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-             <i className="fa-solid fa-lock text-white text-3xl"></i>
-          </div>
-          <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
-          <p className="text-gray-400 text-sm mb-8 font-bold uppercase tracking-widest">Claudia Festas</p>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <input 
-              type="password" 
-              placeholder="Digite a senha de admin"
-              className={`w-full p-5 bg-gray-50 border-2 rounded-2xl outline-none font-bold text-center transition-all ${error ? 'border-red-500 animate-shake' : 'border-gray-100 focus:border-[#B24D2D]'}`}
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              autoFocus
-            />
-            {error && <p className="text-red-500 text-xs font-bold">Senha incorreta. Tente novamente.</p>}
-            <button 
-              type="submit"
-              className="w-full p-5 bg-[#B24D2D] text-white font-black rounded-2xl shadow-lg hover:bg-[#943a20] transition-all active:scale-95"
-            >
-              ENTRAR NO SISTEMA
-            </button>
-          </form>
-        </div>
-      </div>
-    );
-  }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 overflow-hidden">
-      
-      <div className="md:hidden flex items-center justify-between p-4 bg-[#B24D2D] text-white shadow-md z-[60]">
-        <span className="font-bold tracking-tight">Claudia Festas</span>
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-2xl p-2">
-          <i className={`fa-solid ${isSidebarOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
-        </button>
-      </div>
-
-      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-64 h-full shadow-2xl`}>
-        <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} />
-      </div>
-
-      <main className="flex-1 flex flex-col h-full overflow-y-auto bg-[#fdf8f6]">
-        <div className="p-4 md:p-10 flex flex-col items-center">
-          
-          <div className="flex gap-3 mb-6 md:mb-8 w-full max-w-6xl">
-            <button 
-              onClick={() => navigateTo('CADASTRO')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
-              title="Novo Cliente"
-            >
-              <i className="fa-solid fa-user-plus"></i>
-            </button>
-            {/* Atalho rápido para a tela de Pedidos Logísticos */}
-            <button 
-              onClick={() => navigateTo('PEDIDOS')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
-              title="Gestão de Pedidos"
-            >
-              <i className="fa-solid fa-rectangle-list"></i>
-            </button>
-            <button 
-              onClick={() => navigateTo('CAIXA')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
-              title="Caixa"
-            >
-              <i className="fa-solid fa-file-invoice-dollar"></i>
-            </button>
-          </div>
-
-          <div className="w-full max-w-6xl bg-white rounded-3xl md:rounded-[40px] p-6 md:p-12 shadow-xl border border-white/20 min-h-fit mb-10">
-            {renderScreen()}
-          </div>
-        </div>
-      </main>
+    <div className="max-w-md mx-auto min-h-screen bg-gray-50 flex flex-col shadow-xl">
+      {renderView()}
     </div>
   );
 };

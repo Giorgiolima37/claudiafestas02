@@ -30,6 +30,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
 
   // --- ESTADOS DO PERFIL DO TRABALHADOR ---
   const [showProfileModal, setShowProfileModal] = useState(false);
+  // Adicionei photoUrl aqui para atualizar na hora que fizer o upload
   const [workerProfile, setWorkerProfile] = useState({
     age: '',
     municipio: '',
@@ -37,8 +38,12 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
     address: '',
     phone: '',
     cpf: '',
-    hasTransport: false
+    hasTransport: false,
+    photoUrl: user.photoUrl || '' // Inicia com a foto atual
   });
+  
+  // Estado para controlar o carregamento da imagem
+  const [uploading, setUploading] = useState(false);
 
   // --- HELPER: LISTAS ÚNICAS ---
   const availableCities = Array.from(new Set(jobs.map(j => j.city).filter(Boolean))).sort();
@@ -112,7 +117,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
     async function fetchMyProfile() {
       const { data } = await supabase
         .from('profiles')
-        .select('age, municipio, bairro, address, phone, cpf, has_transport')
+        .select('age, municipio, bairro, address, phone, cpf, has_transport, photo_url')
         .eq('id', user.id)
         .single();
 
@@ -124,7 +129,8 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
           address: data.address || '',
           phone: data.phone || '',
           cpf: data.cpf || '',
-          hasTransport: data.has_transport || false
+          hasTransport: data.has_transport || false,
+          photoUrl: data.photo_url || user.photoUrl || ''
         });
       }
     }
@@ -135,6 +141,44 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
     }
     fetchMyProfile();
   }, [jobs, user.id]);
+
+  // --- NOVA FUNÇÃO DE UPLOAD ---
+  const uploadAvatar = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    try {
+      setUploading(true);
+
+      if (!event.target.files || event.target.files.length === 0) {
+        throw new Error('Selecione uma imagem.');
+      }
+
+      const file = event.target.files[0];
+      const fileExt = file.name.split('.').pop();
+      const fileName = `${user.id}-${Date.now()}.${fileExt}`;
+      const filePath = `${fileName}`;
+
+      // 1. Upload para o Storage
+      const { error: uploadError } = await supabase.storage
+        .from('avatars')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      // 2. Pega URL Pública
+      const { data } = supabase.storage.from('avatars').getPublicUrl(filePath);
+      
+      // 3. Atualiza estado local imediatamente (preview)
+      setWorkerProfile(prev => ({ ...prev, photoUrl: data.publicUrl }));
+
+      // 4. Salva URL no banco imediatamente (opcional, ou deixa pro botão salvar)
+      await supabase.from('profiles').update({ photo_url: data.publicUrl }).eq('id', user.id);
+
+    } catch (error: any) {
+      console.error('Erro upload:', error);
+      alert('Erro ao enviar imagem: ' + error.message);
+    } finally {
+      setUploading(false);
+    }
+  };
 
   const handleSaveProfile = async () => {
     try {
@@ -147,7 +191,8 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
           address: workerProfile.address,
           phone: workerProfile.phone,
           cpf: workerProfile.cpf,
-          has_transport: workerProfile.hasTransport
+          has_transport: workerProfile.hasTransport,
+          photo_url: workerProfile.photoUrl // Garante que a foto é salva
         })
         .eq('id', user.id);
 
@@ -319,7 +364,6 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
                         R$ {job.dailyRate.toFixed(2)}
                       </span>
                       
-                      {/* --- EXIBE O SEXO AQUI (Abaixo do valor) --- */}
                       {(job as any).gender && (
                         <span className="text-[10px] text-gray-500 mt-1 font-medium bg-gray-100 px-2 py-0.5 rounded-md border border-gray-200">
                           {(job as any).gender}
@@ -376,6 +420,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
         )}
       </div>
 
+      {/* --- MODAL DE PERFIL (AGORA COM UPLOAD E CÂMERA) --- */}
       {showProfileModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4 animate-fade-in">
           <div className="bg-white rounded-2xl w-full max-w-sm shadow-2xl relative overflow-hidden flex flex-col max-h-[90vh]">
@@ -391,13 +436,46 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
 
             <div className="p-6 overflow-y-auto flex-1">
                <div className="flex flex-col items-center mb-6">
-                 <div className="w-28 h-28 rounded-full bg-green-100 border-4 border-green-500 flex items-center justify-center text-green-600 mb-2 overflow-hidden shadow-lg">
-                    {user.photoUrl ? (
-                      <img src={user.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
-                    ) : (
-                      <i className="fa-solid fa-user text-4xl"></i>
-                    )}
+                 
+                 {/* --- ÁREA DA FOTO COM UPLOAD --- */}
+                 <div className="relative group">
+                    <label 
+                      htmlFor="dashboard-avatar-upload"
+                      className="cursor-pointer block w-28 h-28 rounded-full bg-green-100 border-4 border-green-500 flex items-center justify-center text-green-600 mb-2 overflow-hidden shadow-lg"
+                    >
+                        {uploading ? (
+                           <i className="fa-solid fa-circle-notch fa-spin text-2xl"></i>
+                        ) : workerProfile.photoUrl ? (
+                          <img src={workerProfile.photoUrl} alt="Avatar" className="w-full h-full object-cover" />
+                        ) : (
+                          <i className="fa-solid fa-user text-4xl"></i>
+                        )}
+                        
+                        {/* Overlay escuro ao passar o mouse */}
+                        <div className="absolute inset-0 bg-black bg-opacity-0 group-hover:bg-opacity-30 transition-all flex items-center justify-center rounded-full">
+                           <span className="text-white text-xs font-bold opacity-0 group-hover:opacity-100">Alterar</span>
+                        </div>
+                    </label>
+
+                    {/* Botão Câmera no cantinho */}
+                    <label 
+                       htmlFor="dashboard-avatar-upload"
+                       className="absolute bottom-2 right-0 bg-green-600 text-white w-8 h-8 rounded-full border-2 border-white flex items-center justify-center shadow-md cursor-pointer hover:bg-green-700 transition"
+                    >
+                       <i className="fa-solid fa-camera text-xs"></i>
+                    </label>
+
+                    <input 
+                       id="dashboard-avatar-upload"
+                       type="file" 
+                       accept="image/*"
+                       onChange={uploadAvatar}
+                       disabled={uploading}
+                       className="hidden"
+                    />
                  </div>
+                 {/* ---------------------------------- */}
+
                  <h2 className="text-xl font-bold text-gray-800">{user.name}</h2>
                  
                  <div className="flex gap-1 mt-1 text-yellow-400">
@@ -590,7 +668,7 @@ const WorkerDashboard: React.FC<WorkerDashboardProps> = ({ user, jobs, onLogout 
              <div>
                 {jobStatuses[selectedJob.id] === 'ACEITO' ? (
                   <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full mb-4 inline-block uppercase">
-                     VOCÊ FOI CONTRATADO!
+                      VOCÊ FOI CONTRATADO!
                   </span>
                 ) : (
                   <span className="bg-green-100 text-green-700 text-xs font-bold px-3 py-1 rounded-full mb-4 inline-block">

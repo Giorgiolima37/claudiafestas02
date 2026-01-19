@@ -186,11 +186,45 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({
       setLocalJobs(curr => curr.filter(j => j.id !== jobId));
       onDeleteJob(jobId);
       setSelectedJob(null);
-      alert('Vaga encerrada e removida com sucesso.');
+      // alert('Vaga encerrada e removida com sucesso.'); // Comentado para não spamar alert na limpeza automática
     } catch (error: any) {
-      alert('Erro ao encerrar vaga: ' + error.message);
+      console.error('Erro ao encerrar vaga: ' + error.message);
     }
   };
+
+  // --- NOVA FUNÇÃO DE LIMPEZA AUTOMÁTICA ---
+  // Verifica se a data atual já passou da data da vaga + 1 dia
+  useEffect(() => {
+    const cleanExpiredJobs = async () => {
+      const today = new Date();
+      today.setHours(0, 0, 0, 0); // Zera hora para comparar apenas data
+
+      for (const job of localJobs) {
+        // Exemplo: job.date = "2026-01-18"
+        const jobDateParts = job.date.split('-');
+        const jobDate = new Date(
+          Number(jobDateParts[0]), 
+          Number(jobDateParts[1]) - 1, 
+          Number(jobDateParts[2])
+        );
+
+        // Data limite = Data da Vaga + 1 dia (Ex: dia 19)
+        const expiryDate = new Date(jobDate);
+        expiryDate.setDate(expiryDate.getDate() + 1);
+
+        // Se Hoje (19) >= Data Limite (19), apaga.
+        if (today >= expiryDate) {
+          console.log(`Limpando vaga vencida: ${job.role} do dia ${job.date}`);
+          await handleTerminateJob(job.id);
+        }
+      }
+    };
+
+    if (localJobs.length > 0) {
+      cleanExpiredJobs();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [localJobs]); // Executa quando a lista de vagas muda ou inicia
 
   const handleOpenJobDetails = (job: Job) => {
     setSelectedJob(job);
@@ -229,14 +263,16 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({
     }
   };
 
-  const handleViewProfile = async (workerId: string) => {
+  // AJUSTE AQUI: Adicionado parâmetro 'workerNameFromApp' para garantir o nome
+  const handleViewProfile = async (workerId: string, workerNameFromApp?: string) => {
     try {
       const { data, error } = await supabase.from('profiles').select('*').eq('id', workerId).single();
       if (error) throw error;
       if (data) {
         setSelectedCandidate({
           id: data.id,
-          name: data.name || 'Nome não informado',
+          // Usa o nome do banco OU o nome da lista de candidaturas se o banco falhar
+          name: data.name || workerNameFromApp || 'Nome não informado',
           email: data.email || '',
           role: UserRole.WORKER,
           age: data.age,
@@ -305,7 +341,8 @@ const CompanyDashboard: React.FC<CompanyDashboardProps> = ({
                   </div>
                   <div className="flex gap-2">
                     <button 
-                      onClick={() => handleViewProfile(app.worker_id)}
+                      // AJUSTE AQUI: Passando o worker_name da aplicação para a função
+                      onClick={() => handleViewProfile(app.worker_id, app.worker_name)}
                       className="bg-blue-600 text-white text-xs font-bold px-3 py-2 rounded-lg hover:bg-blue-700 transition"
                     >
                       Ver Perfil
