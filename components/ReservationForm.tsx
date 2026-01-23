@@ -21,7 +21,9 @@ const ReservationForm: React.FC = () => {
   });
 
   const carregarDados = async () => {
-    const resClientes = await db.from('cadastro').select('id, cliente');
+    // ALTERADO: Usando select('*') para garantir que o campo 'id-client' venha corretamente
+    const resClientes = await db.from('cadastro').select('*');
+    
     // Alteração solicitada: ordenar o estoque por nome do item (ordem alfabética)
     const resEstoque = await db.from('estoque')
       .select('id, item, disponivel, reservado, preco, codigo_interno')
@@ -142,7 +144,7 @@ END:VCALENDAR`;
           forma_pagamento: 'Não Informado',
           valor_total: valorItemTotal,
           taxa_entrega: freteAjustado,
-          desconto: desconto, // <--- Aqui está o segredo
+          desconto: desconto, 
           codigo_item: itemEstoque.codigo_interno || 'S/C',
           observacoes: reservaGeral.observacoes 
         }]);
@@ -211,7 +213,12 @@ END:VCALENDAR`;
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             <select required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all" value={reservaGeral.clienteId} onChange={(e) => setReservaGeral({...reservaGeral, clienteId: e.target.value})}>
               <option value="">Selecione o cliente...</option>
-              {clientes.map(c => <option key={c.id} value={c.id}>{c.cliente}</option>)}
+              {/* ALTERADO: Exibindo ID ao lado do nome com padStart */}
+              {clientes.map(c => (
+                  <option key={c.id} value={c.id}>
+                      {c.cliente} [ID: {c['id-client'] ? String(c['id-client']).padStart(3, '0') : '---'}]
+                  </option>
+              ))}
             </select>
           </div>
 
@@ -342,10 +349,10 @@ END:VCALENDAR`;
                   <span>R$ {calcularSubtotal().toFixed(2).replace('.', ',')}</span>
                 </div>
                 {desconto > 0 && (
-                   <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
-                     <span>Desconto:</span>
-                     <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
-                   </div>
+                    <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
+                      <span>Desconto:</span>
+                      <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
+                    </div>
                 )}
                 <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
                   <span>Total Geral:</span>
