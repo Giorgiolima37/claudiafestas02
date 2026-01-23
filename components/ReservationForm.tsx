@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { db } from '../services/supabase';
 
 const ReservationForm: React.FC = () => {
@@ -11,11 +11,6 @@ const ReservationForm: React.FC = () => {
   const [freteAjustado, setFreteAjustado] = useState(0);
   const [desconto, setDesconto] = useState(0); 
 
-  // --- CONTROLE DO CAMPO DE BUSCA DE CLIENTE ---
-  const [termoCliente, setTermoCliente] = useState(''); // O texto que aparece no input
-  const [mostrarListaClientes, setMostrarListaClientes] = useState(false); // Controla se a lista abre/fecha
-  const wrapperRef = useRef<HTMLDivElement>(null); // Para detectar clique fora e fechar a lista
-
   const [itensSelecionados, setItensSelecionados] = useState([{ item: '', quantidade: 1 }]);
   
   const [reservaGeral, setReservaGeral] = useState({
@@ -26,10 +21,8 @@ const ReservationForm: React.FC = () => {
   });
 
   const carregarDados = async () => {
-    // Busca todos os dados para ter o ID personalizado
-    const resClientes = await db.from('cadastro').select('*');
-    
-    // Ordenar o estoque
+    const resClientes = await db.from('cadastro').select('id, cliente');
+    // Alteração solicitada: ordenar o estoque por nome do item (ordem alfabética)
     const resEstoque = await db.from('estoque')
       .select('id, item, disponivel, reservado, preco, codigo_interno')
       .order('item', { ascending: true });
@@ -40,46 +33,18 @@ const ReservationForm: React.FC = () => {
 
   useEffect(() => {
     carregarDados();
-    
-    // Fecha a lista se clicar fora do componente
-    function handleClickOutside(event: MouseEvent) {
-      if (wrapperRef.current && !wrapperRef.current.contains(event.target as Node)) {
-        setMostrarListaClientes(false);
-      }
-    }
-    document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
-  // --- LÓGICA DE FILTRO DE CLIENTES ---
-  const clientesFiltrados = clientes.filter(c => {
-    const termo = termoCliente.toLowerCase();
-    const nome = (c.cliente || '').toLowerCase();
-    const idPersonalizado = String(c['id-client'] || '').toLowerCase();
-    
-    // Filtra se o termo digitado está no NOME ou no ID
-    return nome.includes(termo) || idPersonalizado.includes(termo);
-  });
-
-  const selecionarCliente = (cliente: any) => {
-    // Formata o ID com 3 dígitos
-    const idFormatado = cliente['id-client'] ? String(cliente['id-client']).padStart(3, '0') : '---';
-    const textoExibicao = `${cliente.cliente} [ID: ${idFormatado}]`;
-    
-    setTermoCliente(textoExibicao);
-    setReservaGeral({ ...reservaGeral, clienteId: cliente.id });
-    setMostrarListaClientes(false);
-  };
-  // ------------------------------------
 
   // --- FUNÇÃO PARA OBTER O DIA DA SEMANA ---
   const obterDiaDaSemana = (dataString: string) => {
     if (!dataString) return '';
     const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
+    // Cria a data ajustando o fuso horário para pegar o dia correto
     const date = new Date(dataString);
     date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
     return dias[date.getDay()];
   };
+  // -----------------------------------------
 
   const adicionarLinhaItem = () => {
     setItensSelecionados([...itensSelecionados, { item: '', quantidade: 1 }]);
@@ -166,6 +131,7 @@ END:VCALENDAR`;
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
         const valorItemTotal = selecionado.quantidade * itemEstoque.preco;
 
+        // AGORA SALVA NA COLUNA "desconto" QUE VOCÊ CRIOU
         const { error: erroReserva } = await db.from('reservas').insert([{
           cliente_id: parseInt(reservaGeral.clienteId),
           item: selecionado.item,
@@ -176,7 +142,7 @@ END:VCALENDAR`;
           forma_pagamento: 'Não Informado',
           valor_total: valorItemTotal,
           taxa_entrega: freteAjustado,
-          desconto: desconto, 
+          desconto: desconto, // <--- Aqui está o segredo
           codigo_item: itemEstoque.codigo_interno || 'S/C',
           observacoes: reservaGeral.observacoes 
         }]);
@@ -225,7 +191,6 @@ END:VCALENDAR`;
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
-      setTermoCliente(''); // Limpa o campo de busca
       await carregarDados();
       
     } catch (err: any) {
@@ -242,55 +207,13 @@ END:VCALENDAR`;
       
       <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          
-          {/* --- CAMPO DE CLIENTE PERSONALIZADO COM BUSCA --- */}
-          <div className="flex flex-col relative" ref={wrapperRef}>
+          <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
-            
-            {/* Input que substitui o Select */}
-            <div className="relative">
-                <input 
-                    type="text" 
-                    required
-                    placeholder="Busque por Nome ou ID..."
-                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all"
-                    value={termoCliente}
-                    onChange={(e) => {
-                        setTermoCliente(e.target.value);
-                        setMostrarListaClientes(true);
-                        setReservaGeral({ ...reservaGeral, clienteId: '' }); // Limpa seleção se digitar
-                    }}
-                    onFocus={() => setMostrarListaClientes(true)}
-                />
-                <div className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none">
-                    <i className="fa-solid fa-chevron-down text-xs"></i>
-                </div>
-            </div>
-
-            {/* Lista Dropdown Flutuante */}
-            {mostrarListaClientes && (
-                <div className="absolute z-50 top-[85px] left-0 w-full bg-white border-2 border-[#b24a2b] rounded-2xl shadow-xl max-h-60 overflow-y-auto animate-in slide-in-from-top-2 duration-200">
-                    {clientesFiltrados.length > 0 ? (
-                        clientesFiltrados.map(c => {
-                            const idStr = c['id-client'] ? String(c['id-client']).padStart(3, '0') : '---';
-                            return (
-                                <div 
-                                    key={c.id}
-                                    onClick={() => selecionarCliente(c)}
-                                    className="p-3 hover:bg-orange-50 cursor-pointer border-b border-gray-50 last:border-0 transition-colors"
-                                >
-                                    <span className="font-bold text-gray-700 text-sm uppercase">{c.cliente}</span>
-                                    <span className="ml-2 text-[10px] font-black text-[#b24a2b] bg-orange-100 px-2 py-0.5 rounded-full">ID: {idStr}</span>
-                                </div>
-                            );
-                        })
-                    ) : (
-                        <div className="p-4 text-center text-gray-400 text-xs font-bold">Nenhum cliente encontrado</div>
-                    )}
-                </div>
-            )}
+            <select required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all" value={reservaGeral.clienteId} onChange={(e) => setReservaGeral({...reservaGeral, clienteId: e.target.value})}>
+              <option value="">Selecione o cliente...</option>
+              {clientes.map(c => <option key={c.id} value={c.id}>{c.cliente}</option>)}
+            </select>
           </div>
-          {/* ------------------------------------------------ */}
 
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Data de Aluguel</label>
@@ -419,10 +342,10 @@ END:VCALENDAR`;
                   <span>R$ {calcularSubtotal().toFixed(2).replace('.', ',')}</span>
                 </div>
                 {desconto > 0 && (
-                    <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
-                      <span>Desconto:</span>
-                      <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
-                    </div>
+                   <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
+                     <span>Desconto:</span>
+                     <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
+                   </div>
                 )}
                 <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
                   <span>Total Geral:</span>
