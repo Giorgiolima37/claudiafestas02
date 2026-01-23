@@ -1,11 +1,19 @@
 import { createClient } from '@supabase/supabase-js';
 
-// O Vite busca os dados automaticamente do seu arquivo .env.local
-const SUPABASE_URL = import.meta.env.VITE_SUPABASE_URL;
-const SUPABASE_KEY = import.meta.env.VITE_SUPABASE_ANON_KEY;
+// Pega as chaves do arquivo .env
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL;
+const supabaseKey = import.meta.env.VITE_SUPABASE_ANON_KEY;
 
-if (!SUPABASE_URL || !SUPABASE_KEY) {
-  console.error("Erro: Variáveis de ambiente do Supabase não encontradas!");
-}
+// Cria a conexão
+const client = createClient(supabaseUrl, supabaseKey);
 
-export const db = createClient(SUPABASE_URL, SUPABASE_KEY);
+// --- EXPORTAÇÕES MÚLTIPLAS (Para compatibilidade total) ---
+
+// 1. Para o código novo (ClientLogin)
+export const supabase = client;
+
+// 2. Para o código antigo (CustomerRegistration, etc que usa 'db')
+export const db = client;
+
+// 3. Exportação padrão (para garantir)
+export default client;
