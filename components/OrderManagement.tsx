@@ -17,6 +17,9 @@ const OrderManagement: React.FC = () => {
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
   const [novaQtdItem, setNovaQtdItem] = useState(1);
 
+  // --- NOVO ESTADO: MODAL VIP ---
+  const [modalVipAberto, setModalVipAberto] = useState(false);
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -380,12 +383,6 @@ const OrderManagement: React.FC = () => {
     } catch (err: any) { alert(err.message); }
   };
 
-  const abrirWhatsApp = (pedido: any) => {
-    if (!pedido.telefone) return alert("Telefone não cadastrado.");
-    const numero = pedido.telefone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${numero}`, '_blank');
-  };
-
   const gerarRomaneio = (pedido: any) => {
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
@@ -472,7 +469,12 @@ const OrderManagement: React.FC = () => {
                   <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
                 </div>
                 <div className="flex gap-2">
-                  <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center"><i className="fa-brands fa-whatsapp"></i></button>
+                  <button 
+                      onClick={() => setModalVipAberto(true)} 
+                      className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center hover:bg-green-600 transition-colors"
+                  >
+                      <i className="fa-brands fa-whatsapp"></i>
+                  </button>
                   <button onClick={() => gerarRomaneio(pedido)} className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-list-check"></i></button>
                   <button onClick={() => gerarContrato(pedido)} className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-file-contract"></i></button>
                   <button onClick={() => confirmarDevolucao(pedido)} className="w-12 h-12 bg-green-600 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-check"></i></button>
@@ -595,6 +597,27 @@ const OrderManagement: React.FC = () => {
                     <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
                     <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Alterações</button>
                 </div>
+            </div>
+        </div>
+      )}
+
+      {/* --- MODAL VIP (Função Bloqueada) --- */}
+      {modalVipAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[35px] p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300 text-center">
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i className="fa-solid fa-crown text-3xl text-blue-600"></i>
+                </div>
+                <h3 className="text-xl font-black text-gray-800 uppercase italic mb-2">Função Bloqueada</h3>
+                <p className="text-sm font-bold text-gray-500 mb-8">
+                    Essa função está disponível apenas na versão <span className="text-[#b24a2b]">VIP</span>.
+                </p>
+                <button
+                    onClick={() => setModalVipAberto(false)}
+                    className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-700 shadow-lg transition-all"
+                >
+                    Sair
+                </button>
             </div>
         </div>
       )}

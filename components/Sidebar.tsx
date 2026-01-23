@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { Screen } from '../types';
 
 interface SidebarProps {
@@ -7,17 +7,21 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
+  // Estado para controlar o modal de bloqueio
+  const [modalVipAberto, setModalVipAberto] = useState(false);
+
   const menuItems = [
     { id: 'LISTAGEM', label: 'Clientes', icon: 'fa-users' },
     { id: 'RESERVA', label: 'Reservas', icon: 'fa-calendar-check' },
     { id: 'PEDIDOS', label: 'Pedidos', icon: 'fa-rectangle-list' }, 
     { id: 'ESTOQUE', label: 'Estoque', icon: 'fa-boxes-stacked' },
     { id: 'CAIXA', label: 'Caixa', icon: 'fa-file-invoice-dollar' },
-    { id: 'NFSe-Biguaçu', label: 'NFSe-Biguaçu', icon: 'fa-file-shield' }
+    { id: 'NFSe-Biguaçu', label: 'NFSe-Biguaçu', icon: 'fa-file-shield' },
+    { id: 'WHATSAPP', label: 'WhatsApp', icon: 'fa-whatsapp' }
   ];
 
   return (
-    <div className="w-full h-full bg-[#B24D2D] text-white flex flex-col p-6 shadow-2xl">
+    <div className="w-full h-full bg-[#B24D2D] text-white flex flex-col p-6 shadow-2xl relative">
       <div className="mb-10 mt-4 text-center">
         <h2 className="text-2xl font-black italic tracking-tighter uppercase">Claudia</h2>
         <p className="text-[10px] font-bold opacity-60 tracking-[0.3em] uppercase">Festas & Locações</p>
@@ -30,6 +34,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
             onClick={() => {
               if (item.id === 'NFSe-Biguaçu') {
                 window.open('https://nfse-bigua.atende.net/autoatendimento/servicos/nfse?redirected=1', '_blank');
+              } else if (item.id === 'WHATSAPP') {
+                // ALTERADO: Agora abre o modal VIP em vez do link
+                setModalVipAberto(true);
               } else {
                 onNavigate(item.id as Screen);
               }
@@ -40,7 +47,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
                 : 'hover:bg-white/10 text-white/80'
             }`}
           >
-            <i className={`fa-solid ${item.icon} text-lg w-6 text-center`}></i>
+            <i className={`${item.id === 'WHATSAPP' ? 'fa-brands' : 'fa-solid'} ${item.icon} text-lg w-6 text-center`}></i>
             <span className="text-sm tracking-wide uppercase">{item.label}</span>
           </button>
         ))}
@@ -55,6 +62,28 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
           </div>
         </div>
       </div>
+
+      {/* --- MODAL VIP (Mensagem de Função Bloqueada) --- */}
+      {modalVipAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-[35px] p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300 text-center">
+                <div className="w-20 h-20 bg-blue-50 rounded-full flex items-center justify-center mx-auto mb-6">
+                    <i className="fa-solid fa-crown text-3xl text-blue-600"></i>
+                </div>
+                <h3 className="text-xl font-black text-gray-800 uppercase italic mb-2">Função Bloqueada</h3>
+                <p className="text-sm font-bold text-gray-500 mb-8">
+                    Essa função está disponível apenas na versão <span className="text-[#b24a2b]">VIP</span>.
+                </p>
+                <button
+                    onClick={() => setModalVipAberto(false)}
+                    className="w-full py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-xs tracking-widest hover:bg-red-700 shadow-lg transition-all"
+                >
+                    Sair
+                </button>
+            </div>
+        </div>
+      )}
+
     </div>
   );
 };
