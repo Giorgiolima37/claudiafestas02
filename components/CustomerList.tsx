@@ -291,11 +291,10 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                       <td className="p-8"><span className="text-xs font-bold text-gray-400 uppercase tracking-wider">{item.bairro || '---'}</span></td>
                       <td className="p-8">
                         <div className="flex items-center gap-3">
-                          {/* BOTÃO DO WHATSAPP AQUI - AGORA BLOQUEADO */}
                           <button 
                             onClick={(e) => {
                                 e.stopPropagation();
-                                setModalVipAberto(true); // <--- ALTERADO AQUI
+                                setModalVipAberto(true);
                             }}
                             className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs hover:bg-green-200 transition-colors cursor-pointer"
                             title="Função VIP"
@@ -305,11 +304,18 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           <span className="text-sm font-bold text-gray-500">{item.telefone}</span>
                         </div>
                       </td>
+                      
+                      {/* --- FORMATAÇÃO DO ID COM 3 DÍGITOS E ESTILO PÍLULA --- */}
                       <td className="p-8 text-center">
                         {editandoId === item.id ? (
                           <input autoFocus type="text" value={novoIdValor} onChange={(e) => setNovoIdValor(e.target.value)} onBlur={() => salvarNovoId(item.id)} onKeyDown={(e) => e.key === 'Enter' && salvarNovoId(item.id)} className="w-24 border-2 border-[#b24a2b] rounded-full text-[10px] px-3 py-1 outline-none font-black text-center text-[#b24a2b] bg-white" />
                         ) : (
-                          <span onClick={() => { setEditandoId(item.id); setNovoIdValor(item['id-client'] || ''); }} className="bg-gray-100 text-gray-400 text-[10px] px-4 py-2 rounded-full font-black cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest">ID: {item['id-client'] || '---'}</span>
+                          <span 
+                            onClick={() => { setEditandoId(item.id); setNovoIdValor(item['id-client'] || ''); }} 
+                            className="inline-block bg-gray-100 text-gray-500 text-[10px] font-black px-4 py-2 rounded-full cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest whitespace-nowrap"
+                          >
+                              ID: {item['id-client'] ? String(item['id-client']).padStart(3, '0') : '---'}
+                          </span>
                         )}
                       </td>
                       
