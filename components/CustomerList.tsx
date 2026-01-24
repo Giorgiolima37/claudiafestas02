@@ -27,7 +27,12 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   // --- NOVOS ESTADOS PARA EDIÇÃO DE CLIENTE ---
   const [modalEdicaoClienteAberto, setModalEdicaoClienteAberto] = useState(false);
   const [dadosClienteEdicao, setDadosClienteEdicao] = useState<any>({});
-  // --------------------------------------------
+  
+  // --- ESTADOS PARA O MODAL DE MOTIVO ---
+  const [modalMotivoAberto, setModalMotivoAberto] = useState(false);
+  const [modalVisualizarMotivoAberto, setModalVisualizarMotivoAberto] = useState(false); // NOVO: Para apenas visualizar
+  const [clienteParaBloqueio, setClienteParaBloqueio] = useState<any>(null);
+  const [motivoTexto, setMotivoTexto] = useState('');
 
   const fetchData = async () => {
     try {
@@ -53,7 +58,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // --- FUNÇÃO PARA EXCLUIR CLIENTE ---
   const handleExcluirCliente = async (cliente: any) => {
     const confirmacao = window.confirm(
         `🚨 PERIGO: EXCLUSÃO PERMANENTE\n\nTem certeza que deseja DELETAR o cliente "${cliente.cliente}"?\n\nIsso apagará o cadastro dele para sempre. Se ele tiver reservas, elas também podem ser perdidas ou ficarem sem dono.`
@@ -70,36 +74,60 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         if (error) throw error;
 
         alert("Cliente excluído com sucesso.");
-        // Remove da lista localmente para não precisar recarregar tudo
         setClientes(prev => prev.filter(c => c.id !== cliente.id));
         
     } catch (err: any) {
         alert("Erro ao excluir cliente: " + err.message);
     }
   };
-  // -----------------------------------
 
-  // --- FUNÇÃO PARA ALTERAR LISTA NEGRA ---
-  const toggleListaNegra = async (cliente: any) => {
-    const novoStatus = !cliente.lista_negra;
-    const msgConfirmacao = novoStatus 
-      ? `⚠️ ATENÇÃO!\n\nDeseja enviar ${cliente.cliente} para a LISTA NEGRA?\nO cliente não aparecerá nas buscas padrões até que a situação seja regularizada.`
-      : `🎉 ÓTIMA NOTÍCIA!\n\nDeseja remover ${cliente.cliente} da Lista Negra e torná-lo ativo novamente?`;
-
-    if (!window.confirm(msgConfirmacao)) return;
+  // --- FUNÇÃO PARA SALVAR BLOQUEIO COM MOTIVO ---
+  const confirmarBloqueioComMotivo = async () => {
+    if (!motivoTexto.trim()) return alert("Por favor, descreva o motivo.");
 
     try {
+        setLoading(true);
         const { error } = await db
             .from('cadastro')
-            .update({ lista_negra: novoStatus })
-            .eq('id', cliente.id);
+            .update({ 
+                lista_negra: true,
+                motivo: motivoTexto 
+            })
+            .eq('id', clienteParaBloqueio.id);
 
         if (error) throw error;
 
-        alert(`Sucesso! Cliente ${novoStatus ? 'bloqueado' : 'liberado'}.`);
+        alert("Cliente enviado para a Lista Negra.");
+        setModalMotivoAberto(false);
+        setMotivoTexto('');
         fetchData(); 
     } catch (err: any) {
         alert("Erro ao atualizar status: " + err.message);
+    } finally {
+        setLoading(false);
+    }
+  };
+
+  const toggleListaNegra = async (cliente: any) => {
+    const novoStatus = !cliente.lista_negra;
+
+    if (novoStatus) {
+        // Abre o modal para digitar o motivo antes de bloquear
+        setClienteParaBloqueio(cliente);
+        setModalMotivoAberto(true);
+    } else {
+        // Desbloqueia direto com confirmação
+        if (!window.confirm(`Deseja remover ${cliente.cliente} da Lista Negra?`)) return;
+        try {
+            const { error } = await db
+                .from('cadastro')
+                .update({ lista_negra: false, motivo: null })
+                .eq('id', cliente.id);
+            if (error) throw error;
+            fetchData(); 
+        } catch (err: any) {
+            alert("Erro ao atualizar status: " + err.message);
+        }
     }
   };
 
@@ -136,13 +164,11 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     }
   };
 
-  // --- NOVA FUNÇÃO: SALVAR EDIÇÃO DO CLIENTE ---
   const handleSalvarEdicaoCliente = async () => {
     if (!dadosClienteEdicao.cliente || !dadosClienteEdicao.telefone) return alert("Nome e Telefone são obrigatórios.");
     
     try {
         setLoading(true);
-        // Atualiza no banco usando a coluna correta 'identificação'
         const { error } = await db.from('cadastro').update({
             cliente: dadosClienteEdicao.cliente,
             telefone: dadosClienteEdicao.telefone,
@@ -157,11 +183,8 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         alert("Dados do cliente atualizados com sucesso!");
         setModalEdicaoClienteAberto(false);
         
-        // Atualiza o estado local para refletir a mudança imediatamente
         const novoCliente = { ...clienteDetalhado, ...dadosClienteEdicao };
         setClienteDetalhado(novoCliente);
-        
-        // Atualiza a lista geral de clientes em memória
         setClientes(prev => prev.map(c => c.id === novoCliente.id ? novoCliente : c));
 
     } catch (err: any) {
@@ -170,9 +193,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         setLoading(false);
     }
   };
-  // ---------------------------------------------
   
-  // --- LÓGICA DE ABRIR O PEDIDO PARA EDIÇÃO ---
   const handleAbrirEdicao = (itemClicado: any) => {
     const itensDoPedido = reservas.filter(r => 
         r.cliente_id === itemClicado.cliente_id && 
@@ -190,7 +211,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     setModalAberto(true);
   };
 
-  // ... (restante das funções de edição de pedido mantidas) ...
   const handleAlterarQtdExistente = (index: number, novaQtd: number) => {
     const lista = [...pedidoEmEdicao];
     lista[index].quantidade = novaQtd;
@@ -326,7 +346,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
   const totalListaNegra = clientes.filter(c => c.lista_negra).length;
 
-  if (loading && !modalAberto && !modalEdicaoClienteAberto) return <div className="text-center p-20 font-bold text-[#b24a2b] animate-pulse uppercase tracking-[0.3em]">Sincronizando Clientes...</div>;
+  if (loading && !modalAberto && !modalEdicaoClienteAberto && !modalMotivoAberto && !modalVisualizarMotivoAberto) return <div className="text-center p-20 font-bold text-[#b24a2b] animate-pulse uppercase tracking-[0.3em]">Sincronizando Clientes...</div>;
 
   return (
     <div className="w-full animate-in fade-in duration-700">
@@ -373,6 +393,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                     <th className="p-8">Bairro</th>
                     <th className="p-8">Contato / WhatsApp</th>
                     <th className="p-8 text-center">ID</th>
+                    <th className="p-8 text-center">MOTIVO</th>
                     <th className="p-8 text-center">AÇÃO</th>
                   </tr>
                 </thead>
@@ -400,7 +421,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           <span className="text-sm font-bold text-gray-500">{item.telefone}</span>
                         </div>
                       </td>
-                      {/* --- COLUNA ID CORRIGIDA --- */}
                       <td className="p-8 text-center align-middle">
                         {editandoId === item.id ? (
                           <input 
@@ -424,13 +444,25 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           </span>
                         )}
                       </td>
-                      {/* --------------------------- */}
+                      <td className="p-8 text-center">
+                        <button 
+                          onClick={() => {
+                            setClienteParaBloqueio(item);
+                            setMotivoTexto(item.motivo || 'Nenhum motivo cadastrado.');
+                            setModalVisualizarMotivoAberto(true);
+                          }}
+                          className="w-10 h-10 rounded-full bg-gray-50 text-gray-300 flex items-center justify-center hover:bg-orange-100 hover:text-[#b24a2b] transition-all shadow-sm"
+                          title="Ver Motivo/Observações"
+                        >
+                          <i className="fa-solid fa-file-lines text-lg"></i>
+                        </button>
+                      </td>
                       <td className="p-8 text-center">
                         <div className="flex items-center justify-center gap-3">
                             <button 
                                 onClick={(e) => {
-                                    e.stopPropagation();
-                                    toggleListaNegra(item);
+                                  e.stopPropagation();
+                                  toggleListaNegra(item);
                                 }}
                                 title={item.lista_negra ? "Restaurar Cliente" : "Enviar para Lista Negra"}
                                 className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
@@ -444,8 +476,8 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
                             <button 
                                 onClick={(e) => {
-                                    e.stopPropagation();
-                                    handleExcluirCliente(item);
+                                  e.stopPropagation();
+                                  handleExcluirCliente(item);
                                 }}
                                 title="Excluir Cliente Permanentemente"
                                 className="w-10 h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center transition-all shadow-sm hover:bg-gray-200 hover:text-red-500"
@@ -529,6 +561,11 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">IDENTIFICAÇÃO</span>
                         <span className="font-bold text-sm text-gray-800">{clienteDetalhado.identificação || 'NÃO CADASTRADO'}</span>
+                        {clienteDetalhado.nome_fantasia && (
+                          <span className="text-[10px] font-black text-[#b24a2b] uppercase tracking-tighter mt-1 italic">
+                            {clienteDetalhado.nome_fantasia}
+                          </span>
+                        )}
                       </div>
                       
                       <div className="flex gap-6">
@@ -555,6 +592,66 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
           </div>
         )}
       </div>
+
+      {/* --- MODAL PARA VISUALIZAR MOTIVO (APENAS LEITURA) --- */}
+      {modalVisualizarMotivoAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-[40px] p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+            <h3 className="text-xl font-black text-[#b24a2b] uppercase italic mb-2">MOTIVO DA LISTA NEGRA</h3>
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-6 tracking-widest">
+              Observações sobre o cliente <span className="text-gray-800">{clienteParaBloqueio?.cliente}</span>:
+            </p>
+            
+            <div className="w-full p-6 bg-gray-50 border-2 border-gray-100 rounded-3xl font-bold text-sm text-gray-700 min-h-[100px]">
+                {motivoTexto}
+            </div>
+
+            <div className="flex gap-4 mt-8">
+              <button 
+                onClick={() => { setModalVisualizarMotivoAberto(false); setMotivoTexto(''); }} 
+                className="flex-1 py-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] transition-all"
+              >
+                ENTENDIDO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* --- MODAL DE MOTIVO PARA LISTA NEGRA (CADASTRO) --- */}
+      {modalMotivoAberto && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
+          <div className="bg-white rounded-[40px] p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+            <h3 className="text-xl font-black text-red-600 uppercase italic mb-2">ENVIAR PARA LISTA NEGRA</h3>
+            <p className="text-[10px] font-bold text-gray-400 uppercase mb-6 tracking-widest">
+              Motivo para enviar <span className="text-gray-800">{clienteParaBloqueio?.cliente}</span> para a Lista Negra:
+            </p>
+            
+            <textarea 
+              autoFocus
+              className="w-full p-6 bg-gray-50 border-2 border-gray-100 rounded-3xl outline-none font-bold text-sm resize-none h-32 focus:border-red-100 transition-all text-gray-700"
+              placeholder="Ex: Devolveu materiais com defeito, pendência financeira..."
+              value={motivoTexto}
+              onChange={(e) => setMotivoTexto(e.target.value)}
+            />
+
+            <div className="flex gap-4 mt-8">
+              <button 
+                onClick={() => { setModalMotivoAberto(false); setMotivoTexto(''); }} 
+                className="flex-1 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+              >
+                Cancelar
+              </button>
+              <button 
+                onClick={confirmarBloqueioComMotivo} 
+                className="flex-1 py-4 bg-red-600 text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-red-700 transition-all"
+              >
+                CONFIRMAR ENVIO
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* --- MODAL DE EDIÇÃO DE PEDIDO --- */}
       {modalAberto && (

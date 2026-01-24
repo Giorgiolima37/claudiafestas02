@@ -62,8 +62,9 @@ const InventoryDashboard: React.FC = () => {
       .from('estoque')
       .update({
         item: editingItem.item,
-        codigo_interno: editingItem.codigo_interno, // Sincronização de código
+        codigo_interno: editingItem.codigo_interno,
         disponivel: parseInt(editingItem.disponivel),
+        reservado: parseInt(editingItem.reservado), // Gravação manual do saldo em aluguel
         preco: parseFloat(editingItem.preco)
       })
       .eq('id', editingItem.id);
@@ -84,10 +85,9 @@ const InventoryDashboard: React.FC = () => {
     const preco = prompt(`Preço de ${nome}:`, "10.00");
 
     if (nome && quantidade && preco) {
-      // Inserção interligada com as colunas corretas
       const { error } = await db.from('estoque').insert([{ 
         item: nome, 
-        codigo_interno: codigo, // Interliga com codigo_interno
+        codigo_interno: codigo,
         disponivel: parseInt(quantidade), 
         reservado: 0, 
         preco: parseFloat(preco) 
@@ -98,7 +98,6 @@ const InventoryDashboard: React.FC = () => {
     }
   };
 
-  // --- NOVA FUNÇÃO DE EXCLUSÃO ---
   const handleDeleteItem = async (id: number) => {
     if (window.confirm("Tem certeza que deseja excluir este item do estoque?")) {
       try {
@@ -144,7 +143,6 @@ const InventoryDashboard: React.FC = () => {
         {itensFiltrados.map((item) => (
           <div key={item.id} className="bg-white rounded-[45px] p-10 shadow-sm border border-gray-50 group hover:shadow-xl transition-all relative">
             
-            {/* ID EDITÁVEL DIRETO NO CARD - INTERLIGAÇÃO VISUAL */}
             <div className="absolute top-8 left-10">
                 {editandoIdRapido === item.id ? (
                     <input 
@@ -169,7 +167,6 @@ const InventoryDashboard: React.FC = () => {
                 )}
             </div>
 
-            {/* BOTÃO DE EDIÇÃO */}
             <button 
               onClick={() => handleOpenEditModal(item)}
               className="absolute top-6 right-8 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 p-2.5 rounded-full hover:bg-[#b24a2b] hover:text-white text-gray-400 shadow-sm"
@@ -177,7 +174,6 @@ const InventoryDashboard: React.FC = () => {
               <i className="fa-solid fa-pen text-xs"></i>
             </button>
 
-            {/* --- NOVO BOTÃO DE EXCLUIR --- */}
             <button 
               onClick={() => handleDeleteItem(item.id)}
               className="absolute top-6 right-20 opacity-0 group-hover:opacity-100 transition-opacity bg-red-50 p-2.5 rounded-full hover:bg-red-500 hover:text-white text-red-400 shadow-sm mr-2"
@@ -185,7 +181,6 @@ const InventoryDashboard: React.FC = () => {
             >
               <i className="fa-solid fa-trash text-xs"></i>
             </button>
-            {/* ----------------------------- */}
 
             <div className="flex flex-col items-center mb-8 mt-10 text-center">
               <div className="w-20 h-20 bg-orange-50 rounded-3xl flex items-center justify-center text-[#b24a2b] mb-4 shadow-inner">
@@ -248,14 +243,24 @@ const InventoryDashboard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Preço Unit.</label>
+                  <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Em Aluguel</label>
                   <input 
                     type="number" 
-                    value={editingItem.preco}
-                    onChange={(e) => setEditingItem({...editingItem, preco: e.target.value})}
-                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 font-bold text-gray-700 outline-none focus:border-[#b24a2b]"
+                    value={editingItem.reservado}
+                    onChange={(e) => setEditingItem({...editingItem, reservado: e.target.value})}
+                    className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 font-bold text-[#6366f1] outline-none focus:border-[#6366f1]"
                   />
                 </div>
+              </div>
+
+              <div>
+                <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Preço Unit.</label>
+                <input 
+                  type="number" 
+                  value={editingItem.preco}
+                  onChange={(e) => setEditingItem({...editingItem, preco: e.target.value})}
+                  className="w-full bg-gray-50 border-2 border-gray-100 rounded-2xl p-4 font-bold text-gray-700 outline-none focus:border-[#b24a2b]"
+                />
               </div>
 
               <div className="flex gap-4 pt-6">

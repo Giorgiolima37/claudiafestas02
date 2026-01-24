@@ -6,6 +6,10 @@ const ReservationForm: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
+  // --- NOVA ESTADO PARA FILTRO DE CLIENTE ---
+  const [filtroCliente, setFiltroCliente] = useState('');
+  // ------------------------------------------
+  
   // Estados para o Modal de Frete e Desconto
   const [showFreteModal, setShowFreteModal] = useState(false);
   const [freteAjustado, setFreteAjustado] = useState(0);
@@ -21,8 +25,12 @@ const ReservationForm: React.FC = () => {
   });
 
   const carregarDados = async () => {
-    const resClientes = await db.from('cadastro').select('id, cliente');
-    // Alteração solicitada: ordenar o estoque por nome do item (ordem alfabética)
+    // --- ALTERAÇÃO AQUI: ORDENANDO CLIENTES ALFABETICAMENTE ---
+    const resClientes = await db.from('cadastro')
+      .select('id, cliente')
+      .order('cliente', { ascending: true }); // Ordem A-Z
+    // ----------------------------------------------------------
+
     const resEstoque = await db.from('estoque')
       .select('id, item, disponivel, reservado, preco, codigo_interno')
       .order('item', { ascending: true });
@@ -142,7 +150,7 @@ END:VCALENDAR`;
           forma_pagamento: 'Não Informado',
           valor_total: valorItemTotal,
           taxa_entrega: freteAjustado,
-          desconto: desconto, // <--- Aqui está o segredo
+          desconto: desconto, 
           codigo_item: itemEstoque.codigo_interno || 'S/C',
           observacoes: reservaGeral.observacoes 
         }]);
@@ -191,6 +199,7 @@ END:VCALENDAR`;
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
+      setFiltroCliente(''); // Reseta o filtro
       await carregarDados();
       
     } catch (err: any) {
@@ -209,9 +218,31 @@ END:VCALENDAR`;
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
-            <select required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all" value={reservaGeral.clienteId} onChange={(e) => setReservaGeral({...reservaGeral, clienteId: e.target.value})}>
+            
+            {/* --- INPUT DE BUSCA ADICIONADO --- */}
+            <input 
+              type="text" 
+              placeholder="🔍 Procurar cliente..." 
+              className="mb-2 p-2 text-[10px] font-bold border-b-2 border-gray-100 outline-none focus:border-[#b24a2b] transition-all bg-transparent"
+              value={filtroCliente}
+              onChange={(e) => setFiltroCliente(e.target.value)}
+            />
+            {/* --------------------------------- */}
+
+            <select 
+              required 
+              className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all" 
+              value={reservaGeral.clienteId} 
+              onChange={(e) => setReservaGeral({...reservaGeral, clienteId: e.target.value})}
+            >
               <option value="">Selecione o cliente...</option>
-              {clientes.map(c => <option key={c.id} value={c.id}>{c.cliente}</option>)}
+              {clientes
+                .filter(c => 
+                  c.cliente.toLowerCase().includes(filtroCliente.toLowerCase()) || 
+                  c.id.toString().includes(filtroCliente) // LÓGICA DE BUSCA POR ID ADICIONADA
+                )
+                .map(c => <option key={c.id} value={c.id}>ID: {c.id} - {c.cliente}</option>)
+              }
             </select>
           </div>
 
