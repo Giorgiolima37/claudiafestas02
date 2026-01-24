@@ -53,6 +53,32 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
   useEffect(() => { fetchData(); }, []);
 
+  // --- FUNÇÃO PARA EXCLUIR CLIENTE ---
+  const handleExcluirCliente = async (cliente: any) => {
+    const confirmacao = window.confirm(
+        `🚨 PERIGO: EXCLUSÃO PERMANENTE\n\nTem certeza que deseja DELETAR o cliente "${cliente.cliente}"?\n\nIsso apagará o cadastro dele para sempre. Se ele tiver reservas, elas também podem ser perdidas ou ficarem sem dono.`
+    );
+
+    if (!confirmacao) return;
+
+    try {
+        const { error } = await db
+            .from('cadastro')
+            .delete()
+            .eq('id', cliente.id);
+
+        if (error) throw error;
+
+        alert("Cliente excluído com sucesso.");
+        // Remove da lista localmente para não precisar recarregar tudo
+        setClientes(prev => prev.filter(c => c.id !== cliente.id));
+        
+    } catch (err: any) {
+        alert("Erro ao excluir cliente: " + err.message);
+    }
+  };
+  // -----------------------------------
+
   // --- FUNÇÃO PARA ALTERAR LISTA NEGRA ---
   const toggleListaNegra = async (cliente: any) => {
     const novoStatus = !cliente.lista_negra;
@@ -374,7 +400,8 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           <span className="text-sm font-bold text-gray-500">{item.telefone}</span>
                         </div>
                       </td>
-                      <td className="p-8 text-center">
+                      {/* --- COLUNA ID CORRIGIDA --- */}
+                      <td className="p-8 text-center align-middle">
                         {editandoId === item.id ? (
                           <input 
                             autoFocus
@@ -383,7 +410,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             onChange={(e) => setNovoIdValor(e.target.value)}
                             onBlur={() => salvarNovoId(item.id)}
                             onKeyDown={(e) => e.key === 'Enter' && salvarNovoId(item.id)}
-                            className="w-24 border-2 border-[#b24a2b] rounded-full text-[10px] px-3 py-1 outline-none font-black text-center text-[#b24a2b] bg-white"
+                            className="w-24 border-2 border-[#b24a2b] rounded-full text-[10px] px-3 py-1 outline-none font-black text-center text-[#b24a2b] bg-white shadow-sm"
                           />
                         ) : (
                           <span 
@@ -391,27 +418,41 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                               setEditandoId(item.id);
                               setNovoIdValor(item['id-client'] || '');
                             }}
-                            className="bg-gray-100 text-gray-400 text-[10px] px-4 py-2 rounded-full font-black cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest"
+                            className="inline-block bg-gray-100 text-gray-400 text-[10px] px-4 py-2 rounded-full font-black cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest whitespace-nowrap min-w-[80px] text-center"
                           >
                             ID: {item['id-client'] || '---'}
                           </span>
                         )}
                       </td>
+                      {/* --------------------------- */}
                       <td className="p-8 text-center">
-                        <button 
-                            onClick={(e) => {
-                                e.stopPropagation();
-                                toggleListaNegra(item);
-                            }}
-                            title={item.lista_negra ? "Restaurar Cliente" : "Enviar para Lista Negra"}
-                            className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm mx-auto ${
-                                item.lista_negra 
-                                ? 'bg-green-100 text-green-600 hover:bg-green-200' 
-                                : 'bg-red-100 text-red-600 hover:bg-red-200'
-                            }`}
-                        >
-                            <i className={`fa-solid ${item.lista_negra ? 'fa-user-check' : 'fa-ban'}`}></i>
-                        </button>
+                        <div className="flex items-center justify-center gap-3">
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    toggleListaNegra(item);
+                                }}
+                                title={item.lista_negra ? "Restaurar Cliente" : "Enviar para Lista Negra"}
+                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                                    item.lista_negra 
+                                    ? 'bg-green-100 text-green-600 hover:bg-green-200' 
+                                    : 'bg-red-100 text-red-600 hover:bg-red-200'
+                                }`}
+                            >
+                                <i className={`fa-solid ${item.lista_negra ? 'fa-user-check' : 'fa-ban'}`}></i>
+                            </button>
+
+                            <button 
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    handleExcluirCliente(item);
+                                }}
+                                title="Excluir Cliente Permanentemente"
+                                className="w-10 h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center transition-all shadow-sm hover:bg-gray-200 hover:text-red-500"
+                            >
+                                <i className="fa-solid fa-trash-can"></i>
+                            </button>
+                        </div>
                       </td>
                     </tr>
                   ))}
@@ -466,7 +507,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
                 <div className="space-y-6">
                   <div className="bg-gray-50 rounded-[40px] p-10 border border-gray-100">
-                    {/* --- CABEÇALHO COM BOTÃO DE EDITAR --- */}
                     <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
                         <h2 className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.3em]">Dados Fixos</h2>
                         <button 
@@ -480,7 +520,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             <i className="fa-solid fa-pen-to-square text-sm"></i>
                         </button>
                     </div>
-                    {/* ------------------------------------ */}
 
                     <div className="space-y-8">
                       <div className="flex flex-col">

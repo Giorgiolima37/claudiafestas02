@@ -12,6 +12,8 @@ const OrderManagement: React.FC = () => {
 
   // Estados para o Modal de Edição
   const [modalAberto, setModalAberto] = useState(false);
+  const [editandoData, setEditandoData] = useState(false); // Estado para o lápis de edição da data do evento
+  const [editandoDevolucao, setEditandoDevolucao] = useState(false); // NOVO: Estado para o lápis de edição da devolução
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any[]>([]);
   const [dadosPedidoFixo, setDadosPedidoFixo] = useState<any>(null);
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
@@ -124,6 +126,12 @@ const OrderManagement: React.FC = () => {
     setLoading(true);
 
     try {
+        // ATUALIZA A DATA DE DEVOLUÇÃO NO BANCO DE DADOS PARA TODOS OS ITENS DESTE PEDIDO
+        await db.from('reservas')
+          .update({ data_devolucao: dadosPedidoFixo.data_devolucao })
+          .eq('cliente_id', dadosPedidoFixo.cliente_id)
+          .eq('data_evento', dadosPedidoFixo.data_evento);
+
         for (const item of pedidoEmEdicao) {
             const produtoEstoque = estoque.find(e => e.item === item.item);
             if (!produtoEstoque) continue;
@@ -182,6 +190,8 @@ const OrderManagement: React.FC = () => {
         }
         alert("Pedido atualizado com sucesso!");
         setModalAberto(false);
+        setEditandoData(false);
+        setEditandoDevolucao(false); // Reseta edição ao salvar
         fetchData();
     } catch (err: any) {
         if (err.message !== "Estoque insuficiente") alert("Erro ao salvar: " + err.message);
@@ -521,10 +531,36 @@ const OrderManagement: React.FC = () => {
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
-                        {/* CORREÇÃO NA EXIBIÇÃO DA DATA NO MODAL */}
+                        
+                        {/* DATA EVENTO */}
                         <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
+
+                        {/* DATA DE DEVOLUÇÃO EDITÁVEL COM LÁPIS E TRAVA PARA DIAS PASSADOS */}
+                        <div className="flex items-center gap-2 mt-1">
+                          {editandoDevolucao ? (
+                            <input 
+                              type="date" 
+                              className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none"
+                              min={new Date().toISOString().split('T')[0]} // IMPEDE DIAS PASSADOS
+                              value={dadosPedidoFixo?.data_devolucao?.split('T')[0]}
+                              onChange={(e) => setDadosPedidoFixo({...dadosPedidoFixo, data_devolucao: e.target.value})}
+                              onBlur={() => setEditandoDevolucao(false)}
+                              autoFocus
+                            />
+                          ) : (
+                            <p className="text-[10px] font-bold text-gray-400 uppercase">
+                              Devolução: {formatarDataBR(dadosPedidoFixo?.data_devolucao)}
+                            </p>
+                          )}
+                          <button 
+                            onClick={() => setEditandoDevolucao(!editandoDevolucao)}
+                            className="text-gray-400 hover:text-gray-600 transition-colors"
+                          >
+                            <i className="fa-solid fa-pencil text-[9px]"></i>
+                          </button>
+                        </div>
                     </div>
-                    <button onClick={() => setModalAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+                    <button onClick={() => {setModalAberto(false); setEditandoDevolucao(false);}} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
                 </div>
 
                 <div className="bg-gray-50 rounded-3xl p-6 mb-6">
@@ -592,7 +628,7 @@ const OrderManagement: React.FC = () => {
                 </div>
 
                 <div className="flex gap-3">
-                    <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+                    <button onClick={() => {setModalAberto(false); setEditandoDevolucao(false);}} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
                     <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Alterações</button>
                 </div>
             </div>
