@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import { BrowserRouter, Routes, Route } from 'react-router-dom'; // ADICIONADO: Para gerenciar os links
 import { Screen } from './types';
 import Sidebar from './components/Sidebar';
 import CustomerRegistration from './components/CustomerRegistration';
@@ -7,9 +8,11 @@ import ReservationForm from './components/ReservationForm';
 import InventoryDashboard from './components/InventoryDashboard';
 import FinanceDashboard from './components/FinanceDashboard';
 import InventoryHistory from './components/InventoryHistory';
-import OrderManagement from './components/OrderManagement'; // Importação adicionada
+import OrderManagement from './components/OrderManagement';
+import { ClientLogin } from "./components/client/ClientLogin"; // ADICIONADO: Importa a tela do cliente
 
-const App: React.FC = () => {
+// --- COMPONENTE ADMIN (Toda a sua lógica original foi movida para cá) ---
+const AdminPanel: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('LISTAGEM');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
@@ -48,19 +51,15 @@ const App: React.FC = () => {
     setCurrentScreen('HISTORICO');
   };
 
-  // FUNÇÃO DE RENDERIZAÇÃO AJUSTADA PARA SEPARAR CLIENTES DE PEDIDOS
   const renderScreen = () => {
     switch (currentScreen) {
       case 'CADASTRO': 
         return <CustomerRegistration onSaved={() => navigateTo('LISTAGEM')} />;
       case 'LISTAGEM': 
-        // Tela exclusiva para Base de Dados / Cadastros
         return <CustomerList onSelectCustomer={abrirHistoricoCliente} />;
       case 'RESERVA': 
-        // Redireciona para PEDIDOS após salvar
         return <ReservationForm onFinished={() => navigateTo('PEDIDOS')} />;
       case 'PEDIDOS': 
-        // Tela exclusiva para Gestão de Cards de Reservas
         return <OrderManagement />;
       case 'ESTOQUE': 
         return <InventoryDashboard />;
@@ -130,7 +129,6 @@ const App: React.FC = () => {
             >
               <i className="fa-solid fa-user-plus"></i>
             </button>
-            {/* Atalho rápido para a tela de Pedidos Logísticos */}
             <button 
               onClick={() => navigateTo('PEDIDOS')}
               className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
@@ -153,6 +151,21 @@ const App: React.FC = () => {
         </div>
       </main>
     </div>
+  );
+};
+
+// --- AQUI ESTÁ A MÁGICA DOS LINKS ---
+const App: React.FC = () => {
+  return (
+    <BrowserRouter>
+      <Routes>
+        {/* Se o link for /pedido, abre a tela do cliente */}
+        <Route path="/pedido" element={<ClientLogin />} />
+
+        {/* Se for qualquer outro link, abre o painel administrativo */}
+        <Route path="/*" element={<AdminPanel />} />
+      </Routes>
+    </BrowserRouter>
   );
 };
 
