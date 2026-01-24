@@ -124,16 +124,22 @@ END:VCALENDAR`;
     setShowFreteModal(false);
 
     try {
+      // --- VALIDAÇÃO INTELIGENTE DE ESTOQUE ADICIONADA ---
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
         if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
 
-        if (itemEstoque.disponivel < selecionado.quantidade) {
-          alert(`🚨 ESTOQUE INSUFICIENTE!\n\nMaterial: ${itemEstoque.item}`);
+        // Lógica: Considera o patrimônio total (Disponível + Reservado) 
+        // para permitir reservas futuras mesmo se o estoque estiver na rua hoje.
+        const estoqueTotalPatrimonial = itemEstoque.disponivel + itemEstoque.reservado;
+
+        if (estoqueTotalPatrimonial < selecionado.quantidade) {
+          alert(`🚨 ESTOQUE INSUFICIENTE!\n\nMaterial: ${itemEstoque.item}\nPatrimônio Total: ${estoqueTotalPatrimonial} unidades.`);
           setLoading(false);
           return;
         }
       }
+      // --------------------------------------------------
 
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
@@ -380,7 +386,7 @@ END:VCALENDAR`;
                 )}
                 <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
                   <span>Total Geral:</span>
-                  <span className="text-[#b24a2b]">R$ {(calcularSubtotal() + freteAjustado - desconto).toFixed(2).replace('.', ',')}</span>
+                  <span>R$ {(calcularSubtotal() + freteAjustado - desconto).toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
 

@@ -237,55 +237,55 @@ const OrderManagement: React.FC = () => {
         <head>
           <title>CONTRATO - ${pedido.nomeCliente}</title>
           <style>
-            @page { size: portrait; margin: 1.2cm; }
+            @page { size: A4; margin: 0.5cm; }
             body { 
                 font-family: 'Arial', sans-serif; 
                 color: #000; 
-                line-height: 1.4; 
-                font-size: 13px;
+                line-height: 1.2; 
+                font-size: 11px;
                 margin: 0; padding: 0; 
             }
             
             .contract-container { 
                 width: 100%; 
                 border: 1px solid #000; 
-                padding: 20px; 
+                padding: 15px; 
                 box-sizing: border-box; 
-                min-height: 98vh;
+                min-height: 27.7cm; 
                 display: flex; 
                 flex-direction: column; 
             }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 20px; }
+            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
             .company-info { width: 80%; }
             
-            .company-name { font-size: 24px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 5px; }
-            .company-contact { font-size: 16px; font-weight: 900; margin-bottom: 5px; }
-            .company-address { font-size: 12px; font-weight: bold; }
+            .company-name { font-size: 20px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 3px; }
+            .company-contact { font-size: 14px; font-weight: 900; margin-bottom: 3px; }
+            .company-address { font-size: 10px; font-weight: bold; }
             
-            .logo-circle { width: 90px; height: 90px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
+            .logo-circle { width: 75px; height: 75px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
             .logo-circle img { width: 100%; height: auto; object-fit: contain; }
             
-            .main-title { text-align: center; font-size: 30px; font-weight: 900; margin: 20px 0; letter-spacing: 5px; }
+            .main-title { text-align: center; font-size: 24px; font-weight: 900; margin: 10px 0; letter-spacing: 4px; }
             
-            .intro-text { font-size: 20px; margin-bottom: 20px; text-align: justify; line-height: 1.5; }
+            .intro-text { font-size: 12px; margin-bottom: 15px; text-align: justify; line-height: 1.3; }
             .intro-text strong { text-transform: uppercase; }
             
-            table { width: 100%; border-collapse: collapse; margin-bottom: 25px; }
-            th, td { border: 1px solid #000; padding: 8px; text-align: center; font-weight: 900; }
-            th { font-size: 13px; text-transform: uppercase; background-color: #f0f0f0; }
-            td { font-size: 13px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
+            th, td { border: 1px solid #000; padding: 5px; text-align: center; font-weight: 900; }
+            th { font-size: 11px; text-transform: uppercase; background-color: #f0f0f0; }
+            td { font-size: 11px; }
             
             .align-left { text-align: left; padding-left: 10px; }
-            .total-box { font-size: 15px; background-color: #f2f2f2; }
+            .total-box { font-size: 13px; background-color: #f2f2f2; }
             
-            .clauses-container { font-size: 20px; text-align: justify; margin-bottom: 20px; line-height: 1.4; }
-            .clause-text { margin-bottom: 10px; }
+            .clauses-container { font-size: 12px; text-align: justify; margin-bottom: 15px; line-height: 1.2; }
+            .clause-text { margin-bottom: 5px; }
             
-            .obs-container { border: 1px solid #000; padding: 10px; margin: 20px 0; min-height: 50px; font-size: 13px; }
+            .obs-container { border: 1px solid #000; padding: 8px; margin: 10px 0; min-height: 40px; font-size: 11px; }
             
-            .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 10px; }
-            .logistics-info { font-weight: 900; font-size: 14px; line-height: 1.5; }
-            .sig-line { width: 250px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 10px; font-size: 13px; }
+            .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 5px; }
+            .logistics-info { font-weight: 900; font-size: 12px; line-height: 1.3; }
+            .sig-line { width: 220px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 8px; font-size: 11px; }
           </style>
         </head>
         <body>
@@ -307,8 +307,8 @@ const OrderManagement: React.FC = () => {
             </div>
             
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2px;">
-                <div style="font-weight:bold; font-size:13px;">DESCRIÇÃO DO BEM</div>
-                <div style="font-weight:bold; font-size:14px;">Telefone do cliente: ${pedido.telefone || cliente.telefone || '________________'}</div>
+                <div style="font-weight:bold; font-size:11px;">DESCRIÇÃO DO BEM</div>
+                <div style="font-weight:bold; font-size:12px;">Telefone do cliente: ${pedido.telefone || cliente.telefone || '________________'}</div>
             </div>
 
             <table>
@@ -463,7 +463,7 @@ const OrderManagement: React.FC = () => {
         <h1 className="text-4xl font-black text-gray-800 italic uppercase">Gestão de Pedidos</h1>
         <div className="flex flex-col items-center gap-4 mt-8">
           <input type="text" placeholder="PROCURAR POR NOME OU ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full max-w-md px-6 py-4 bg-white border-2 border-gray-100 rounded-full text-xs text-center font-bold outline-none focus:border-[#b24a2b] shadow-sm transition-all" />
-          <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-amber-500 border-amber-500 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'}`}>
+          <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-amber-50 border-amber-500 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'}`}>
             {filtroUrgentes ? '✕ Mostrar todos' : `⏳ Ver devoluções em 24h`}
             {totalUrgentes > 0 && !filtroUrgentes && <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[9px] animate-pulse">{totalUrgentes}</span>}
           </button>
@@ -535,7 +535,7 @@ const OrderManagement: React.FC = () => {
                         {/* DATA EVENTO */}
                         <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
 
-                        {/* DATA DE DEVOLUÇÃO EDITÁVEL COM LÁPIS E TRAVA PARA DIAS PASSADOS */}
+                        {/* DATA DE DEVOLUÇÃO EDITÁVEL WITH LÁPIS E TRAVA PARA DIAS PASSADOS */}
                         <div className="flex items-center gap-2 mt-1">
                           {editandoDevolucao ? (
                             <input 
