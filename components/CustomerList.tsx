@@ -353,12 +353,12 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
       <div className="max-w-6xl mx-auto">
         {!clienteDetalhado ? (
           <>
-            <header className="mb-10 flex flex-col md:flex-row justify-between items-center gap-6 px-4 md:px-0">
+            <header className="mb-10 flex flex-col md:flex-row justify-between items-center gap-6">
                 <div>
                   <h1 className="text-[#b24a2b] text-4xl font-black italic uppercase tracking-tighter">Clientes</h1>
                   <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Base de dados e cadastros ativos</p>
                 </div>
-                <div className="relative w-full md:w-auto">
+                <div className="relative">
                   <input 
                     type="text" 
                     placeholder="PROCURAR POR NOME OU ID..." 
@@ -370,7 +370,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 </div>
             </header>
 
-            <div className="flex gap-4 md:gap-8 mb-8 border-b border-gray-100 items-center justify-center md:justify-start px-4">
+            <div className="flex gap-8 mb-8 border-b border-gray-100 items-center justify-center md:justify-start">
               <button 
                 onClick={() => setAbaAtiva('normais')} 
                 className={`pb-4 px-2 font-black text-[10px] uppercase tracking-[0.2em] transition-all ${abaAtiva === 'normais' ? 'border-b-4 border-[#b24a2b] text-[#b24a2b]' : 'text-gray-300 hover:text-gray-400'}`}
@@ -385,51 +385,43 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
               </button>
             </div>
 
-            {/* AJUSTE DE RESPONSIVIDADE: overflow-x-auto permite scroll no celular */}
-            <div className="mx-4 md:mx-0 overflow-x-auto rounded-[30px] md:rounded-[40px] border border-gray-100 bg-white shadow-xl">
-              <table className="w-full text-left border-collapse min-w-[600px] md:min-w-full">
+            <div className="overflow-hidden rounded-[40px] border border-gray-100 bg-white shadow-xl">
+              <table className="w-full text-left border-collapse">
                 <thead>
                   <tr className="bg-gray-50/50 uppercase text-[9px] font-black text-gray-400 tracking-[0.2em]">
-                    <th className="p-5 md:p-8">Nome do Cliente</th>
-                    <th className="p-5 md:p-8 hidden md:table-cell">Bairro</th>
-                    <th className="p-5 md:p-8">Contato / WhatsApp</th>
-                    <th className="p-5 md:p-8 text-center hidden sm:table-cell">ID</th>
-                    <th className="p-5 md:p-8 text-center hidden md:table-cell">MOTIVO</th>
-                    <th className="p-5 md:p-8 text-center">AÇÃO</th>
+                    <th className="p-8">Nome do Cliente</th>
+                    <th className="p-8">Bairro</th>
+                    <th className="p-8">Contato / WhatsApp</th>
+                    <th className="p-8 text-center">ID</th>
+                    <th className="p-8 text-center">MOTIVO</th>
+                    <th className="p-8 text-center">AÇÃO</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {clientesExibidos.map((item) => (
                     <tr key={item.id} className="hover:bg-orange-50/30 transition-all group">
-                      <td className="p-5 md:p-8">
+                      <td className="p-8">
                         <button 
                           onClick={() => setClienteDetalhado({...item, historico: reservas.filter(r => r.cliente_id === item.id)})} 
-                          className="font-black text-gray-800 group-hover:text-[#b24a2b] uppercase text-sm tracking-tight transition-colors text-left break-words max-w-[150px] md:max-w-none"
+                          className="font-black text-gray-800 group-hover:text-[#b24a2b] uppercase text-sm tracking-tight transition-colors text-left"
                         >
                           {item.cliente}
                         </button>
-                        {/* ID visível apenas no celular abaixo do nome se necessário */}
-                        <p className="sm:hidden text-[8px] font-bold text-gray-400 mt-1">ID: {item['id-client'] || '---'}</p>
                       </td>
-                      <td className="p-5 md:p-8 hidden md:table-cell">
+                      <td className="p-8">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                           {item.bairro || '---'}
                         </span>
                       </td>
-                      <td className="p-5 md:p-8">
+                      <td className="p-8">
                         <div className="flex items-center gap-3">
-                          <a 
-                            href={`https://wa.me/55${item.telefone?.replace(/\D/g, '')}`} 
-                            target="_blank" 
-                            rel="noopener noreferrer"
-                            className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs hover:bg-green-200"
-                          >
+                          <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center text-green-600 text-xs">
                             <i className="fa-brands fa-whatsapp"></i>
-                          </a>
-                          <span className="text-sm font-bold text-gray-500 hidden sm:inline">{item.telefone}</span>
+                          </div>
+                          <span className="text-sm font-bold text-gray-500">{item.telefone}</span>
                         </div>
                       </td>
-                      <td className="p-5 md:p-8 text-center align-middle hidden sm:table-cell">
+                      <td className="p-8 text-center align-middle">
                         {editandoId === item.id ? (
                           <input 
                             autoFocus
@@ -452,7 +444,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           </span>
                         )}
                       </td>
-                      <td className="p-5 md:p-8 text-center hidden md:table-cell">
+                      <td className="p-8 text-center">
                         <button 
                           onClick={() => {
                             setClienteParaBloqueio(item);
@@ -465,21 +457,21 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                           <i className="fa-solid fa-file-lines text-lg"></i>
                         </button>
                       </td>
-                      <td className="p-5 md:p-8 text-center">
-                        <div className="flex items-center justify-center gap-2 md:gap-3">
+                      <td className="p-8 text-center">
+                        <div className="flex items-center justify-center gap-3">
                             <button 
                                 onClick={(e) => {
                                   e.stopPropagation();
                                   toggleListaNegra(item);
                                 }}
                                 title={item.lista_negra ? "Restaurar Cliente" : "Enviar para Lista Negra"}
-                                className={`w-8 h-8 md:w-10 md:h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
+                                className={`w-10 h-10 rounded-full flex items-center justify-center transition-all shadow-sm ${
                                     item.lista_negra 
                                     ? 'bg-green-100 text-green-600 hover:bg-green-200' 
                                     : 'bg-red-100 text-red-600 hover:bg-red-200'
                                 }`}
                             >
-                                <i className={`fa-solid ${item.lista_negra ? 'fa-user-check' : 'fa-ban'} text-xs md:text-base`}></i>
+                                <i className={`fa-solid ${item.lista_negra ? 'fa-user-check' : 'fa-ban'}`}></i>
                             </button>
 
                             <button 
@@ -488,9 +480,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                                   handleExcluirCliente(item);
                                 }}
                                 title="Excluir Cliente Permanentemente"
-                                className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center transition-all shadow-sm hover:bg-gray-200 hover:text-red-500"
+                                className="w-10 h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center transition-all shadow-sm hover:bg-gray-200 hover:text-red-500"
                             >
-                                <i className="fa-solid fa-trash-can text-xs md:text-base"></i>
+                                <i className="fa-solid fa-trash-can"></i>
                             </button>
                         </div>
                       </td>
@@ -501,7 +493,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             </div>
           </>
         ) : (
-          <div className="mx-4 md:mx-0 bg-white rounded-[35px] md:rounded-[50px] p-6 md:p-12 border border-gray-100 shadow-2xl animate-in slide-in-from-bottom duration-500">
+          <div className="bg-white rounded-[50px] p-12 border border-gray-100 shadow-2xl animate-in slide-in-from-bottom duration-500">
               <button 
                 onClick={() => setClienteDetalhado(null)} 
                 className="inline-flex items-center gap-3 px-6 py-3 bg-gray-50 text-[#b24a2b] rounded-full font-black text-[10px] uppercase tracking-widest hover:bg-[#b24a2b] hover:text-white transition-all mb-8 shadow-sm"
@@ -509,20 +501,20 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 <i className="fa-solid fa-arrow-left"></i> Voltar à Listagem
               </button>
               
-              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-8 md:mb-12 gap-4">
-                <h1 className="text-3xl md:text-5xl font-black uppercase text-gray-800 tracking-tighter italic break-words">
+              <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-12 gap-4">
+                <h1 className="text-5xl font-black uppercase text-gray-800 tracking-tighter italic">
                   {clienteDetalhado.cliente}
                 </h1>
               </div>
               
-              <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
+              <div className="grid grid-cols-1 lg:grid-cols-3 gap-12">
                 <div className="lg:col-span-2">
-                  <h2 className="text-gray-400 font-black text-[10px] uppercase mb-6 md:mb-8 border-b border-gray-100 pb-4 tracking-[0.3em]">Histórico Geral de Locações</h2>
+                  <h2 className="text-gray-400 font-black text-[10px] uppercase mb-8 border-b border-gray-100 pb-4 tracking-[0.3em]">Histórico Geral de Locações</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {clienteDetalhado.historico.map((h: any) => (
-                      <div key={h.id} className="p-5 md:p-6 bg-gray-50 rounded-[25px] md:rounded-[30px] flex justify-between items-center border border-gray-100">
-                        <div className="max-w-[150px]">
-                          <p className="font-black text-gray-800 text-xs md:text-sm uppercase break-words">{h.item}</p>
+                      <div key={h.id} className="p-6 bg-gray-50 rounded-[30px] flex justify-between items-center border border-gray-100">
+                        <div>
+                          <p className="font-black text-gray-800 text-sm uppercase">{h.item}</p>
                           <p className="text-[9px] text-gray-400 font-black uppercase mt-2">
                             {new Date(h.data_evento).toLocaleDateString('pt-BR')}
                           </p>
@@ -536,7 +528,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                                     onClick={() => handleAbrirEdicao(h)}
                                     className="text-[9px] font-black text-gray-800 hover:text-[#b24a2b] transition-colors uppercase mt-1 flex items-center gap-1"
                                 >
-                                    <i className="fa-solid fa-pen"></i> Editar
+                                    <i className="fa-solid fa-pen"></i> Editar pedido
                                 </button>
                             )}
                         </div>
@@ -546,8 +538,8 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 </div>
 
                 <div className="space-y-6">
-                  <div className="bg-gray-50 rounded-[30px] md:rounded-[40px] p-6 md:p-10 border border-gray-100">
-                    <div className="flex justify-between items-center mb-6 md:mb-8 border-b border-gray-100 pb-4">
+                  <div className="bg-gray-50 rounded-[40px] p-10 border border-gray-100">
+                    <div className="flex justify-between items-center mb-8 border-b border-gray-100 pb-4">
                         <h2 className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.3em]">Dados Fixos</h2>
                         <button 
                             onClick={() => {
@@ -561,14 +553,14 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         </button>
                     </div>
 
-                    <div className="space-y-6 md:space-y-8">
+                    <div className="space-y-8">
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Contato Principal</span>
-                        <span className="font-black text-base md:text-lg text-gray-800">{clienteDetalhado.telefone}</span>
+                        <span className="font-black text-lg text-gray-800">{clienteDetalhado.telefone}</span>
                       </div>
                       <div className="flex flex-col">
                         <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">IDENTIFICAÇÃO</span>
-                        <span className="font-bold text-sm text-gray-800 break-words">{clienteDetalhado.identificação || 'NÃO CADASTRADO'}</span>
+                        <span className="font-bold text-sm text-gray-800">{clienteDetalhado.identificação || 'NÃO CADASTRADO'}</span>
                         {clienteDetalhado.nome_fantasia && (
                           <span className="text-[10px] font-black text-[#b24a2b] uppercase tracking-tighter mt-1 italic">
                             {clienteDetalhado.nome_fantasia}
@@ -576,7 +568,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         )}
                       </div>
                       
-                      <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
+                      <div className="flex gap-6">
                           <div className="flex flex-col flex-1">
                             <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Localização / Bairro</span>
                             <span className="font-black text-sm text-[#b24a2b] uppercase">{clienteDetalhado.bairro || 'NÃO INFORMADO'}</span>
@@ -601,16 +593,16 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         )}
       </div>
 
-      {/* --- MODAL PARA VISUALIZAR MOTIVO --- */}
+      {/* --- MODAL PARA VISUALIZAR MOTIVO (APENAS LEITURA) --- */}
       {modalVisualizarMotivoAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[30px] md:rounded-[40px] p-6 md:p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[40px] p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-[#b24a2b] uppercase italic mb-2">MOTIVO DA LISTA NEGRA</h3>
             <p className="text-[10px] font-bold text-gray-400 uppercase mb-6 tracking-widest">
               Observações sobre o cliente <span className="text-gray-800">{clienteParaBloqueio?.cliente}</span>:
             </p>
             
-            <div className="w-full p-5 md:p-6 bg-gray-50 border-2 border-gray-100 rounded-2xl md:rounded-3xl font-bold text-sm text-gray-700 min-h-[100px]">
+            <div className="w-full p-6 bg-gray-50 border-2 border-gray-100 rounded-3xl font-bold text-sm text-gray-700 min-h-[100px]">
                 {motivoTexto}
             </div>
 
@@ -626,10 +618,10 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         </div>
       )}
 
-      {/* --- MODAL DE MOTIVO PARA LISTA NEGRA --- */}
+      {/* --- MODAL DE MOTIVO PARA LISTA NEGRA (CADASTRO) --- */}
       {modalMotivoAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
-          <div className="bg-white rounded-[30px] md:rounded-[40px] p-6 md:p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[40px] p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-red-600 uppercase italic mb-2">ENVIAR PARA LISTA NEGRA</h3>
             <p className="text-[10px] font-bold text-gray-400 uppercase mb-6 tracking-widest">
               Motivo para enviar <span className="text-gray-800">{clienteParaBloqueio?.cliente}</span> para a Lista Negra:
@@ -637,7 +629,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             
             <textarea 
               autoFocus
-              className="w-full p-5 md:p-6 bg-gray-50 border-2 border-gray-100 rounded-2xl md:rounded-3xl outline-none font-bold text-sm resize-none h-32 focus:border-red-100 transition-all text-gray-700"
+              className="w-full p-6 bg-gray-50 border-2 border-gray-100 rounded-3xl outline-none font-bold text-sm resize-none h-32 focus:border-red-100 transition-all text-gray-700"
               placeholder="Ex: Devolveu materiais com defeito, pendência financeira..."
               value={motivoTexto}
               onChange={(e) => setMotivoTexto(e.target.value)}
@@ -664,7 +656,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
       {/* --- MODAL DE EDIÇÃO DE PEDIDO --- */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[30px] md:rounded-[35px] p-6 md:p-8 w-full max-w-2xl shadow-2xl border border-gray-100 animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
+            <div className="bg-white rounded-[35px] p-8 w-full max-w-2xl shadow-2xl border border-gray-100 animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
@@ -673,17 +665,17 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                     <button onClick={() => setModalAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
                 </div>
 
-                <div className="bg-gray-50 rounded-2xl md:rounded-3xl p-4 md:p-6 mb-6">
+                <div className="bg-gray-50 rounded-3xl p-6 mb-6">
                     <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens no Pedido</h4>
                     <div className="space-y-3">
                         {pedidoEmEdicao.map((item, idx) => {
                             if (item._deleted) return null; 
                             return (
-                                <div key={idx} className="flex flex-col sm:flex-row items-start sm:items-center justify-between bg-white p-3 rounded-xl border border-gray-100 shadow-sm gap-3">
+                                <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
                                     <div className="flex-1">
                                         <p className="text-xs font-black text-gray-700 uppercase">{item.item} {item._isNew && <span className="text-green-500 text-[8px] ml-2">(NOVO)</span>}</p>
                                     </div>
-                                    <div className="flex items-center gap-4 w-full sm:w-auto justify-between">
+                                    <div className="flex items-center gap-4">
                                         <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg">
                                             <span className="text-[8px] font-bold text-gray-400 uppercase">Qtd:</span>
                                             <input 
@@ -701,12 +693,13 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                                 </div>
                             );
                         })}
+                        {pedidoEmEdicao.filter(i => !i._deleted).length === 0 && <p className="text-center text-xs text-gray-400 italic">Nenhum item neste pedido.</p>}
                     </div>
                 </div>
 
                 <div className="border-t border-dashed border-gray-200 pt-6 mb-8">
                     <h4 className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest mb-4">+ Adicionar Novo Item</h4>
-                    <div className="flex flex-col sm:flex-row gap-3">
+                    <div className="flex gap-3">
                         <select 
                             className="flex-1 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-600"
                             value={novoItemSelecionado}
@@ -719,26 +712,24 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                                 </option>
                             ))}
                         </select>
-                        <div className="flex gap-3">
-                          <input 
-                              type="number" 
-                              min="1"
-                              placeholder="Qtd"
-                              className="w-20 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-center"
-                              value={novaQtdItem}
-                              onChange={(e) => setNovaQtdItem(parseInt(e.target.value))}
-                          />
-                          <button 
-                              onClick={handleAdicionarNovoItem}
-                              className="bg-green-500 hover:bg-green-600 text-white flex-1 sm:w-12 rounded-xl flex items-center justify-center transition-all shadow-lg py-3 sm:py-0"
-                          >
-                              <i className="fa-solid fa-plus"></i>
-                          </button>
-                        </div>
+                        <input 
+                            type="number" 
+                            min="1"
+                            placeholder="Qtd"
+                            className="w-20 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-center"
+                            value={novaQtdItem}
+                            onChange={(e) => setNovaQtdItem(parseInt(e.target.value))}
+                        />
+                        <button 
+                            onClick={handleAdicionarNovoItem}
+                            className="bg-green-500 hover:bg-green-600 text-white w-12 rounded-xl flex items-center justify-center transition-all shadow-lg"
+                        >
+                            <i className="fa-solid fa-plus"></i>
+                        </button>
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3">
+                <div className="flex gap-3">
                     <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
                     <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Alterações</button>
                 </div>
@@ -749,13 +740,13 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
       {/* --- NOVO MODAL DE EDIÇÃO DE CLIENTE --- */}
       {modalEdicaoClienteAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-            <div className="bg-white rounded-[30px] md:rounded-[35px] p-6 md:p-8 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+            <div className="bg-white rounded-[35px] p-8 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
                 <div className="flex justify-between items-start mb-6">
                     <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Cliente</h3>
                     <button onClick={() => setModalEdicaoClienteAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
                 </div>
                 
-                <div className="space-y-4 max-h-[70vh] overflow-y-auto px-2">
+                <div className="space-y-4">
                     <div className="flex flex-col">
                         <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Nome do Cliente</label>
                         <input 
@@ -780,7 +771,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, identificação: e.target.value})}
                         />
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-4">
+                    <div className="flex gap-4">
                         <div className="flex flex-col flex-1">
                             <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Bairro</label>
                             <input 
@@ -808,7 +799,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                     </div>
                 </div>
 
-                <div className="flex flex-col sm:flex-row gap-3 mt-6">
+                <div className="flex gap-3 mt-6">
                     <button onClick={() => setModalEdicaoClienteAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
                     <button onClick={handleSalvarEdicaoCliente} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Dados</button>
                 </div>

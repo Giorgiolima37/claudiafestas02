@@ -7,8 +7,7 @@ import ReservationForm from './components/ReservationForm';
 import InventoryDashboard from './components/InventoryDashboard';
 import FinanceDashboard from './components/FinanceDashboard';
 import InventoryHistory from './components/InventoryHistory';
-import OrderManagement from './components/OrderManagement'; 
-import Catalog from './components/Catalog'; // Importação do Catálogo Público
+import OrderManagement from './components/OrderManagement'; // Importação adicionada
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('LISTAGEM');
@@ -19,10 +18,6 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState(false);
-
-  // Lógica para permitir visualização do catálogo sem senha
-  // Esta verificação deve vir antes do bloqueio de autenticação
-  const isCatalogRoute = window.location.pathname === '/catalogo';
 
   useEffect(() => {
     const sessionAuth = sessionStorage.getItem('claudia_auth');
@@ -59,10 +54,13 @@ const App: React.FC = () => {
       case 'CADASTRO': 
         return <CustomerRegistration onSaved={() => navigateTo('LISTAGEM')} />;
       case 'LISTAGEM': 
+        // Tela exclusiva para Base de Dados / Cadastros
         return <CustomerList onSelectCustomer={abrirHistoricoCliente} />;
       case 'RESERVA': 
+        // Redireciona para PEDIDOS após salvar
         return <ReservationForm onFinished={() => navigateTo('PEDIDOS')} />;
       case 'PEDIDOS': 
+        // Tela exclusiva para Gestão de Cards de Reservas
         return <OrderManagement />;
       case 'ESTOQUE': 
         return <InventoryDashboard />;
@@ -75,19 +73,12 @@ const App: React.FC = () => {
     }
   };
 
-  // --- AJUSTE DE PRIORIDADE ---
-  // Se for a rota do catálogo, renderiza imediatamente e ignora a autenticação
-  if (isCatalogRoute) {
-    return <Catalog />;
-  }
-
-  // Se não for catálogo e não estiver autenticado, mostra o login
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-[#fdf8f6] p-4">
         <div className="w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center animate-in zoom-in duration-500">
           <div className="w-20 h-20 bg-[#B24D2D] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <i className="fa-solid fa-lock text-white text-3xl"></i>
+             <i className="fa-solid fa-lock text-white text-3xl"></i>
           </div>
           <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
           <p className="text-gray-400 text-sm mb-8 font-bold uppercase tracking-widest">Claudia Festas</p>
@@ -139,6 +130,7 @@ const App: React.FC = () => {
             >
               <i className="fa-solid fa-user-plus"></i>
             </button>
+            {/* Atalho rápido para a tela de Pedidos Logísticos */}
             <button 
               onClick={() => navigateTo('PEDIDOS')}
               className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
