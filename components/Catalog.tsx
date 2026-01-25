@@ -5,25 +5,10 @@ const Catalog: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
-  const [categoriaAtiva, setCategoriaAtiva] = useState('TODOS');
-
-  // Definição das categorias para o filtro
-  const categorias = [
-    { id: 'TODOS', label: 'Todos' },
-    { id: 'MESA', label: 'Mesas' },
-    { id: 'CADEIRA', label: 'Cadeiras' },
-    { id: 'TOALHA', label: 'Toalhas' },
-    { id: 'TALHER', label: 'Talheres' },
-    { id: 'BALDE', label: 'Baldes' },
-    { id: 'BRINQUEDO', label: 'Brinquedos' },
-    { id: 'TAÇA', label: 'Taças' },
-    { id: 'PRATO', label: 'Pratos' },
-  ];
 
   const fetchCatalog = async () => {
     try {
       setLoading(true);
-      // Busca todos os itens do estoque para mostrar inclusive os esgotados
       const { data, error } = await db
         .from('estoque')
         .select('item, disponivel, preco, codigo_interno')
@@ -45,12 +30,9 @@ const Catalog: React.FC = () => {
     window.open(`https://wa.me/5548984123233?text=${mensagem}`, '_blank');
   };
 
-  // Lógica de filtragem combinada (Busca + Categoria)
-  const itensFiltrados = estoque.filter(i => {
-    const matchesBusca = i.item.toLowerCase().includes(busca.toLowerCase());
-    const matchesCategoria = categoriaAtiva === 'TODOS' || i.item.toUpperCase().includes(categoriaAtiva);
-    return matchesBusca && matchesCategoria;
-  });
+  const itensFiltrados = estoque.filter(i => 
+    i.item.toLowerCase().includes(busca.toLowerCase())
+  );
 
   if (loading) return (
     <div className="min-h-screen flex items-center justify-center bg-[#fdf8f6]">
@@ -63,7 +45,6 @@ const Catalog: React.FC = () => {
 
   return (
     <div className="min-h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 pb-20">
-      {/* Header Premium */}
       <header className="pt-16 pb-8 px-6 text-center">
         <div className="inline-block px-4 py-1.5 bg-white border border-orange-100 rounded-full mb-4 shadow-sm">
             <span className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.2em]">Locações Claudia Festas</span>
@@ -72,7 +53,6 @@ const Catalog: React.FC = () => {
             Nosso <span className="text-[#b24a2b]">Estoque</span>
         </h1>
         
-        {/* Barra de Busca */}
         <div className="max-w-2xl mx-auto mt-10 relative">
           <input 
             type="text" 
@@ -84,25 +64,7 @@ const Catalog: React.FC = () => {
         </div>
       </header>
 
-      {/* Navegação de Categorias */}
-      <nav className="flex flex-wrap justify-center gap-2 mb-12 px-6 max-w-5xl mx-auto">
-        {categorias.map(cat => (
-          <button
-            key={cat.id}
-            onClick={() => setCategoriaAtiva(cat.id)}
-            className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
-              categoriaAtiva === cat.id 
-              ? 'bg-[#b24a2b] text-white shadow-lg shadow-orange-200' 
-              : 'bg-white text-gray-400 hover:text-gray-600 border border-orange-50'
-            }`}
-          >
-            {cat.label}
-          </button>
-        ))}
-      </nav>
-
-      {/* Grid de Cards */}
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8 mt-10">
         {itensFiltrados.map((prod, idx) => (
           <div 
             key={idx} 
@@ -110,7 +72,6 @@ const Catalog: React.FC = () => {
           >
             <div className="flex justify-between items-start mb-8">
                 <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Cód. {prod.codigo_interno}</span>
-                {/* Indicador visual de status */}
                 <div className={`w-2.5 h-2.5 rounded-full shadow-lg ${prod.disponivel > 0 ? 'bg-green-500 shadow-green-500/50 animate-pulse' : 'bg-red-500 shadow-red-500/50'}`}></div>
             </div>
 
@@ -118,7 +79,7 @@ const Catalog: React.FC = () => {
                 {prod.item}
             </h3>
 
-            {/* Indicador de Quantidade em Estoque - NOVA FUNÇÃO SOLICITADA */}
+            {/* Exibição da quantidade em estoque abaixo do nome */}
             <div className="flex items-center gap-2 mb-6">
                 <div className={`w-2 h-2 rounded-full ${prod.disponivel > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
                 <span className={`text-[11px] font-black uppercase tracking-widest ${prod.disponivel > 0 ? 'text-gray-400' : 'text-red-500'}`}>
@@ -143,11 +104,10 @@ const Catalog: React.FC = () => {
         ))}
       </div>
 
-      {/* Estado Vazio */}
       {itensFiltrados.length === 0 && (
         <div className="py-20 text-center">
             <i className="fa-solid fa-magnifying-glass text-gray-200 text-5xl mb-6"></i>
-            <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">Nenhum item encontrado nesta categoria.</p>
+            <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">Nenhum item encontrado.</p>
         </div>
       )}
     </div>
