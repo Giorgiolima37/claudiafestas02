@@ -103,14 +103,13 @@ const Catalog: React.FC = () => {
   const resumoCarrinho = estoque.filter(item => carrinho[item.item]);
   const totalItens = Object.values(carrinho).reduce((a, b) => a + b, 0);
 
-  // FUNÇÃO CORRIGIDA: SALVA NO BANCO PRIMEIRO
+  // FUNÇÃO ATUALIZADA: REMOVIDO O REDIRECIONAMENTO PARA O WHATSAPP
   const confirmarPedidoFinal = async () => {
     const itensTexto = resumoCarrinho
       .map(item => `${carrinho[item.item]}x ${item.item}`)
       .join(', ');
     
     try {
-        // 1. REGISTRA NA TABELA DE PEDIDOS ONLINE
         const { error } = await db.from('pedidos_online').insert([{
             cliente_nome: nomeCliente,
             cliente_whatsapp: identificacaoCliente, 
@@ -119,18 +118,12 @@ const Catalog: React.FC = () => {
 
         if (error) throw error;
 
-        // 2. SÓ DEPOIS ABRE O WHATSAPP
-        const mensagem = encodeURIComponent(`Olá Claudia! Eu sou ${nomeCliente}.\nGostaria de um orçamento para:\n\n${itensTexto.replace(/, /g, '\n')}`);
-        window.open(`https://wa.me/5548984123233?text=${mensagem}`, '_blank');
-        
-        // 3. FECHA O MODAL E LIMPA O CARRINHO
+        // Limpa o carrinho e fecha o modal para retornar à tela de produtos
         setMostrarModalConfirma(false);
         setCarrinho({});
-        alert("Pedido enviado com sucesso para o painel e WhatsApp!");
-
+        
     } catch (err: any) {
         console.error("Erro ao registrar pedido:", err.message);
-        alert("Ocorreu um erro ao salvar seu pedido. Tente novamente.");
     }
   };
 

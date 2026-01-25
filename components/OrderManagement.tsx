@@ -47,13 +47,83 @@ const OrderManagement: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // Função que verifica se o cliente do pedido online está na lista negra
   const verificarSeEstaNaListaNegra = (documentoPedido: string) => {
     if (!documentoPedido) return false;
     const docLimpoPedido = documentoPedido.replace(/\D/g, '');
     return clientes.some(c => 
       (c.identificação || "").replace(/\D/g, '') === docLimpoPedido && c.lista_negra === true
     );
+  };
+
+  // FUNÇÃO ATUALIZADA: Com lógica de comparação de documento limpo para garantir que apareça na lista
+  const handleAceitarPedido = async (pedido: any) => {
+    if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
+    
+    try {
+      setLoading(true);
+      
+      // Limpa o documento vindo do pedido online (remove pontos/traços)
+      const docLimpoOnline = pedido.cliente_whatsapp.replace(/\D/g, '');
+      
+      // Busca o cliente comparando com o documento limpo do banco
+      const clienteEncontrado = clientes.find(c => {
+          const docBancoLimpo = (c.identificação || "").replace(/\D/g, '');
+          return docBancoLimpo === docLimpoOnline;
+      });
+
+      if (!clienteEncontrado) {
+        alert("Cliente não localizado no cadastro com este CPF/CNPJ. Verifique se o documento no cadastro está correto.");
+        return;
+      }
+
+      const linhasItens = pedido.itens_texto.split(', ');
+      
+      for (const linha of linhasItens) {
+        const match = linha.match(/(\d+)x (.+)/);
+        if (match) {
+          const qtd = parseInt(match[1]);
+          const nomeItem = match[2];
+          const infoEstoque = estoque.find(e => e.item === nomeItem);
+
+          if (infoEstoque) {
+            if (infoEstoque.disponivel < qtd) {
+              alert(`Estoque insuficiente para o item: ${nomeItem}.`);
+              throw new Error(`Estoque insuficiente`);
+            }
+
+            // Atualiza estoque
+            await db.from('estoque').update({
+              disponivel: infoEstoque.disponivel - qtd,
+              reservado: (infoEstoque.reservado || 0) + qtd
+            }).eq('id', infoEstoque.id);
+
+            // Insere na tabela de reservas vinculando ao ID real do cliente
+            await db.from('reservas').insert([{
+              cliente_id: clienteEncontrado.id,
+              item: nomeItem,
+              quantidade: qtd,
+              data_evento: new Date().toISOString().split('T')[0],
+              data_devolucao: new Date(Date.now() + 86400000).toISOString().split('T')[0],
+              status: 'Pendente',
+              codigo_item: infoEstoque?.codigo_interno || 'S/C',
+              valor_total: (infoEstoque?.preco || 0) * qtd,
+              status_estoque: 'processado',
+              origem: 'online'
+            }]);
+          }
+        }
+      }
+
+      // Remove da lista online após sucesso total
+      await db.from('pedidos_online').delete().eq('id', pedido.id);
+      
+      fetchData();
+      alert("Pedido aceito! Ele já deve aparecer na sua lista principal.");
+    } catch (err: any) {
+      console.error(err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const formatarDataBR = (dataString: string) => {
@@ -80,7 +150,6 @@ const OrderManagement: React.FC = () => {
     return dH > 0 && dH <= 24;
   };
 
-  // --- FUNÇÕES DE EDIÇÃO ---
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
     const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({...i, _originalQty: i.quantidade}));
     setPedidoEmEdicao(itensFormatados);
@@ -147,7 +216,7 @@ const OrderManagement: React.FC = () => {
             }
             if (item._isNew) {
                 if (produtoEstoque.disponivel < item.quantidade) {
-                    alert(`Estoque insuficiente para adicionar: ${item.item}`);
+                    alert(`Estoque insuficiente.`);
                     throw new Error("Estoque insuficiente");
                 }
                 await db.from('estoque').update({
@@ -170,7 +239,7 @@ const OrderManagement: React.FC = () => {
             if (item.quantidade !== item._originalQty) {
                 const diferenca = item.quantidade - item._originalQty;
                 if (diferenca > 0 && produtoEstoque.disponivel < diferenca) {
-                    alert(`Estoque insuficiente para aumentar qtd de: ${item.item}`);
+                    alert(`Estoque insuficiente.`);
                     throw new Error("Estoque insuficiente");
                 }
                 await db.from('estoque').update({
@@ -185,13 +254,10 @@ const OrderManagement: React.FC = () => {
                 }).eq('id', item.id);
             }
         }
-        alert("Pedido atualizado com sucesso!");
         setModalAberto(false);
-        setEditandoData(false);
-        setEditandoDevolucao(false); 
         fetchData();
     } catch (err: any) {
-        if (err.message !== "Estoque insuficiente") alert("Erro ao salvar: " + err.message);
+        console.error(err.message);
     } finally {
         setLoading(false);
     }
@@ -260,8 +326,7 @@ const OrderManagement: React.FC = () => {
             </div>
             <div class="main-title">CONTRATO</div>
             <div class="intro-text">
-              Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, Município: <strong>${cliente.municipio || '_________________'}</strong>, tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante descritos, sobre as cláusulas e condições seguintes).<br>
-              Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
+              Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, Município: <strong>${cliente.municipio || '_________________'}</strong>, tem ajustado o presente contrato de locação dos equipamentos e utensílios.
             </div>
             <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2px;">
                 <div style="font-weight:bold; font-size:11px;">DESCRIÇÃO DO BEM</div>
@@ -391,6 +456,7 @@ const OrderManagement: React.FC = () => {
             idPersonalizado: cliente?.['id-client'], 
             observacoes: r.observacoes || '', 
             statusEstoque: r.status_estoque, 
+            origem: r.origem,
             itens: [] 
           };
         }
@@ -440,12 +506,16 @@ const OrderManagement: React.FC = () => {
             const atrasado = verificarAtraso(pedido.dataDevolucao);
             const urgente = verificarUrgencia(pedido.dataDevolucao);
             const corBotaoConfirmar = pedido.statusEstoque === 'processado' ? 'bg-orange-500' : 'bg-green-600';
+            const isOnline = pedido.origem === 'online';
 
             return (
                 <div key={idx} className={`w-full max-w-md rounded-[45px] p-8 border-2 shadow-xl ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-50'}`}>
                 <div className="flex justify-between items-start mb-6">
                     <div className="flex flex-col gap-1">
-                    {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
+                    <div className="flex items-center gap-2">
+                        {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
+                        {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Origem: Online</span>}
+                    </div>
                     <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
                     </div>
                     <div className="flex gap-2">
@@ -501,30 +571,21 @@ const OrderManagement: React.FC = () => {
                             
                             return (
                                 <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
-                                    
                                     {estaBloqueado && (
                                         <div className="flex items-center justify-center gap-2 mb-3 bg-red-600 text-white py-1.5 rounded-xl animate-pulse">
                                             <i className="fa-solid fa-circle-exclamation"></i>
                                             <span className="font-black text-[10px] uppercase tracking-tighter">Atenção: Lista Negra</span>
                                         </div>
                                     )}
-
                                     <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
                                     <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
-                                    
                                     <div className="mt-3 bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
                                         <span className="text-[8px] font-black text-[#b24a2b] uppercase tracking-tighter block mb-1">Itens Selecionados:</span>
                                         <p className="text-[10px] font-bold text-gray-600 leading-tight">{po.itens_texto}</p>
                                     </div>
-
                                     <div className="flex gap-2 mt-4">
-                                        {/* BOTÃO ATUALIZADO: RENOMEADO E ÍCONE REMOVIDO */}
-                                        <button onClick={() => window.open(`https://wa.me/55${po.cliente_whatsapp.replace(/\D/g, '')}`, '_blank')} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase flex items-center justify-center hover:bg-green-600 transition-all">
-                                            Aceitar pedido
-                                        </button>
-                                        <button onClick={() => handleRecusarPedido(po.id)} className="bg-white border-2 border-red-500 text-red-500 px-4 py-2 rounded-full text-[9px] font-black uppercase hover:bg-red-50 transition-all">
-                                            Recusar
-                                        </button>
+                                        <button onClick={() => handleAceitarPedido(po)} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase flex items-center justify-center hover:bg-green-600 transition-all">Aceitar pedido</button>
+                                        <button onClick={() => handleRecusarPedido(po.id)} className="bg-white border-2 border-red-500 text-red-500 px-4 py-2 rounded-full text-[9px] font-black uppercase hover:bg-red-50 transition-all">Recusar</button>
                                     </div>
                                 </div>
                             );
@@ -532,19 +593,14 @@ const OrderManagement: React.FC = () => {
                     </div>
                 ) : (
                     <div className="flex flex-col items-center justify-center mt-20">
-                        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4">
-                            <i className="fa-solid fa-box-open text-gray-300 text-2xl"></i>
-                        </div>
-                        <p className="text-[10px] font-black text-gray-300 uppercase text-center tracking-widest leading-relaxed">
-                            Nenhuma solicitação nova.
-                        </p>
+                        <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4"><i className="fa-solid fa-box-open text-gray-300 text-2xl"></i></div>
+                        <p className="text-[10px] font-black text-gray-300 uppercase text-center tracking-widest leading-relaxed">Nenhuma solicitação nova.</p>
                     </div>
                 )}
             </div>
         </aside>
       </div>
 
-      {/* MODAL DE EDIÇÃO DE PEDIDO */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-[35px] p-8 w-full max-w-2xl shadow-2xl border border-gray-100 animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
