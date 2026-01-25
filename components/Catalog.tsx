@@ -10,9 +10,10 @@ const Catalog: React.FC = () => {
   
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [nomeCliente, setNomeCliente] = useState('');
-  const [whatsappCliente, setWhatsappCliente] = useState('');
+  const [identificacaoCliente, setIdentificacaoCliente] = useState('');
   const [verificandoAcesso, setVerificandoAcesso] = useState(false);
   const [mostrarModalErro, setMostrarModalErro] = useState(false);
+  const [erroNome, setErroNome] = useState('');
 
   const fetchCatalog = async () => {
     try {
@@ -34,28 +35,43 @@ const Catalog: React.FC = () => {
     if (isLoggedIn) fetchCatalog(); 
   }, [isLoggedIn]);
 
-  // FUNÇÃO DE LOGIN COM COMPARAÇÃO INTELIGENTE (IGNORA MAIÚSCULAS E SÍMBOLOS)
+  const aplicarMascaraDocumento = (valor: string) => {
+    const v = valor.replace(/\D/g, ''); 
+    if (v.length <= 11) {
+      return v
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d{1,2})$/, '$1-$2');
+    } else {
+      return v
+        .replace(/(\d{2})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1.$2')
+        .replace(/(\d{3})(\d)/, '$1/$2')
+        .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
+    }
+  };
+
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
+    setErroNome('');
+    const nomeLimpo = nomeCliente.trim();
+    if (!nomeLimpo.includes(' ')) {
+      setErroNome('Adicione o sobrenome');
+      return;
+    }
     setVerificandoAcesso(true);
-
     try {
       const { data: cadastros, error } = await db
         .from('cadastro')
-        .select('cliente, telefone');
-
+        .select('cliente, identificação');
       if (error) throw error;
-
-      const whatsappLimpoUser = whatsappCliente.replace(/\D/g, '');
-      const nomeUser = nomeCliente.trim().toLowerCase();
-
+      const docLimpoUser = identificacaoCliente.replace(/\D/g, '');
+      const nomeUser = nomeLimpo.toLowerCase();
       const clienteEncontrado = cadastros?.find(c => {
         const nomeBanco = c.cliente.trim().toLowerCase();
-        // Garante que o telefone do banco também seja limpo para comparação
-        const telefoneBanco = (c.telefone || "").replace(/\D/g, '');
-        return nomeBanco === nomeUser && telefoneBanco.includes(whatsappLimpoUser);
+        const docBanco = (c.identificação || "").replace(/\D/g, '');
+        return nomeBanco === nomeUser && docBanco === docLimpoUser;
       });
-
       if (clienteEncontrado) {
         setIsLoggedIn(true);
       } else {
@@ -87,13 +103,35 @@ const Catalog: React.FC = () => {
   const resumoCarrinho = estoque.filter(item => carrinho[item.item]);
   const totalItens = Object.values(carrinho).reduce((a, b) => a + b, 0);
 
-  const confirmarPedidoFinal = () => {
+  // FUNÇÃO CORRIGIDA: SALVA NO BANCO PRIMEIRO
+  const confirmarPedidoFinal = async () => {
     const itensTexto = resumoCarrinho
-      .map(item => `• ${carrinho[item.item]}x ${item.item}`)
-      .join('\n');
-    const mensagem = encodeURIComponent(`Olá Claudia! Eu sou ${nomeCliente}.\nGostaria de um orçamento:\n\n${itensTexto}`);
-    window.open(`https://wa.me/5548984123233?text=${mensagem}`, '_blank');
-    setMostrarModalConfirma(false);
+      .map(item => `${carrinho[item.item]}x ${item.item}`)
+      .join(', ');
+    
+    try {
+        // 1. REGISTRA NA TABELA DE PEDIDOS ONLINE
+        const { error } = await db.from('pedidos_online').insert([{
+            cliente_nome: nomeCliente,
+            cliente_whatsapp: identificacaoCliente, 
+            itens_texto: itensTexto
+        }]);
+
+        if (error) throw error;
+
+        // 2. SÓ DEPOIS ABRE O WHATSAPP
+        const mensagem = encodeURIComponent(`Olá Claudia! Eu sou ${nomeCliente}.\nGostaria de um orçamento para:\n\n${itensTexto.replace(/, /g, '\n')}`);
+        window.open(`https://wa.me/5548984123233?text=${mensagem}`, '_blank');
+        
+        // 3. FECHA O MODAL E LIMPA O CARRINHO
+        setMostrarModalConfirma(false);
+        setCarrinho({});
+        alert("Pedido enviado com sucesso para o painel e WhatsApp!");
+
+    } catch (err: any) {
+        console.error("Erro ao registrar pedido:", err.message);
+        alert("Ocorreu um erro ao salvar seu pedido. Tente novamente.");
+    }
   };
 
   if (!isLoggedIn) {
@@ -105,20 +143,33 @@ const Catalog: React.FC = () => {
             Claudia <span className="text-[#b24a2b]">Festas</span>
           </h1>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
+            <div className="relative">
+              <input 
+                type="text" 
+                placeholder="NOME E SOBRENOME" 
+                className={`w-full px-6 py-4 bg-gray-50 border-none rounded-2xl text-xs font-bold uppercase outline-none focus:ring-2 transition-all text-center ${erroNome ? 'ring-red-400' : 'ring-[#b24a2b]/20'}`}
+                value={nomeCliente}
+                onChange={(e) => {
+                    setNomeCliente(e.target.value.toLowerCase());
+                    if(erroNome) setErroNome('');
+                }}
+                required
+              />
+              {erroNome && (
+                <span className="absolute left-full ml-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[9px] font-black uppercase px-3 py-2 rounded-lg whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-left-2 duration-300">
+                  {erroNome}
+                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-red-500 rotate-45"></div>
+                </span>
+              )}
+            </div>
+
             <input 
               type="text" 
-              placeholder="NOME E SOBRENOME" 
+              placeholder="CPF OU CNPJ" 
+              maxLength={18}
               className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl text-xs font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
-              value={nomeCliente}
-              onChange={(e) => setNomeCliente(e.target.value)}
-              required
-            />
-            <input 
-              type="tel" 
-              placeholder="WHATSAPP DO CLIENTE" 
-              className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl text-xs font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
-              value={whatsappCliente}
-              onChange={(e) => setWhatsappCliente(e.target.value)}
+              value={identificacaoCliente}
+              onChange={(e) => setIdentificacaoCliente(aplicarMascaraDocumento(e.target.value))}
               required
             />
             <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-4">
@@ -126,7 +177,6 @@ const Catalog: React.FC = () => {
             </button>
           </form>
         </div>
-
         {mostrarModalErro && (
           <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
             <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMostrarModalErro(false)}></div>
