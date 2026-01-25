@@ -5,11 +5,24 @@ const Catalog: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState('');
+  const [categoriaAtiva, setCategoriaAtiva] = useState('TODOS');
+
+  // Definição das categorias para o filtro
+  const categorias = [
+    { id: 'TODOS', label: 'Todos' },
+    { id: 'MESA', label: 'Mesas' },
+    { id: 'CADEIRA', label: 'Cadeiras' },
+    { id: 'TOALHA', label: 'Toalhas' },
+    { id: 'TALHER', label: 'Talheres' },
+    { id: 'BALDE', label: 'Baldes' },
+    { id: 'BRINQUEDO', label: 'Brinquedos' },
+    { id: 'TAÇA', label: 'Taças' },
+    { id: 'PRATO', label: 'Pratos' },
+  ];
 
   const fetchCatalog = async () => {
     try {
       setLoading(true);
-      // Busca apenas itens que tenham pelo menos 1 unidade disponível
       const { data, error } = await db
         .from('estoque')
         .select('item, disponivel, preco, codigo_interno')
@@ -28,52 +41,103 @@ const Catalog: React.FC = () => {
   useEffect(() => { fetchCatalog(); }, []);
 
   const enviarWhatsApp = (produto: string) => {
-    const mensagem = encodeURIComponent(`Olá! Vi no catálogo o item "${produto}" e gostaria de consultar uma reserva.`);
+    const mensagem = encodeURIComponent(`Olá! Vi no seu catálogo o item "${produto}" e gostaria de consultar a disponibilidade para reserva.`);
     window.open(`https://wa.me/5548984123233?text=${mensagem}`, '_blank');
   };
 
-  const itensFiltrados = estoque.filter(i => 
-    i.item.toLowerCase().includes(busca.toLowerCase())
+  // Lógica de filtragem combinada (Busca + Categoria)
+  const itensFiltrados = estoque.filter(i => {
+    const matchesBusca = i.item.toLowerCase().includes(busca.toLowerCase());
+    const matchesCategoria = categoriaAtiva === 'TODOS' || i.item.toUpperCase().includes(categoriaAtiva);
+    return matchesBusca && matchesCategoria;
+  });
+
+  if (loading) return (
+    <div className="min-h-screen flex items-center justify-center bg-[#fdf8f6]">
+        <div className="flex flex-col items-center gap-4">
+            <div className="w-12 h-12 border-4 border-[#b24a2b] border-t-transparent rounded-full animate-spin"></div>
+            <p className="font-black text-[#b24a2b] uppercase tracking-widest text-xs">Atualizando Acervo...</p>
+        </div>
+    </div>
   );
 
-  if (loading) return <div className="p-20 text-center font-black text-[#b24a2b] animate-pulse">CARREGANDO CATÁLOGO...</div>;
-
   return (
-    <div className="min-h-screen bg-white p-4 md:p-10 font-sans">
-      <header className="max-w-4xl mx-auto text-center mb-12">
-        <h1 className="text-3xl font-black text-gray-800 uppercase italic tracking-tighter">Nosso Estoque</h1>
-        <p className="text-[#b24a2b] font-bold text-[10px] uppercase tracking-widest mt-2">Claudia Festas - Itens Disponíveis para Locação</p>
+    <div className="min-h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 pb-20">
+      {/* Header Premium */}
+      <header className="pt-16 pb-8 px-6 text-center">
+        <div className="inline-block px-4 py-1.5 bg-white border border-orange-100 rounded-full mb-4 shadow-sm">
+            <span className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.2em]">Locações Claudia Festas</span>
+        </div>
+        <h1 className="text-5xl md:text-7xl font-black text-gray-900 uppercase italic tracking-tighter mb-4">
+            Nosso <span className="text-[#b24a2b]">Estoque</span>
+        </h1>
         
-        <input 
-          type="text" 
-          placeholder="O QUE VOCÊ PROCURA?" 
-          value={busca}
-          onChange={(e) => setBusca(e.target.value)}
-          className="mt-8 w-full max-w-md px-6 py-4 bg-gray-50 border-2 border-gray-100 rounded-full text-xs font-black uppercase outline-none focus:border-[#b24a2b] transition-all text-center"
-        />
+        {/* Barra de Busca */}
+        <div className="max-w-2xl mx-auto mt-10 relative">
+          <input 
+            type="text" 
+            placeholder="O QUE VOCÊ PRECISA PARA SUA FESTA?" 
+            value={busca}
+            onChange={(e) => setBusca(e.target.value)}
+            className="w-full px-8 py-6 bg-white border-none rounded-[30px] text-sm font-bold uppercase outline-none shadow-xl shadow-orange-100/30 focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
+          />
+        </div>
       </header>
 
-      <div className="max-w-4xl mx-auto grid grid-cols-1 md:grid-cols-2 gap-4">
+      {/* Navegação de Categorias (Filtro) */}
+      <nav className="flex flex-wrap justify-center gap-2 mb-12 px-6 max-w-5xl mx-auto">
+        {categorias.map(cat => (
+          <button
+            key={cat.id}
+            onClick={() => setCategoriaAtiva(cat.id)}
+            className={`px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest transition-all ${
+              categoriaAtiva === cat.id 
+              ? 'bg-[#b24a2b] text-white shadow-lg shadow-orange-200' 
+              : 'bg-white text-gray-400 hover:text-gray-600 border border-orange-50'
+            }`}
+          >
+            {cat.label}
+          </button>
+        ))}
+      </nav>
+
+      {/* Grid de Cards */}
+      <div className="max-w-7xl mx-auto px-6 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-8">
         {itensFiltrados.map((prod, idx) => (
-          <div key={idx} className="bg-white border-2 border-gray-50 p-6 rounded-[30px] flex justify-between items-center shadow-sm hover:shadow-md transition-all">
-            <div className="flex-1">
-              <span className="text-[8px] font-black text-blue-600 uppercase">Cód: {prod.codigo_interno}</span>
-              <h3 className="font-black text-gray-800 uppercase text-sm mt-1">{prod.item}</h3>
-              <p className="text-[10px] font-bold text-green-600 mt-1 uppercase">✓ {prod.disponivel} DISPONÍVEIS</p>
+          <div 
+            key={idx} 
+            className="group bg-white rounded-[45px] p-8 border border-white hover:border-orange-100 transition-all duration-500 shadow-sm hover:shadow-2xl"
+          >
+            <div className="flex justify-between items-start mb-8">
+                <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Cód. {prod.codigo_interno}</span>
+                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"></div>
             </div>
+
+            <h3 className="font-black text-gray-800 uppercase text-lg leading-tight mb-4 min-h-[50px]">
+                {prod.item}
+            </h3>
             
+            <div className="flex flex-col gap-1 mb-10">
+                <span className="text-2xl font-black text-[#b24a2b]">R$ {prod.preco?.toFixed(2)}</span>
+                <span className="text-[9px] font-bold text-gray-400 uppercase tracking-tighter">Preço por unidade de locação</span>
+            </div>
+
             <button 
               onClick={() => enviarWhatsApp(prod.item)}
-              className="bg-[#b24a2b] text-white px-5 py-3 rounded-2xl font-black text-[9px] uppercase tracking-widest hover:bg-gray-800 transition-all flex items-center gap-2"
+              className="w-full bg-gray-900 group-hover:bg-[#b24a2b] text-white py-5 rounded-[25px] font-black text-[10px] uppercase tracking-[0.2em] transition-all flex items-center justify-center gap-3 shadow-xl active:scale-95"
             >
-              Consultar <i className="fa-brands fa-whatsapp text-xs"></i>
+              Consultar <i className="fa-brands fa-whatsapp text-lg"></i>
             </button>
           </div>
         ))}
       </div>
 
+      {/* Estado Vazio */}
       {itensFiltrados.length === 0 && (
-        <p className="text-center text-gray-400 font-bold text-xs uppercase mt-20">Nenhum item encontrado no momento.</p>
+        <div className="py-20 text-center">
+            <i className="fa-solid fa-magnifying-glass text-gray-200 text-5xl mb-6"></i>
+            <p className="text-gray-400 font-bold text-sm uppercase tracking-widest">Nenhum item encontrado nesta categoria.</p>
+        </div>
       )}
     </div>
   );
