@@ -23,10 +23,10 @@ const Catalog: React.FC = () => {
   const fetchCatalog = async () => {
     try {
       setLoading(true);
+      // Busca todos os itens do estoque para mostrar inclusive os esgotados
       const { data, error } = await db
         .from('estoque')
         .select('item, disponivel, preco, codigo_interno')
-        .gt('disponivel', 0)
         .order('item');
 
       if (error) throw error;
@@ -84,7 +84,7 @@ const Catalog: React.FC = () => {
         </div>
       </header>
 
-      {/* Navegação de Categorias (Filtro) */}
+      {/* Navegação de Categorias */}
       <nav className="flex flex-wrap justify-center gap-2 mb-12 px-6 max-w-5xl mx-auto">
         {categorias.map(cat => (
           <button
@@ -110,12 +110,23 @@ const Catalog: React.FC = () => {
           >
             <div className="flex justify-between items-start mb-8">
                 <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">Cód. {prod.codigo_interno}</span>
-                <div className="w-2 h-2 rounded-full bg-green-500 shadow-[0_0_10px_rgba(34,197,94,0.5)] animate-pulse"></div>
+                {/* Indicador visual de status */}
+                <div className={`w-2.5 h-2.5 rounded-full shadow-lg ${prod.disponivel > 0 ? 'bg-green-500 shadow-green-500/50 animate-pulse' : 'bg-red-500 shadow-red-500/50'}`}></div>
             </div>
 
-            <h3 className="font-black text-gray-800 uppercase text-lg leading-tight mb-4 min-h-[50px]">
+            <h3 className="font-black text-gray-800 uppercase text-lg leading-tight mb-1 min-h-[50px]">
                 {prod.item}
             </h3>
+
+            {/* Indicador de Quantidade em Estoque - NOVA FUNÇÃO SOLICITADA */}
+            <div className="flex items-center gap-2 mb-6">
+                <div className={`w-2 h-2 rounded-full ${prod.disponivel > 0 ? 'bg-green-500 animate-pulse' : 'bg-red-500'}`}></div>
+                <span className={`text-[11px] font-black uppercase tracking-widest ${prod.disponivel > 0 ? 'text-gray-400' : 'text-red-500'}`}>
+                    {prod.disponivel > 0 
+                        ? `${prod.disponivel} unidades disponíveis` 
+                        : 'Esgotado no momento'}
+                </span>
+            </div>
             
             <div className="flex flex-col gap-1 mb-10">
                 <span className="text-2xl font-black text-[#b24a2b]">R$ {prod.preco?.toFixed(2)}</span>
