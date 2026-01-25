@@ -55,24 +55,22 @@ const OrderManagement: React.FC = () => {
     );
   };
 
-  // FUNÇÃO ATUALIZADA: Com lógica de comparação de documento limpo para garantir que apareça na lista
+  // FUNÇÃO ATUALIZADA: Agora subtrai do estoque ao aceitar pedido online e usa documento limpo
   const handleAceitarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
     
     try {
       setLoading(true);
-      
-      // Limpa o documento vindo do pedido online (remove pontos/traços)
+      // Limpa o documento vindo do catálogo (remove pontos/traços)
       const docLimpoOnline = pedido.cliente_whatsapp.replace(/\D/g, '');
       
-      // Busca o cliente comparando com o documento limpo do banco
-      const clienteEncontrado = clientes.find(c => {
-          const docBancoLimpo = (c.identificação || "").replace(/\D/g, '');
-          return docBancoLimpo === docLimpoOnline;
-      });
+      // Busca o cliente comparando o documento limpo para garantir o vínculo
+      const clienteEncontrado = clientes.find(c => 
+          (c.identificação || "").replace(/\D/g, '') === docLimpoOnline
+      );
 
       if (!clienteEncontrado) {
-        alert("Cliente não localizado no cadastro com este CPF/CNPJ. Verifique se o documento no cadastro está correto.");
+        alert("Cliente não localizado no cadastro. Cadastre-o primeiro com o CPF/CNPJ correto.");
         return;
       }
 
@@ -86,18 +84,19 @@ const OrderManagement: React.FC = () => {
           const infoEstoque = estoque.find(e => e.item === nomeItem);
 
           if (infoEstoque) {
+            // VERIFICAÇÃO DE ESTOQUE DISPONÍVEL
             if (infoEstoque.disponivel < qtd) {
-              alert(`Estoque insuficiente para o item: ${nomeItem}.`);
-              throw new Error(`Estoque insuficiente`);
+              alert(`Estoque insuficiente para o item: ${nomeItem}. Disponível: ${infoEstoque.disponivel}`);
+              throw new Error(`Estoque insuficiente: ${nomeItem}`);
             }
 
-            // Atualiza estoque
+            // 1. ATUALIZA O ESTOQUE NO BANCO DE DADOS (Subtrai disponível / Soma reservado)
             await db.from('estoque').update({
               disponivel: infoEstoque.disponivel - qtd,
               reservado: (infoEstoque.reservado || 0) + qtd
             }).eq('id', infoEstoque.id);
 
-            // Insere na tabela de reservas vinculando ao ID real do cliente
+            // 2. INSERE NA TABELA DE RESERVAS
             await db.from('reservas').insert([{
               cliente_id: clienteEncontrado.id,
               item: nomeItem,
@@ -107,20 +106,21 @@ const OrderManagement: React.FC = () => {
               status: 'Pendente',
               codigo_item: infoEstoque?.codigo_interno || 'S/C',
               valor_total: (infoEstoque?.preco || 0) * qtd,
-              status_estoque: 'processado',
+              status_estoque: 'processado', // Marca que já foi subtraído
               origem: 'online'
             }]);
           }
         }
       }
 
-      // Remove da lista online após sucesso total
+      // 3. REMOVE DA LISTA ONLINE
       await db.from('pedidos_online').delete().eq('id', pedido.id);
       
+      alert("Pedido aceito e estoque atualizado com sucesso!");
       fetchData();
-      alert("Pedido aceito! Ele já deve aparecer na sua lista principal.");
     } catch (err: any) {
-      console.error(err.message);
+      if (err.message.includes("Estoque insuficiente")) return;
+      alert("Erro ao aceitar pedido: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -216,7 +216,7 @@ const OrderManagement: React.FC = () => {
             }
             if (item._isNew) {
                 if (produtoEstoque.disponivel < item.quantidade) {
-                    alert(`Estoque insuficiente.`);
+                    alert(`Estoque insuficiente para adicionar: ${item.item}`);
                     throw new Error("Estoque insuficiente");
                 }
                 await db.from('estoque').update({
@@ -239,7 +239,7 @@ const OrderManagement: React.FC = () => {
             if (item.quantidade !== item._originalQty) {
                 const diferenca = item.quantidade - item._originalQty;
                 if (diferenca > 0 && produtoEstoque.disponivel < diferenca) {
-                    alert(`Estoque insuficiente.`);
+                    alert(`Estoque insuficiente para aumentar qtd de: ${item.item}`);
                     throw new Error("Estoque insuficiente");
                 }
                 await db.from('estoque').update({
@@ -272,16 +272,6 @@ const OrderManagement: React.FC = () => {
     const dEnt = formatarDataBR(pedido.itens[0].data_evento);
     const dRec = formatarDataBR(pedido.dataDevolucao);
     const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
-    
-    // Lógica para preenchimento de linhas vazias (Padronização)
-    const totalLinhasDesejadas = 12;
-    const numItensAtuais = pedido.itens.length + 1 + (desconto > 0 ? 1 : 0); // itens + taxa + desconto
-    const linhasVaziasNecessarias = Math.max(0, totalLinhasDesejadas - numItensAtuais);
-    let htmlLinhasVazias = '';
-    for(let i=0; i < linhasVaziasNecessarias; i++) {
-        htmlLinhasVazias += `<tr style="height: 25px;"><td></td><td></td><td></td><td></td></tr>`;
-    }
-
     const getDiaSemana = (dataStr: string) => {
        if (!dataStr) return '';
        const d = new Date(dataStr);
@@ -299,36 +289,34 @@ const OrderManagement: React.FC = () => {
           <style>
             @page { size: A4; margin: 0.5cm; }
             body { font-family: 'Arial', sans-serif; color: #000; line-height: 1.2; font-size: 11px; margin: 0; padding: 0; }
-            
             .contract-container { 
               width: 100%; 
               border: 1px solid #000; 
               padding: 15px; 
               box-sizing: border-box; 
-              min-height: 27.7cm; 
+              min-height: 27.7cm; /* FORÇA O TAMANHO PADRÃO A4 */
               display: flex; 
               flex-direction: column; 
             }
             .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
             .company-info { width: 80%; }
             .company-name { font-size: 20px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 3px; }
-            .company-contact { font-size: 12px; font-weight: 900; margin-bottom: 3px; }
-            .company-address { font-size:12px; font-weight: bold; }
+            .company-contact { font-size: 14px; font-weight: 900; margin-bottom: 3px; }
+            .company-address { font-size: 10px; font-weight: bold; }
             .logo-circle { width: 75px; height: 75px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
             .logo-circle img { width: 100%; height: auto; object-fit: contain; }
-            .main-title { text-align: center; font-size: 20px; font-weight: 900; margin: 10px 0; letter-spacing: 4px; }
-            .intro-text { font-size: 15px; margin-bottom: 15px; text-align: justify; line-height: 1.3; }
+            .main-title { text-align: center; font-size: 24px; font-weight: 900; margin: 10px 0; letter-spacing: 4px; }
+            .intro-text { font-size: 12px; margin-bottom: 15px; text-align: justify; line-height: 1.3; }
             .intro-text strong { text-transform: uppercase; }
             table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
             th, td { border: 1px solid #000; padding: 5px; text-align: center; font-weight: 900; }
-            th { font-size: 12px; text-transform: uppercase; background-color: #f0f0f0; }
-            td { font-size: 12px; }
+            th { font-size: 11px; text-transform: uppercase; background-color: #f0f0f0; }
+            td { font-size: 11px; }
             .align-left { text-align: left; padding-left: 10px; }
-            .total-box { font-size: 15px; background-color: #f2f2f2; }
-            .clauses-container { font-size: 11px; text-align: justify; margin-bottom: 15px; line-height: 1.2; }
+            .total-box { font-size: 13px; background-color: #f2f2f2; }
+            .clauses-container { font-size: 12px; text-align: justify; margin-bottom: 15px; line-height: 1.2; }
             .clause-text { margin-bottom: 5px; }
-            .obs-container { border: 1px solid #000; padding: 8px; margin: 10px 0; min-height: 40px; font-size: 12px; }
-            
+            .obs-container { border: 1px solid #000; padding: 8px; margin: 10px 0; min-height: 40px; font-size: 11px; }
             .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 5px; }
             .logistics-info { font-weight: 900; font-size: 12px; line-height: 1.3; }
             .sig-line { width: 220px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 8px; font-size: 11px; }
@@ -378,7 +366,6 @@ const OrderManagement: React.FC = () => {
                   <td style="color: red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
                 </tr>
                 ` : ''}
-                ${htmlLinhasVazias}
                 <tr>
                   <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL GERAL R$</td>
                   <td class="total-box">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
