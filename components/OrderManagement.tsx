@@ -10,8 +10,9 @@ const OrderManagement: React.FC = () => {
   const [busca, setBusca] = useState('');
   const [filtroUrgentes, setFiltroUrgentes] = useState(false);
 
-  // Estados para pedidos online
+  // Estados para pedidos online e controle de lista negra
   const [pedidosOnline, setPedidosOnline] = useState<any[]>([]);
+  const [blacklist, setBlacklist] = useState<any[]>([]);
 
   // Estados para o Modal de Edição
   const [modalAberto, setModalAberto] = useState(false);
@@ -25,16 +26,18 @@ const OrderManagement: React.FC = () => {
   const fetchData = async () => {
     try {
       setLoading(true);
-      const [resClientes, resReservas, resEstoque, resPedidosOnline] = await Promise.all([
+      const [resClientes, resReservas, resEstoque, resPedidosOnline, resBlacklist] = await Promise.all([
         db.from('cadastro').select('*'),
         db.from('reservas').select('*').order('data_evento', { ascending: false }),
         db.from('estoque').select('*').order('item'),
-        db.from('pedidos_online').select('*').order('created_at', { ascending: false })
+        db.from('pedidos_online').select('*').order('created_at', { ascending: false }),
+        db.from('blacklist').select('documento') 
       ]);
       setClientes(resClientes.data || []);
       setReservas(resReservas.data || []);
       setEstoque(resEstoque.data || []);
       setPedidosOnline(resPedidosOnline.data || []);
+      setBlacklist(resBlacklist.data || []);
     } catch (err: any) {
       console.error("Erro ao sincronizar dados:", err.message);
     } finally {
@@ -44,12 +47,10 @@ const OrderManagement: React.FC = () => {
 
   useEffect(() => { fetchData(); }, []);
 
-  // FUNÇÃO QUE VERIFICA SE O CLIENTE DO PEDIDO ONLINE ESTÁ NA LISTA NEGRA
+  // Função que verifica se o cliente do pedido online está na lista negra
   const verificarSeEstaNaListaNegra = (documentoPedido: string) => {
     if (!documentoPedido) return false;
     const docLimpoPedido = documentoPedido.replace(/\D/g, '');
-    
-    // Procura na tabela cadastro se algum cliente com esse documento tem lista_negra = TRUE
     return clientes.some(c => 
       (c.identificação || "").replace(/\D/g, '') === docLimpoPedido && c.lista_negra === true
     );
@@ -79,6 +80,7 @@ const OrderManagement: React.FC = () => {
     return dH > 0 && dH <= 24;
   };
 
+  // --- FUNÇÕES DE EDIÇÃO ---
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
     const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({...i, _originalQty: i.quantidade}));
     setPedidoEmEdicao(itensFormatados);
@@ -495,13 +497,11 @@ const OrderManagement: React.FC = () => {
                 {pedidosOnline.length > 0 ? (
                     <div className="w-full space-y-4">
                         {pedidosOnline.map((po) => {
-                            // VERIFICA SE O CLIENTE DO PEDIDO ESTÁ NA BLACKLIST
                             const estaBloqueado = verificarSeEstaNaListaNegra(po.cliente_whatsapp);
                             
                             return (
                                 <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
                                     
-                                    {/* ALERTA DE LISTA NEGRA PISCANTE */}
                                     {estaBloqueado && (
                                         <div className="flex items-center justify-center gap-2 mb-3 bg-red-600 text-white py-1.5 rounded-xl animate-pulse">
                                             <i className="fa-solid fa-circle-exclamation"></i>
@@ -518,8 +518,9 @@ const OrderManagement: React.FC = () => {
                                     </div>
 
                                     <div className="flex gap-2 mt-4">
-                                        <button onClick={() => window.open(`https://wa.me/55${po.cliente_whatsapp.replace(/\D/g, '')}`, '_blank')} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase flex items-center justify-center gap-2 hover:bg-green-600 transition-all">
-                                            Atender <i className="fa-brands fa-whatsapp"></i>
+                                        {/* BOTÃO ATUALIZADO: RENOMEADO E ÍCONE REMOVIDO */}
+                                        <button onClick={() => window.open(`https://wa.me/55${po.cliente_whatsapp.replace(/\D/g, '')}`, '_blank')} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase flex items-center justify-center hover:bg-green-600 transition-all">
+                                            Aceitar pedido
                                         </button>
                                         <button onClick={() => handleRecusarPedido(po.id)} className="bg-white border-2 border-red-500 text-red-500 px-4 py-2 rounded-full text-[9px] font-black uppercase hover:bg-red-50 transition-all">
                                             Recusar
@@ -543,6 +544,7 @@ const OrderManagement: React.FC = () => {
         </aside>
       </div>
 
+      {/* MODAL DE EDIÇÃO DE PEDIDO */}
       {modalAberto && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
             <div className="bg-white rounded-[35px] p-8 w-full max-w-2xl shadow-2xl border border-gray-100 animate-in zoom-in duration-300 max-h-[90vh] overflow-y-auto">
