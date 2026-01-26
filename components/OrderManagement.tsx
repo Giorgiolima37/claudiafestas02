@@ -45,7 +45,21 @@ const OrderManagement: React.FC = () => {
     }
   };
 
-  useEffect(() => { fetchData(); }, []);
+  useEffect(() => { 
+    fetchData(); 
+  }, []);
+
+  // BLOCO DE ATUALIZAÇÃO AUTOMÁTICA ADICIONADO
+  useEffect(() => {
+    // Configura o intervalo para rodar a cada 60.000 milissegundos (1 minuto)
+    const intervalo = setInterval(() => {
+      console.log("Atualizando dados automaticamente...");
+      fetchData(); // Executa a função que busca novos pedidos e atualiza o estoque
+    }, 60000);
+
+    // Limpa o intervalo quando o proprietário sai da tela para não gastar memória
+    return () => clearInterval(intervalo);
+  }, []);
 
   const verificarSeEstaNaListaNegra = (documentoPedido: string) => {
     if (!documentoPedido) return false;
@@ -55,7 +69,7 @@ const OrderManagement: React.FC = () => {
     );
   };
 
-  // FUNÇÃO AJUSTADA: Agora ela deleta para ativar o TRIGGER SQL que você criou
+  // FUNÇÃO ATUALIZADA: Agora ela deleta para ativar o TRIGGER SQL que você criou
   const handleAceitarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
     
