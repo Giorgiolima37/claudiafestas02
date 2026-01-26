@@ -177,9 +177,6 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
   return (
     <div className="w-full relative">
       <h1 className="text-center text-[#b24a2b] text-3xl md:text-4xl font-bold mb-1">Claudia Festas</h1>
-      {/* TEXTO ADICIONADO AQUI */}
-      <p className="text-center text-gray-500 text-sm font-medium mb-1">Agilize o seu pedido</p>
-      
       <div className="text-center text-gray-400 text-[10px] font-bold uppercase tracking-[4px] mb-8">Registro de Cliente</div>
       
       <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
@@ -306,3 +303,5 @@ const FormInput: React.FC<{ label: string; id: string; value: string; onChange: 
     />
   </div>
 );
+
+export default CustomerRegistration;
