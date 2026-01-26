@@ -194,11 +194,11 @@ const Catalog: React.FC = () => {
           Locações Claudia Festas
         </h1>
         
-        {/* --- ALTERAÇÃO AQUI: "Nosso Estoque" removido e LOGO inserido --- */}
+        {/* --- ALTERAÇÃO AQUI: Tamanho alterado de h-24 para h-48 --- */}
         <img 
             src={logoImg} 
             alt="Logo Claudia Festas" 
-            className="mx-auto mb-8 h-24 w-auto object-contain animate-in fade-in zoom-in duration-500"
+            className="mx-auto mb-8 h-48 w-auto object-contain animate-in fade-in zoom-in duration-500"
         />
 
         <div className="max-w-2xl mx-auto mb-8">
