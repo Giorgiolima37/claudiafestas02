@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/supabase';
 // --- IMPORTANTE: Importando o logo aqui ---
-import logoImg from '../logo.png'; 
+import logoImg from '../logo-2.png'; 
 
 const Catalog: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
