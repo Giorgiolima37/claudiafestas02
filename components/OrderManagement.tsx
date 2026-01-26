@@ -55,26 +55,18 @@ const OrderManagement: React.FC = () => {
     );
   };
 
-  // FUNÇÃO ATUALIZADA: Envia para a tabela 'reservas' e atualiza estoque
+  /**
+   * FUNÇÃO AJUSTADA PARA USAR O GATILHO (TRIGGER) DO BANCO
+   * O código agora apenas gerencia o estoque e deleta do online.
+   * O SQL "gatilho_aceitar_pedido" move os dados para reservas automaticamente.
+   */
   const handleAceitarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
     
     try {
       setLoading(true);
-      // Limpa o documento vindo do catálogo (remove pontos/traços)
-      const docLimpoOnline = pedido.cliente_whatsapp.replace(/\D/g, '');
       
-      // Busca o cliente comparando o documento limpo para garantir o vínculo correto na tabela reservas
-      const clienteEncontrado = clientes.find(c => 
-          (c.identificação || "").replace(/\D/g, '') === docLimpoOnline
-      );
-
-      if (!clienteEncontrado) {
-        alert("Cliente não localizado no cadastro. Cadastre-o primeiro com o CPF/CNPJ usado no catálogo.");
-        return;
-      }
-
-      // Separa os itens do texto enviado pelo catálogo (Ex: "7x Balde de Alumínio")
+      // 1. Processar a baixa de estoque para cada item do texto
       const linhasItens = pedido.itens_texto.split(', ');
       
       for (const linha of linhasItens) {
@@ -85,44 +77,29 @@ const OrderManagement: React.FC = () => {
           const infoEstoque = estoque.find(e => e.item === nomeItem);
 
           if (infoEstoque) {
-            // VERIFICAÇÃO DE ESTOQUE DISPONÍVEL
             if (infoEstoque.disponivel < qtd) {
-              alert(`Estoque insuficiente para o item: ${nomeItem}. Disponível: ${infoEstoque.disponivel}`);
+              alert(`Estoque insuficiente para: ${nomeItem}`);
               throw new Error(`Estoque insuficiente: ${nomeItem}`);
             }
 
-            // 1. ATUALIZA O ESTOQUE NO BANCO DE DADOS (Subtrai disponível / Soma reservado)
+            // Atualiza estoque (disponível diminui, reservado aumenta)
             await db.from('estoque').update({
               disponivel: infoEstoque.disponivel - qtd,
               reservado: (infoEstoque.reservado || 0) + qtd
             }).eq('id', infoEstoque.id);
-
-            // 2. INSERE NA TABELA DE RESERVAS (Agora com vínculo oficial de cliente_id)
-            await db.from('reservas').insert([{
-              cliente_id: clienteEncontrado.id,
-              item: nomeItem,
-              quantidade: qtd,
-              // Define data do evento para hoje e devolução para amanhã (ajustável conforme necessidade)
-              data_evento: new Date().toISOString().split('T')[0],
-              data_devolucao: new Date(Date.now() + 86400000).toISOString().split('T')[0],
-              status: 'Pendente',
-              codigo_item: infoEstoque?.codigo_interno || 'S/C',
-              valor_total: (infoEstoque?.preco || 0) * qtd,
-              status_estoque: 'processado', 
-              origem: 'online'
-            }]);
           }
         }
       }
 
-      // 3. REMOVE DA LISTA ONLINE APÓS PROCESSAR TUDO
-      await db.from('pedidos_online').delete().eq('id', pedido.id);
+      // 2. Deletar do online -> Isso dispara o TRIGGER SQL que cria a reserva
+      const { error: deleteError } = await db.from('pedidos_online').delete().eq('id', pedido.id);
       
-      alert("Pedido aceito, enviado para Reservas e estoque atualizado!");
+      if (deleteError) throw deleteError;
+      
+      alert("Pedido aceito com sucesso! A reserva foi gerada pelo sistema.");
       fetchData();
     } catch (err: any) {
-      if (err.message.includes("Estoque insuficiente")) return;
-      alert("Erro ao processar aceitação: " + err.message);
+      alert("Erro ao processar: " + err.message);
     } finally {
       setLoading(false);
     }
