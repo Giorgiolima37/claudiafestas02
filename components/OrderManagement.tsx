@@ -55,18 +55,14 @@ const OrderManagement: React.FC = () => {
     );
   };
 
-  /**
-   * FUNÇÃO AJUSTADA PARA USAR O GATILHO (TRIGGER) DO BANCO
-   * O código agora apenas gerencia o estoque e deleta do online.
-   * O SQL "gatilho_aceitar_pedido" move os dados para reservas automaticamente.
-   */
+  // FUNÇÃO AJUSTADA: Agora ela deleta para ativar o TRIGGER SQL que você criou
   const handleAceitarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
     
     try {
       setLoading(true);
       
-      // 1. Processar a baixa de estoque para cada item do texto
+      // 1. Atualizar o estoque primeiro (importante para manter o controle)
       const linhasItens = pedido.itens_texto.split(', ');
       
       for (const linha of linhasItens) {
@@ -82,7 +78,6 @@ const OrderManagement: React.FC = () => {
               throw new Error(`Estoque insuficiente: ${nomeItem}`);
             }
 
-            // Atualiza estoque (disponível diminui, reservado aumenta)
             await db.from('estoque').update({
               disponivel: infoEstoque.disponivel - qtd,
               reservado: (infoEstoque.reservado || 0) + qtd
@@ -91,15 +86,16 @@ const OrderManagement: React.FC = () => {
         }
       }
 
-      // 2. Deletar do online -> Isso dispara o TRIGGER SQL que cria a reserva
-      const { error: deleteError } = await db.from('pedidos_online').delete().eq('id', pedido.id);
+      // 2. DELETAR DO ONLINE: Isso dispara o gatilho processar_aceite_pedido() no Supabase
+      // Removida qualquer referência à coluna "origem" para evitar o erro anterior
+      const { error } = await db.from('pedidos_online').delete().eq('id', pedido.id);
       
-      if (deleteError) throw deleteError;
+      if (error) throw error;
       
-      alert("Pedido aceito com sucesso! A reserva foi gerada pelo sistema.");
+      alert("Pedido processado! O banco de dados gerou a reserva automaticamente.");
       fetchData();
     } catch (err: any) {
-      alert("Erro ao processar: " + err.message);
+      alert("Erro ao processar aceitação: " + err.message);
     } finally {
       setLoading(false);
     }
