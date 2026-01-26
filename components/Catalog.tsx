@@ -15,7 +15,6 @@ const Catalog: React.FC = () => {
   const [mostrarModalErro, setMostrarModalErro] = useState(false);
   const [erroNome, setErroNome] = useState('');
 
-  // NOVOS ESTADOS PARA DATA DE DEVOLUÇÃO
   const [dataDevolucao, setDataDevolucao] = useState('');
   const dataHoje = new Date().toISOString().split('T')[0];
 
@@ -119,8 +118,6 @@ const Catalog: React.FC = () => {
             cliente_nome: nomeCliente,
             cliente_whatsapp: identificacaoCliente, 
             itens_texto: itensTexto,
-            // AQUI VOCÊ DEVE TER UMA COLUNA NA TABELA CHAMADA 'data_devolucao' 
-            // OU ENVIAR JUNTO AO TEXTO SE PREFERIR
             data_devolucao: dataDevolucao 
         }]);
 
@@ -128,7 +125,7 @@ const Catalog: React.FC = () => {
 
         setMostrarModalConfirma(false);
         setCarrinho({});
-        setDataDevolucao(''); // Limpa a data após finalizar
+        setDataDevolucao('');
         alert("Pedido enviado com sucesso!");
         
     } catch (err: any) {
@@ -139,10 +136,10 @@ const Catalog: React.FC = () => {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-6 text-gray-900">
-        <div className="w-full max-w-sm bg-white rounded-[40px] p-10 shadow-2xl text-center">
-          <span className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.3em] block mb-4">Acesso Exclusivo</span>
-          <h1 className="text-4xl font-black uppercase italic tracking-tighter mb-10 leading-none">
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-8 text-gray-900">
+        <div className="w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl text-center">
+          <span className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.2em] block mb-4">Acesso Exclusivo</span>
+          <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-8 leading-none">
             Claudia <span className="text-[#b24a2b]">Festas</span>
           </h1>
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
@@ -150,7 +147,7 @@ const Catalog: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="NOME E SOBRENOME" 
-                className={`w-full px-6 py-4 bg-gray-50 border-none rounded-2xl text-xs font-bold uppercase outline-none focus:ring-2 transition-all text-center ${erroNome ? 'ring-red-400' : 'ring-[#b24a2b]/20'}`}
+                className={`w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold uppercase outline-none focus:ring-2 transition-all text-center ${erroNome ? 'ring-red-400' : 'ring-[#b24a2b]/20'}`}
                 value={nomeCliente}
                 onChange={(e) => {
                     setNomeCliente(e.target.value.toLowerCase());
@@ -159,9 +156,8 @@ const Catalog: React.FC = () => {
                 required
               />
               {erroNome && (
-                <span className="absolute left-full ml-4 top-1/2 -translate-y-1/2 bg-red-500 text-white text-[9px] font-black uppercase px-3 py-2 rounded-lg whitespace-nowrap shadow-lg animate-in fade-in slide-in-from-left-2 duration-300">
+                <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] font-black uppercase px-3 py-2 rounded-lg whitespace-nowrap shadow-lg animate-in fade-in zoom-in duration-300">
                   {erroNome}
-                  <div className="absolute top-1/2 -left-1 -translate-y-1/2 w-2 h-2 bg-red-500 rotate-45"></div>
                 </span>
               )}
             </div>
@@ -169,51 +165,37 @@ const Catalog: React.FC = () => {
             <input 
               type="text" 
               placeholder="CPF OU CNPJ" 
-              maxLength={18}
-              className="w-full px-6 py-4 bg-gray-50 border-none rounded-2xl text-xs font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
+              className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
               value={identificacaoCliente}
               onChange={(e) => setIdentificacaoCliente(aplicarMascaraDocumento(e.target.value))}
               required
             />
-            <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-4">
+            <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-2 active:scale-95">
               {verificandoAcesso ? 'Verificando...' : 'Entrar no Catálogo'}
             </button>
           </form>
         </div>
-        {mostrarModalErro && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
-            <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMostrarModalErro(false)}></div>
-            <div className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl text-center animate-in zoom-in duration-300">
-              <div className="w-16 h-16 bg-red-100 text-red-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"><i className="fa-solid fa-user-xmark"></i></div>
-              <h2 className="text-2xl font-black uppercase italic tracking-tighter mb-4">Não Cadastrado</h2>
-              <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Não encontramos seu cadastro. Entre em contato com a Claudia Festas para liberar seu acesso.</p>
-              <button onClick={() => setMostrarModalErro(false)} className="w-full bg-gray-900 text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest">Tentar Novamente</button>
-            </div>
-          </div>
-        )}
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-40">
-      <header className="pt-20 pb-12 px-6 text-center">
-        <span className="text-[#b24a2b] font-black text-sm md:text-base uppercase tracking-[0.4em] block mb-4">Locações Claudia Festas</span>
-        <h1 className="text-6xl md:text-7xl font-black uppercase italic tracking-tighter mb-10 leading-none">Nosso <span className="text-[#b24a2b]">Estoque</span></h1>
-        <div className="max-w-2xl mx-auto mb-10 relative">
-          <input type="text" placeholder="O que você procura?" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full px-8 py-5 bg-white border border-gray-100 rounded-full text-sm font-medium outline-none shadow-sm focus:ring-1 ring-orange-200 transition-all text-center"/>
+    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-32">
+      <header className="pt-12 pb-8 px-4 text-center">
+        <span className="text-[#b24a2b] font-black text-xs uppercase tracking-[0.3em] block mb-2">Locações Claudia Festas</span>
+        <h1 className="text-4xl sm:text-6xl font-black uppercase italic tracking-tighter mb-8 leading-tight">Nosso <span className="text-[#b24a2b]">Estoque</span></h1>
+        <div className="max-w-2xl mx-auto mb-8">
+          <input type="text" placeholder="O que você procura?" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full px-6 py-4 bg-white border border-gray-100 rounded-full text-base font-medium outline-none shadow-sm focus:ring-2 ring-orange-100 transition-all text-center"/>
         </div>
+        
         {resumoCarrinho.length > 0 && (
-          <div className="max-w-2xl mx-auto bg-white rounded-[32px] p-6 shadow-xl border border-orange-50 animate-in fade-in zoom-in duration-300">
-            <div className="flex items-center justify-between mb-4 border-b pb-3 border-gray-50 text-left">
-                <h2 className="font-black uppercase text-xs tracking-widest text-[#b24a2b]">Seu Pedido ({totalItens})</h2>
-                <i className="fa-solid fa-cart-shopping text-gray-200"></i>
-            </div>
-            <div className="flex flex-wrap gap-2 text-left">
+          <div className="max-w-2xl mx-auto bg-white rounded-3xl p-4 shadow-lg border border-orange-50 mb-8 overflow-hidden">
+            <h2 className="font-black uppercase text-[10px] tracking-widest text-[#b24a2b] mb-4 text-left border-b pb-2">Seu Pedido ({totalItens})</h2>
+            <div className="flex flex-wrap gap-2 overflow-x-auto pb-2">
                 {resumoCarrinho.map(item => (
-                    <div key={item.item} className="bg-gray-50 px-4 py-2 rounded-full flex items-center gap-3 border border-gray-100">
+                    <div key={item.item} className="bg-gray-50 px-3 py-1.5 rounded-full flex items-center gap-2 border border-gray-100 shrink-0">
                         <span className="text-[10px] font-black text-[#b24a2b]">{carrinho[item.item]}x</span>
-                        <span className="text-[10px] font-bold uppercase truncate max-w-[120px]">{item.item}</span>
+                        <span className="text-[9px] font-bold uppercase truncate max-w-[100px]">{item.item}</span>
                         <button onClick={() => alterarQuantidade(item.item, -999, 0)} className="text-gray-300 hover:text-red-500"><i className="fa-solid fa-xmark text-[10px]"></i></button>
                     </div>
                 ))}
@@ -222,28 +204,30 @@ const Catalog: React.FC = () => {
         )}
       </header>
 
-      <div className="max-w-7xl mx-auto px-6 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+      {/* GRID RESPONSIVO: 1 coluna no celular, 2 em tablets, 4 em desktops */}
+      <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
         {itensFiltrados.map((prod, idx) => {
           const qtde = carrinho[prod.item] || 0;
           const isEsgotado = prod.disponivel <= 0;
           return (
-            <div key={idx} className="bg-white rounded-[32px] p-6 border border-gray-50 shadow-sm hover:shadow-xl transition-all duration-300 flex flex-col justify-between text-center">
+            <div key={idx} className="bg-white rounded-[24px] p-5 border border-gray-50 shadow-sm flex flex-col justify-between text-center relative overflow-hidden">
               <div>
-                <div className="flex justify-between items-center mb-4 text-left">
-                    <span className="text-[10px] font-black text-gray-300 uppercase tracking-widest">#{prod.codigo_interno}</span>
-                    <div className={`w-2 h-2 rounded-full ${isEsgotado ? 'bg-red-500' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.5)] animate-pulse'}`}></div>
+                <div className="flex justify-between items-center mb-3">
+                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">#{prod.codigo_interno}</span>
+                    <div className={`w-2 h-2 rounded-full ${isEsgotado ? 'bg-red-500' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)] animate-pulse'}`}></div>
                 </div>
-                <h3 className="font-black text-base uppercase leading-tight mb-2 truncate">{prod.item}</h3>
+                <h3 className="font-black text-lg uppercase leading-tight mb-1 truncate">{prod.item}</h3>
                 <p className={`text-[10px] font-bold uppercase tracking-wider mb-4 ${isEsgotado ? 'text-red-500' : 'text-gray-400'}`}>{isEsgotado ? 'Esgotado' : `${prod.disponivel} em estoque`}</p>
-                <div className="mb-6"><span className="text-2xl font-black text-gray-900">R$ {prod.preco?.toFixed(2)}</span></div>
+                <div className="mb-4"><span className="text-2xl font-black text-gray-900">R$ {prod.preco?.toFixed(2)}</span></div>
               </div>
+              
               {qtde === 0 ? (
-                <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={isEsgotado} className={`w-full py-4 rounded-2xl font-black text-[11px] uppercase tracking-widest transition-all ${isEsgotado ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white hover:bg-[#b24a2b] shadow-lg shadow-gray-200'}`}>Adicionar</button>
+                <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={isEsgotado} className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 ${isEsgotado ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white shadow-lg'}`}>Adicionar</button>
               ) : (
-                <div className="flex items-center justify-between bg-gray-50 rounded-2xl p-1.5 border border-orange-50">
-                  <button onClick={() => alterarQuantidade(prod.item, -1, prod.disponivel)} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm text-gray-900 hover:text-red-500"><i className="fa-solid fa-minus text-xs"></i></button>
-                  <span className="text-sm font-black text-gray-900">{qtde}</span>
-                  <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={qtde >= prod.disponivel} className="w-10 h-10 flex items-center justify-center bg-white rounded-xl shadow-sm text-gray-900 hover:text-green-500 disabled:opacity-20"><i className="fa-solid fa-plus text-xs"></i></button>
+                <div className="flex items-center justify-between bg-gray-50 rounded-xl p-1 border border-orange-50">
+                  <button onClick={() => alterarQuantidade(prod.item, -1, prod.disponivel)} className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-900 active:bg-red-50"><i className="fa-solid fa-minus text-xs"></i></button>
+                  <span className="text-base font-black text-gray-900">{qtde}</span>
+                  <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={qtde >= prod.disponivel} className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-900 active:bg-green-50 disabled:opacity-20"><i className="fa-solid fa-plus text-xs"></i></button>
                 </div>
               )}
             </div>
@@ -252,39 +236,41 @@ const Catalog: React.FC = () => {
       </div>
 
       {totalItens > 0 && (
-        <div className="fixed bottom-8 left-0 right-0 px-6 z-40 flex justify-center animate-in slide-in-from-bottom-10 duration-500">
-          <button onClick={() => setMostrarModalConfirma(true)} className="w-full max-w-md bg-[#25D366] text-white py-5 rounded-full font-black text-sm uppercase tracking-[0.2em] shadow-2xl flex items-center justify-center gap-4 hover:scale-105 transition-transform">Finalizar Pedido ({totalItens})</button>
+        <div className="fixed bottom-6 left-0 right-0 px-4 z-40 flex justify-center">
+          <button onClick={() => setMostrarModalConfirma(true)} className="w-full max-w-md bg-[#25D366] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95 transition-transform flex items-center justify-center gap-3">
+            <i className="fa-solid fa-cart-check"></i>
+            Finalizar Pedido ({totalItens})
+          </button>
         </div>
       )}
 
       {mostrarModalConfirma && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
-          <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMostrarModalConfirma(false)}></div>
-          <div className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl text-center animate-in zoom-in duration-300">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"><i className="fa-solid fa-calendar-check"></i></div>
-            <h2 className="text-2xl font-black uppercase italic tracking-tighter mb-4">Quando irá devolver?</h2>
+        <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
+          <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMostrarModalConfirma(false)}></div>
+          <div className="relative bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in slide-in-from-bottom duration-300">
+            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl"><i className="fa-solid fa-calendar-day"></i></div>
+            <h2 className="text-xl font-black uppercase italic mb-2 tracking-tight">Quando irá devolver?</h2>
             
-            <div className="mb-8">
-              <label className="text-[10px] font-black text-[#b24a2b] uppercase tracking-widest block mb-2">Selecione a data de devolução</label>
+            <div className="mb-6">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Selecione a data prevista</label>
               <input 
                 type="date" 
-                min={dataHoje} // BLOQUEIA DATAS PASSADAS
+                min={dataHoje}
                 value={dataDevolucao}
                 onChange={(e) => setDataDevolucao(e.target.value)}
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-xs font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
+                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-sm font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
               />
             </div>
 
-            <div className="flex flex-col gap-3">
-              {/* SÓ LIBERA O BOTÃO SE A DATA ESTIVER PREENCHIDA */}
+            <div className="flex flex-col gap-2">
               <button 
                 onClick={confirmarPedidoFinal} 
                 disabled={!dataDevolucao}
-                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${!dataDevolucao ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-lg'}`}
+                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!dataDevolucao ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-md active:scale-95'}`}
               >
                 Sim, Finalizar!
               </button>
-              <button onClick={() => {setMostrarModalConfirma(false); setDataDevolucao('');}} className="w-full bg-gray-50 text-gray-400 py-4 rounded-2xl font-black text-xs uppercase tracking-widest">Cancelar</button>
+              <button onClick={() => {setMostrarModalConfirma(false); setDataDevolucao('');}} className="w-full py-4 text-gray-400 font-black text-xs uppercase tracking-widest">Cancelar</button>
             </div>
           </div>
         </div>
