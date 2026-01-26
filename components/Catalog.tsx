@@ -89,6 +89,17 @@ const Catalog: React.FC = () => {
     }
   };
 
+  // --- NOVA FUNÇÃO DE LOGOUT ---
+  const handleLogout = () => {
+    // 1. Limpa o carrinho
+    setCarrinho({});
+    // 2. Limpa os dados do cliente
+    setNomeCliente('');
+    setIdentificacaoCliente('');
+    // 3. Define como deslogado
+    setIsLoggedIn(false);
+  };
+
   const alterarQuantidade = (nomeItem: string, delta: number, max: number) => {
     setCarrinho(prev => {
       const novaQtde = (prev[nomeItem] || 0) + delta;
@@ -190,7 +201,17 @@ const Catalog: React.FC = () => {
 
   return (
     // Adicionado padding-bottom para safe-area do iPhone
-    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-[env(safe-area-inset-bottom)]">
+    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-[env(safe-area-inset-bottom)] relative">
+      
+      {/* --- BOTÃO DE SAIR (LOGOUT) --- */}
+      <button 
+        onClick={handleLogout}
+        className="absolute top-4 right-4 z-50 w-10 h-10 bg-white text-[#b24a2b] rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-90 border border-orange-50"
+        title="Sair / Logout"
+      >
+        <i className="fa-solid fa-right-from-bracket text-sm"></i>
+      </button>
+
       <header className="pt-12 pb-8 px-4 text-center">
         {/* TÍTULO PRINCIPAL */}
         <h1 className="text-[#b24a2b] font-black text-4xl sm:text-6xl uppercase italic tracking-tighter block mb-4 leading-tight">
