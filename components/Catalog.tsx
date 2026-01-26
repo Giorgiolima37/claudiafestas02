@@ -203,14 +203,20 @@ const Catalog: React.FC = () => {
     // Adicionado padding-bottom para safe-area do iPhone
     <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-[env(safe-area-inset-bottom)] relative">
       
-      {/* --- BOTÃO DE SAIR (LOGOUT) --- */}
-      <button 
-        onClick={handleLogout}
-        className="absolute top-4 right-4 z-50 w-10 h-10 bg-white text-[#b24a2b] rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-90 border border-orange-50"
-        title="Sair / Logout"
-      >
-        <i className="fa-solid fa-right-from-bracket text-sm"></i>
-      </button>
+      {/* --- ÁREA DE LOGOUT COM NOME DO CLIENTE --- */}
+      <div className="absolute top-4 right-4 z-50 flex flex-col items-center">
+        <button 
+          onClick={handleLogout}
+          className="w-10 h-10 bg-white text-[#b24a2b] rounded-full shadow-lg flex items-center justify-center transition-transform active:scale-90 border border-orange-50 mb-1"
+          title="Sair / Logout"
+        >
+          <i className="fa-solid fa-right-from-bracket text-sm"></i>
+        </button>
+        {/* AQUI ESTÁ O NOME DO CLIENTE QUE ESTAVA FALTANDO */}
+        <span className="text-[9px] font-black text-[#b24a2b] uppercase bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg shadow-sm border border-orange-50 max-w-[120px] truncate text-center">
+            {nomeCliente}
+        </span>
+      </div>
 
       <header className="pt-12 pb-8 px-4 text-center">
         {/* TÍTULO PRINCIPAL */}
