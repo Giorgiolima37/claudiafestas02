@@ -139,9 +139,14 @@ const Catalog: React.FC = () => {
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-8 text-gray-900">
         <div className="w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl text-center">
           <span className="text-[#b24a2b] font-black text-[10px] uppercase tracking-[0.2em] block mb-4">Acesso Exclusivo</span>
-          <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-8 leading-none">
+          
+          <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-1 leading-none">
             Claudia <span className="text-[#b24a2b]">Festas</span>
           </h1>
+          
+          {/* TEXTO ADICIONADO AQUI */}
+          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">Agilize o seu pedido</p>
+
           <form onSubmit={handleLogin} className="flex flex-col gap-4">
             <div className="relative">
               <input 
