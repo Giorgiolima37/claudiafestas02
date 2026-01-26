@@ -138,8 +138,8 @@ const Catalog: React.FC = () => {
 
   if (!isLoggedIn) {
     return (
-      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-8 text-gray-900">
-        <div className="w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl text-center">
+      <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-8 text-gray-900 w-full overflow-hidden">
+        <div className="w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl text-center mx-auto">
           
           {/* LOGO NA TELA DE LOGIN */}
           <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-1 leading-none mt-2">
@@ -154,7 +154,8 @@ const Catalog: React.FC = () => {
               <input 
                 type="text" 
                 placeholder="NOME E SOBRENOME" 
-                className={`w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold uppercase outline-none focus:ring-2 transition-all text-center ${erroNome ? 'ring-red-400' : 'ring-[#b24a2b]/20'}`}
+                // Ajustado para text-base para evitar zoom no iOS
+                className={`w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-base font-bold uppercase outline-none focus:ring-2 transition-all text-center ${erroNome ? 'ring-red-400' : 'ring-[#b24a2b]/20'}`}
                 value={nomeCliente}
                 onChange={(e) => {
                     setNomeCliente(e.target.value.toLowerCase());
@@ -172,12 +173,13 @@ const Catalog: React.FC = () => {
             <input 
               type="text" 
               placeholder="CPF OU CNPJ" 
-              className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-sm font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
+              // Ajustado para text-base para evitar zoom no iOS
+              className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-base font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
               value={identificacaoCliente}
               onChange={(e) => setIdentificacaoCliente(aplicarMascaraDocumento(e.target.value))}
               required
             />
-            <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-2 active:scale-95">
+            <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-2 active:scale-95 touch-manipulation">
               {verificandoAcesso ? 'Verificando...' : 'Entrar no Catálogo'}
             </button>
           </form>
@@ -187,14 +189,15 @@ const Catalog: React.FC = () => {
   }
 
   return (
-    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-32">
+    // Adicionado padding-bottom para safe-area do iPhone
+    <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-[env(safe-area-inset-bottom)]">
       <header className="pt-12 pb-8 px-4 text-center">
-        {/* TÍTULO PRINCIPAL MANTIDO */}
+        {/* TÍTULO PRINCIPAL */}
         <h1 className="text-[#b24a2b] font-black text-4xl sm:text-6xl uppercase italic tracking-tighter block mb-4 leading-tight">
           Locações Claudia Festas
         </h1>
         
-        {/* --- ALTERAÇÃO AQUI: Tamanho alterado de h-24 para h-48 --- */}
+        {/* LOGO (Tamanho Grande) */}
         <img 
             src={logoImg} 
             alt="Logo Claudia Festas" 
@@ -202,7 +205,14 @@ const Catalog: React.FC = () => {
         />
 
         <div className="max-w-2xl mx-auto mb-8">
-          <input type="text" placeholder="O que você procura?" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full px-6 py-4 bg-white border border-gray-100 rounded-full text-base font-medium outline-none shadow-sm focus:ring-2 ring-orange-100 transition-all text-center"/>
+          <input 
+             type="text" 
+             placeholder="O que você procura?" 
+             value={busca} 
+             onChange={(e) => setBusca(e.target.value)} 
+             // Ajustado para text-base para evitar zoom no iOS
+             className="w-full px-6 py-4 bg-white border border-gray-100 rounded-full text-base font-medium outline-none shadow-sm focus:ring-2 ring-orange-100 transition-all text-center"
+          />
         </div>
         
         {resumoCarrinho.length > 0 && (
@@ -213,7 +223,7 @@ const Catalog: React.FC = () => {
                     <div key={item.item} className="bg-gray-50 px-3 py-1.5 rounded-full flex items-center gap-2 border border-gray-100 shrink-0">
                         <span className="text-[10px] font-black text-[#b24a2b]">{carrinho[item.item]}x</span>
                         <span className="text-[9px] font-bold uppercase truncate max-w-[100px]">{item.item}</span>
-                        <button onClick={() => alterarQuantidade(item.item, -999, 0)} className="text-gray-300 hover:text-red-500"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                        <button onClick={() => alterarQuantidade(item.item, -999, 0)} className="text-gray-300 hover:text-red-500 p-1"><i className="fa-solid fa-xmark text-[10px]"></i></button>
                     </div>
                 ))}
             </div>
@@ -221,8 +231,8 @@ const Catalog: React.FC = () => {
         )}
       </header>
 
-      {/* GRID RESPONSIVO: 1 coluna no celular, 2 em tablets, 4 em desktops */}
-      <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6">
+      {/* GRID RESPONSIVO: Ajustado para Mobile */}
+      <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-32">
         {itensFiltrados.map((prod, idx) => {
           const qtde = carrinho[prod.item] || 0;
           const isEsgotado = prod.disponivel <= 0;
@@ -239,12 +249,18 @@ const Catalog: React.FC = () => {
               </div>
               
               {qtde === 0 ? (
-                <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={isEsgotado} className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 ${isEsgotado ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white shadow-lg'}`}>Adicionar</button>
+                <button 
+                  onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} 
+                  disabled={isEsgotado} 
+                  className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 touch-manipulation ${isEsgotado ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white shadow-lg'}`}
+                >
+                  Adicionar
+                </button>
               ) : (
                 <div className="flex items-center justify-between bg-gray-50 rounded-xl p-1 border border-orange-50">
-                  <button onClick={() => alterarQuantidade(prod.item, -1, prod.disponivel)} className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-900 active:bg-red-50"><i className="fa-solid fa-minus text-xs"></i></button>
+                  <button onClick={() => alterarQuantidade(prod.item, -1, prod.disponivel)} className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-900 active:bg-red-50 touch-manipulation"><i className="fa-solid fa-minus text-xs"></i></button>
                   <span className="text-base font-black text-gray-900">{qtde}</span>
-                  <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={qtde >= prod.disponivel} className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-900 active:bg-green-50 disabled:opacity-20"><i className="fa-solid fa-plus text-xs"></i></button>
+                  <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={qtde >= prod.disponivel} className="w-12 h-12 flex items-center justify-center bg-white rounded-lg shadow-sm text-gray-900 active:bg-green-50 disabled:opacity-20 touch-manipulation"><i className="fa-solid fa-plus text-xs"></i></button>
                 </div>
               )}
             </div>
@@ -253,8 +269,8 @@ const Catalog: React.FC = () => {
       </div>
 
       {totalItens > 0 && (
-        <div className="fixed bottom-6 left-0 right-0 px-4 z-40 flex justify-center">
-          <button onClick={() => setMostrarModalConfirma(true)} className="w-full max-w-md bg-[#25D366] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95 transition-transform flex items-center justify-center gap-3">
+        <div className="fixed bottom-6 left-0 right-0 px-4 z-40 flex justify-center pb-[env(safe-area-inset-bottom)]">
+          <button onClick={() => setMostrarModalConfirma(true)} className="w-full max-w-md bg-[#25D366] text-white py-5 rounded-2xl font-black text-sm uppercase tracking-widest shadow-2xl active:scale-95 transition-transform flex items-center justify-center gap-3 touch-manipulation">
             <i className="fa-solid fa-cart-check"></i>
             Finalizar Pedido ({totalItens})
           </button>
@@ -264,7 +280,7 @@ const Catalog: React.FC = () => {
       {mostrarModalConfirma && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMostrarModalConfirma(false)}></div>
-          <div className="relative bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in slide-in-from-bottom duration-300">
+          <div className="relative bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in slide-in-from-bottom duration-300 mb-[env(safe-area-inset-bottom)]">
             <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl"><i className="fa-solid fa-calendar-day"></i></div>
             <h2 className="text-xl font-black uppercase italic mb-2 tracking-tight">Quando irá devolver?</h2>
             
@@ -275,7 +291,7 @@ const Catalog: React.FC = () => {
                 min={dataHoje}
                 value={dataDevolucao}
                 onChange={(e) => setDataDevolucao(e.target.value)}
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-sm font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
+                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-base font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
               />
             </div>
 
