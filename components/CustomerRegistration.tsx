@@ -306,5 +306,3 @@ const FormInput: React.FC<{ label: string; id: string; value: string; onChange: 
     />
   </div>
 );
-
-export default CustomerRegistration;
