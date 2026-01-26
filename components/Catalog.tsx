@@ -15,6 +15,10 @@ const Catalog: React.FC = () => {
   const [mostrarModalErro, setMostrarModalErro] = useState(false);
   const [erroNome, setErroNome] = useState('');
 
+  // NOVOS ESTADOS PARA DATA DE DEVOLUÇÃO
+  const [dataDevolucao, setDataDevolucao] = useState('');
+  const dataHoje = new Date().toISOString().split('T')[0];
+
   const fetchCatalog = async () => {
     try {
       setLoading(true);
@@ -103,8 +107,9 @@ const Catalog: React.FC = () => {
   const resumoCarrinho = estoque.filter(item => carrinho[item.item]);
   const totalItens = Object.values(carrinho).reduce((a, b) => a + b, 0);
 
-  // FUNÇÃO ATUALIZADA: REMOVIDO O REDIRECIONAMENTO PARA O WHATSAPP
   const confirmarPedidoFinal = async () => {
+    if(!dataDevolucao) return alert("Por favor, selecione a data de devolução.");
+
     const itensTexto = resumoCarrinho
       .map(item => `${carrinho[item.item]}x ${item.item}`)
       .join(', ');
@@ -113,17 +118,22 @@ const Catalog: React.FC = () => {
         const { error } = await db.from('pedidos_online').insert([{
             cliente_nome: nomeCliente,
             cliente_whatsapp: identificacaoCliente, 
-            itens_texto: itensTexto
+            itens_texto: itensTexto,
+            // AQUI VOCÊ DEVE TER UMA COLUNA NA TABELA CHAMADA 'data_devolucao' 
+            // OU ENVIAR JUNTO AO TEXTO SE PREFERIR
+            data_devolucao: dataDevolucao 
         }]);
 
         if (error) throw error;
 
-        // Limpa o carrinho e fecha o modal para retornar à tela de produtos
         setMostrarModalConfirma(false);
         setCarrinho({});
+        setDataDevolucao(''); // Limpa a data após finalizar
+        alert("Pedido enviado com sucesso!");
         
     } catch (err: any) {
         console.error("Erro ao registrar pedido:", err.message);
+        alert("Erro ao enviar pedido. Tente novamente.");
     }
   };
 
@@ -251,12 +261,30 @@ const Catalog: React.FC = () => {
         <div className="fixed inset-0 z-50 flex items-center justify-center px-6">
           <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={() => setMostrarModalConfirma(false)}></div>
           <div className="relative bg-white w-full max-w-sm rounded-[40px] p-8 shadow-2xl text-center animate-in zoom-in duration-300">
-            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"><i className="fa-solid fa-check-double"></i></div>
-            <h2 className="text-2xl font-black uppercase italic tracking-tighter mb-4">Tudo pronto?</h2>
-            <p className="text-gray-400 text-xs font-bold uppercase tracking-widest leading-relaxed mb-8">Deseja finalizar o pedido e enviar para Claudia Festas?</p>
+            <div className="w-16 h-16 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-6 text-2xl"><i className="fa-solid fa-calendar-check"></i></div>
+            <h2 className="text-2xl font-black uppercase italic tracking-tighter mb-4">Quando irá devolver?</h2>
+            
+            <div className="mb-8">
+              <label className="text-[10px] font-black text-[#b24a2b] uppercase tracking-widest block mb-2">Selecione a data de devolução</label>
+              <input 
+                type="date" 
+                min={dataHoje} // BLOQUEIA DATAS PASSADAS
+                value={dataDevolucao}
+                onChange={(e) => setDataDevolucao(e.target.value)}
+                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-xs font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
+              />
+            </div>
+
             <div className="flex flex-col gap-3">
-              <button onClick={confirmarPedidoFinal} className="w-full bg-[#25D366] text-white py-4 rounded-2xl font-black text-xs uppercase tracking-widest">Sim, Finalizar!</button>
-              <button onClick={() => setMostrarModalConfirma(false)} className="w-full bg-gray-50 text-gray-400 py-4 rounded-2xl font-black text-xs uppercase tracking-widest">Cancelar</button>
+              {/* SÓ LIBERA O BOTÃO SE A DATA ESTIVER PREENCHIDA */}
+              <button 
+                onClick={confirmarPedidoFinal} 
+                disabled={!dataDevolucao}
+                className={`w-full py-4 rounded-2xl font-black text-xs uppercase tracking-widest transition-all ${!dataDevolucao ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-lg'}`}
+              >
+                Sim, Finalizar!
+              </button>
+              <button onClick={() => {setMostrarModalConfirma(false); setDataDevolucao('');}} className="w-full bg-gray-50 text-gray-400 py-4 rounded-2xl font-black text-xs uppercase tracking-widest">Cancelar</button>
             </div>
           </div>
         </div>
