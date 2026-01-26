@@ -187,8 +187,15 @@ const Catalog: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-32">
       <header className="pt-12 pb-8 px-4 text-center">
-        <span className="text-[#b24a2b] font-black text-xs uppercase tracking-[0.3em] block mb-2">Locações Claudia Festas</span>
-        <h1 className="text-4xl sm:text-6xl font-black uppercase italic tracking-tighter mb-8 leading-tight">Nosso <span className="text-[#b24a2b]">Estoque</span></h1>
+        {/* TÍTULO PRINCIPAL (Alterado) */}
+        <h1 className="text-[#b24a2b] font-black text-4xl sm:text-6xl uppercase italic tracking-tighter block mb-2 leading-tight">
+          Locações Claudia Festas
+        </h1>
+        
+        <h2 className="text-4xl sm:text-6xl font-black uppercase italic tracking-tighter mb-8 leading-tight">
+          Nosso <span className="text-[#b24a2b]">Estoque</span>
+        </h2>
+
         <div className="max-w-2xl mx-auto mb-8">
           <input type="text" placeholder="O que você procura?" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full px-6 py-4 bg-white border border-gray-100 rounded-full text-base font-medium outline-none shadow-sm focus:ring-2 ring-orange-100 transition-all text-center"/>
         </div>
