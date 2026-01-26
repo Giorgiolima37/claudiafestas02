@@ -1,5 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { db } from '../services/supabase';
+// --- IMPORTANTE: Importando o logo aqui ---
+import logoImg from '../logo.png'; 
 
 const Catalog: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
@@ -139,7 +141,7 @@ const Catalog: React.FC = () => {
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-8 text-gray-900">
         <div className="w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl text-center">
           
-          {/* LOGO */}
+          {/* LOGO NA TELA DE LOGIN */}
           <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-1 leading-none mt-2">
             Claudia <span className="text-[#b24a2b]">Festas</span>
           </h1>
@@ -187,14 +189,17 @@ const Catalog: React.FC = () => {
   return (
     <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-32">
       <header className="pt-12 pb-8 px-4 text-center">
-        {/* TÍTULO PRINCIPAL (Alterado) */}
-        <h1 className="text-[#b24a2b] font-black text-4xl sm:text-6xl uppercase italic tracking-tighter block mb-2 leading-tight">
+        {/* TÍTULO PRINCIPAL MANTIDO */}
+        <h1 className="text-[#b24a2b] font-black text-4xl sm:text-6xl uppercase italic tracking-tighter block mb-4 leading-tight">
           Locações Claudia Festas
         </h1>
         
-        <h2 className="text-4xl sm:text-6xl font-black uppercase italic tracking-tighter mb-8 leading-tight">
-          Nosso <span className="text-[#b24a2b]">Estoque</span>
-        </h2>
+        {/* --- ALTERAÇÃO AQUI: "Nosso Estoque" removido e LOGO inserido --- */}
+        <img 
+            src={logoImg} 
+            alt="Logo Claudia Festas" 
+            className="mx-auto mb-8 h-24 w-auto object-contain animate-in fade-in zoom-in duration-500"
+        />
 
         <div className="max-w-2xl mx-auto mb-8">
           <input type="text" placeholder="O que você procura?" value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full px-6 py-4 bg-white border border-gray-100 rounded-full text-base font-medium outline-none shadow-sm focus:ring-2 ring-orange-100 transition-all text-center"/>
