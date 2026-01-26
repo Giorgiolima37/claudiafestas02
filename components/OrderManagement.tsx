@@ -55,7 +55,7 @@ const OrderManagement: React.FC = () => {
     );
   };
 
-  // FUNÇÃO ATUALIZADA: Agora subtrai do estoque ao aceitar pedido online e usa documento limpo
+  // FUNÇÃO ATUALIZADA: Envia para a tabela 'reservas' e atualiza estoque
   const handleAceitarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
     
@@ -64,16 +64,17 @@ const OrderManagement: React.FC = () => {
       // Limpa o documento vindo do catálogo (remove pontos/traços)
       const docLimpoOnline = pedido.cliente_whatsapp.replace(/\D/g, '');
       
-      // Busca o cliente comparando o documento limpo para garantir o vínculo
+      // Busca o cliente comparando o documento limpo para garantir o vínculo correto na tabela reservas
       const clienteEncontrado = clientes.find(c => 
           (c.identificação || "").replace(/\D/g, '') === docLimpoOnline
       );
 
       if (!clienteEncontrado) {
-        alert("Cliente não localizado no cadastro. Cadastre-o primeiro com o CPF/CNPJ correto.");
+        alert("Cliente não localizado no cadastro. Cadastre-o primeiro com o CPF/CNPJ usado no catálogo.");
         return;
       }
 
+      // Separa os itens do texto enviado pelo catálogo (Ex: "7x Balde de Alumínio")
       const linhasItens = pedido.itens_texto.split(', ');
       
       for (const linha of linhasItens) {
@@ -96,31 +97,32 @@ const OrderManagement: React.FC = () => {
               reservado: (infoEstoque.reservado || 0) + qtd
             }).eq('id', infoEstoque.id);
 
-            // 2. INSERE NA TABELA DE RESERVAS
+            // 2. INSERE NA TABELA DE RESERVAS (Agora com vínculo oficial de cliente_id)
             await db.from('reservas').insert([{
               cliente_id: clienteEncontrado.id,
               item: nomeItem,
               quantidade: qtd,
+              // Define data do evento para hoje e devolução para amanhã (ajustável conforme necessidade)
               data_evento: new Date().toISOString().split('T')[0],
               data_devolucao: new Date(Date.now() + 86400000).toISOString().split('T')[0],
               status: 'Pendente',
               codigo_item: infoEstoque?.codigo_interno || 'S/C',
               valor_total: (infoEstoque?.preco || 0) * qtd,
-              status_estoque: 'processado', // Marca que já foi subtraído
+              status_estoque: 'processado', 
               origem: 'online'
             }]);
           }
         }
       }
 
-      // 3. REMOVE DA LISTA ONLINE
+      // 3. REMOVE DA LISTA ONLINE APÓS PROCESSAR TUDO
       await db.from('pedidos_online').delete().eq('id', pedido.id);
       
-      alert("Pedido aceito e estoque atualizado com sucesso!");
+      alert("Pedido aceito, enviado para Reservas e estoque atualizado!");
       fetchData();
     } catch (err: any) {
       if (err.message.includes("Estoque insuficiente")) return;
-      alert("Erro ao aceitar pedido: " + err.message);
+      alert("Erro ao processar aceitação: " + err.message);
     } finally {
       setLoading(false);
     }
@@ -294,7 +296,7 @@ const OrderManagement: React.FC = () => {
               border: 1px solid #000; 
               padding: 15px; 
               box-sizing: border-box; 
-              min-height: 27.7cm; /* FORÇA O TAMANHO PADRÃO A4 */
+              min-height: 27.7cm; 
               display: flex; 
               flex-direction: column; 
             }
