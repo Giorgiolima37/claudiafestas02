@@ -124,19 +124,18 @@ END:VCALENDAR`;
     setShowFreteModal(false);
 
     try {
-      // --- VALIDAÇÃO INTELIGENTE DE ESTOQUE ADICIONADA ---
+      // --- REMOÇÃO DA TRAVA DE ESTOQUE ---
+      // A verificação agora é apenas informativa, permitindo estoque negativo
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
         if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
 
-        // Lógica: Considera o patrimônio total (Disponível + Reservado) 
-        // para permitir reservas futuras mesmo se o estoque estiver na rua hoje.
         const estoqueTotalPatrimonial = itemEstoque.disponivel + itemEstoque.reservado;
 
         if (estoqueTotalPatrimonial < selecionado.quantidade) {
-          alert(`🚨 ESTOQUE INSUFICIENTE!\n\nMaterial: ${itemEstoque.item}\nPatrimônio Total: ${estoqueTotalPatrimonial} unidades.`);
-          setLoading(false);
-          return;
+          console.warn(`⚠️ Aviso: Item "${itemEstoque.item}" ficará com saldo negativo.`);
+          // A linha abaixo foi removida para liberar a reserva:
+          // alert(`🚨 ESTOQUE INSUFICIENTE!\n\nMaterial: ${itemEstoque.item}...`); return;
         }
       }
       // --------------------------------------------------
@@ -379,10 +378,10 @@ END:VCALENDAR`;
                   <span>R$ {calcularSubtotal().toFixed(2).replace('.', ',')}</span>
                 </div>
                 {desconto > 0 && (
-                   <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
-                     <span>Desconto:</span>
-                     <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
-                   </div>
+                    <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
+                      <span>Desconto:</span>
+                      <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
+                    </div>
                 )}
                 <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
                   <span>Total Geral:</span>

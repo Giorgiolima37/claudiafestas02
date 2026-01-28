@@ -285,6 +285,7 @@ const OrderManagement: React.FC = () => {
     const totalGeral = subtotalItens + taxaEntrega - desconto;
     const dEnt = formatarDataBR(pedido.itens[0].data_evento);
     const dRec = formatarDataBR(pedido.dataDevolucao);
+    
     const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
     const getDiaSemana = (dataStr: string) => {
       if (!dataStr) return '';
@@ -294,118 +295,239 @@ const OrderManagement: React.FC = () => {
     };
     const diaSemanaEnt = getDiaSemana(pedido.itens[0].data_evento);
     const diaSemanaRec = getDiaSemana(pedido.dataDevolucao);
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
+
     printWindow.document.write(`
       <html>
         <head>
           <title>CONTRATO - ${pedido.nomeCliente}</title>
           <style>
-            @page { size: A4; margin: 0.5cm; }
-            body { font-family: 'Arial', sans-serif; color: #000; line-height: 1.2; font-size: 11px; margin: 0; padding: 0; }
-            .contract-container { 
-              width: 100%; 
-              border: 1px solid #000; 
-              padding: 15px; 
-              box-sizing: border-box; 
-              min-height: 27.7cm; 
-              display: flex; 
-              flex-direction: column; 
+            @page { 
+                size: A4; 
+                margin: 0; /* Removemos a margem do navegador para controlar via CSS */
             }
-            .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 10px; }
-            .company-info { width: 80%; }
-            .company-name { font-size: 20px; font-weight: 900; color: #1e40af; text-decoration: underline; margin-bottom: 3px; }
-            .company-contact { font-size: 14px; font-weight: 900; margin-bottom: 3px; }
-            .company-address { font-size: 10px; font-weight: bold; }
-            .logo-circle { width: 75px; height: 75px; border-radius: 50%; overflow: hidden; display: flex; align-items: center; justify-content: center; border: 1px solid #eee; }
-            .logo-circle img { width: 100%; height: auto; object-fit: contain; }
-            .main-title { text-align: center; font-size: 24px; font-weight: 900; margin: 10px 0; letter-spacing: 4px; }
-            .intro-text { font-size: 12px; margin-bottom: 15px; text-align: justify; line-height: 1.3; }
-            .intro-text strong { text-transform: uppercase; }
-            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; }
-            th, td { border: 1px solid #000; padding: 5px; text-align: center; font-weight: 900; }
-            th { font-size: 11px; text-transform: uppercase; background-color: #f0f0f0; }
-            td { font-size: 11px; }
-            .align-left { text-align: left; padding-left: 10px; }
-            .total-box { font-size: 13px; background-color: #f2f2f2; }
-            .clauses-container { font-size: 12px; text-align: justify; margin-bottom: 15px; line-height: 1.2; }
-            .clause-text { margin-bottom: 5px; }
-            .obs-container { border: 1px solid #000; padding: 8px; margin: 10px 0; min-height: 40px; font-size: 11px; }
-            .footer-contract { display: flex; justify-content: space-between; align-items: flex-end; margin-top: auto; padding-bottom: 5px; }
-            .logistics-info { font-weight: 900; font-size: 12px; line-height: 1.3; }
-            .sig-line { width: 220px; border-top: 1px solid #000; text-align: center; font-weight: 900; padding-top: 8px; font-size: 11px; }
+            body { 
+                font-family: Arial, Helvetica, sans-serif; 
+                margin: 0; 
+                padding: 0;
+                width: 210mm; /* FORÇA A LARGURA A4 */
+                min-height: 297mm;
+                display: flex;
+                justify-content: center;
+                box-sizing: border-box;
+                padding-top: 5mm; /* Margem superior */
+            }
+            .page-container {
+                width: 200mm; /* Largura fixa do conteúdo (210mm - margens) */
+                padding: 10px;
+                border: 2px solid black; /* Borda preta grossa em volta de tudo */
+                box-sizing: border-box;
+                display: flex;
+                flex-direction: column;
+                min-height: 285mm; /* Altura para ocupar a folha quase toda */
+            }
+            .header {
+                margin-bottom: 15px;
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+            }
+            .company-info {
+                flex: 1;
+            }
+            .logo-box {
+                width: 80px;
+                height: 80px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                margin-left: 10px;
+            }
+            .logo-box img {
+                max-width: 100%;
+                max-height: 100%;
+                object-fit: contain;
+                border-radius: 50%;
+            }
+            .company-name {
+                font-weight: 900;
+                font-size: 16px;
+                color: #1e40af; /* COR AZUL RESTAURADA */
+                text-decoration: underline;
+            }
+            .contract-title {
+                text-align: center;
+                font-weight: 900;
+                font-size: 18px;
+                margin: 15px 0;
+                letter-spacing: 2px;
+            }
+            .intro-text {
+                text-align: justify;
+                margin-bottom: 15px;
+                font-size: 11px;
+                line-height: 1.3;
+            }
+            table { 
+                width: 100%; /* Força a tabela a abrir até a borda */
+                border-collapse: collapse; 
+                margin-bottom: 15px; 
+                font-size: 11px;
+            }
+            th, td { 
+                border: 1px solid #000; 
+                padding: 4px; 
+                text-align: center; 
+            }
+            th {
+                background-color: #eee;
+                font-weight: 900;
+            }
+            .align-left { 
+                text-align: left; 
+                padding-left: 5px; 
+            }
+            .clauses {
+                text-align: justify;
+                font-size: 10px; 
+                margin-bottom: auto; /* Empurra o rodapé para baixo */
+            }
+            .clause-item {
+                margin-bottom: 5px;
+            }
+            .obs-container { 
+                border: 1px solid #000; 
+                padding: 5px; 
+                margin-top: 10px;
+                margin-bottom: 10px; 
+                font-size: 10px; 
+                min-height: 150px; /* CAIXA GRANDE IGUAL A FOTO */
+            }
+            .signatures {
+                display: flex;
+                justify-content: space-between;
+                margin-top: 20px;
+                margin-bottom: 5px;
+            }
+            .sig-box {
+                width: 40%;
+                text-align: center;
+                border-top: 1px solid #000;
+                padding-top: 5px;
+                font-weight: bold;
+                font-size: 10px;
+            }
+            .dates-info {
+                font-weight: 900;
+                margin-top: 10px;
+                margin-bottom: 15px;
+                font-size: 11px;
+            }
           </style>
         </head>
         <body>
-          <div class="contract-container">
-            <div class="header">
-              <div class="company-info">
-                <div class="company-name">LOCAÇÃO DE ARTIGOS PARA FESTAS</div>
-                <div class="company-contact">Fone: 48 98412.3233</div>
-                <div class="company-address">Rua Bernardino Prudêncio de Amorim, 667, Jardim Janaína, Biguaçu, SC</div>
+          
+          <div class="page-container">
+              <div class="header">
+                 <div class="company-info">
+                    <div class="company-name">LOCAÇÃO DE ARTIGOS PARA FESTAS</div>
+                    <div style="font-weight: 900; font-size: 12px;">Fone: 48 98412.3233</div>
+                    <div style="font-size: 10px;">Rua Bernardino Prudêncio de Amorim, 667, Jardim Janaina, Biguaçu, SC</div>
+                    <div style="font-weight: 900; margin-top: 5px;">CLAUDIA FESTA</div>
+                    <div style="font-size: 9px; margin-top: 2px;">${new Date().toLocaleString('pt-BR')}</div>
+                 </div>
+                 <div class="logo-box">
+                    <img src="${logoImg}" alt="Logo">
+                 </div>
               </div>
-              <div class="logo-circle"><img src="${logoImg}" alt="Logo"></div>
-            </div>
-            <div class="main-title">CONTRATO</div>
-            <div class="intro-text">
-              Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, Município: <strong>${cliente.municipio || '_________________'}</strong>, tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante descritos, sobre as cláusulas e condições seguintes).<br>
-              Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
-            </div>
-            <div style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 2px;">
-                <div style="font-weight:bold; font-size:11px;">DESCRIÇÃO DO BEM</div>
-                <div style="font-weight:bold; font-size:12px;">Telefone do cliente: ${pedido.telefone || cliente.telefone || '________________'}</div>
-            </div>
-            <table>
-              <thead><tr><th width="50">QTD</th><th>DESCRIÇÃO</th><th width="100">VALOR U.</th><th width="110">TOTAL</th></tr></thead>
-              <tbody>
-                ${pedido.itens.map((i: any) => `
+
+              <div class="contract-title">CONTRATO</div>
+
+              <div class="intro-text">
+                Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, 
+                tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante
+                descritos, sobre as cláusulas e condições seguintes).
+                <br>
+                Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
+              </div>
+
+              <div style="font-weight: 900; font-size: 11px; margin-bottom: 2px; display: flex; justify-content: space-between;">
+                  <span>DESCRIÇÃO DO BEM</span>
+                  <span>Telefone do cliente: ${pedido.telefone || cliente.telefone || '_____________'}</span>
+              </div>
+
+              <table>
+                <thead>
                   <tr>
-                    <td>${i.quantidade}</td>
-                    <td class="align-left">${i.item.toUpperCase()}</td>
-                    <td>R$ ${(i.valor_total / i.quantidade).toFixed(2).replace('.', ',')}</td>
-                    <td>R$ ${i.valor_total.toFixed(2).replace('.', ',')}</td>
+                    <th style="width: 40px;">QTD</th>
+                    <th>DESCRIÇÃO</th>
+                    <th style="width: 80px;">VALOR U.</th>
+                    <th style="width: 80px;">TOTAL</th>
                   </tr>
-                `).join('')}
-                <tr>
-                  <td>1</td>
-                  <td class="align-left">TAXA DE ENTREGA</td>
-                  <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
-                  <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
-                </tr>
-                ${desconto > 0 ? `
-                <tr>
-                  <td>1</td>
-                  <td class="align-left" style="color: red;">DESCONTO PROMOCIONAL</td>
-                  <td style="color: red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
-                  <td style="color: red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
-                </tr>
-                ` : ''}
-                <tr>
-                  <td colspan="3" style="text-align: right; border-right: none; font-size: 14px;">TOTAL GERAL R$</td>
-                  <td class="total-box">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
-                </tr>
-              </tbody>
-            </table>
-            <div class="clauses-container">
-              <div class="clause-text"><strong>Cláusula 1ª.</strong> O presente contrato tem como utensílios para a festa, todas em bom estado de conservação e limpeza, de propriedade da LOCADORA, que serão locadas ao (à) LOCATÁRIO (a).</div>
-              <div class="clause-text"><strong>Cláusula 2ª.</strong> É vedado ao (à) LOCATÁRIO (a) transferir, sublocar, ceder ou emprestar os bens ora locados a terceiros.</div>
-              <div class="clause-text"><strong>Cláusula 3ª.</strong> A locação terá duração conforme data abaixo descrita quando os bens serão entregues pelo (a) LOCADOR (A) no endereço indicado pelo (a) LOCATÁRIO, e finalizando no dia combinada abaixo quando os bens serão retirados pelo (a) LOCADOR (a).</div>
-              <div class="clause-text"><strong>Cláusula 4ª.</strong> A LOCADORA se isenta de qualquer erro de manuseio do usuário LOCATÁRIO, que venha acarretar acidentes durante a locação.</div>
-              <div class="clause-text"><strong>Cláusula 5ª.</strong> Na quebra de utensílios será cobrado. (Mesa R$80,00 - cadeira R$ 45,00 - prato R$ 15,00 - talher unid. R$ 8,00 – taça R$ 10,00 - toalha Oxford 1,50mt. R$ 25,00 - toalha Oxford 2,80mt. 35,00 - toalha amas. 2,80mt R$ 25,00. (Outros produtos serão avaliados o valor)</div>
-            </div>
-            <div class="obs-container">
-              <strong>OBS:</strong> ${pedido.observacoes || '____________________________________________________________________________________________________________________________________________________________________________________'}
-            </div>
-            <div class="footer-contract">
-              <div class="logistics-info">
-                ENTREGAR: ${dEnt} <span style="color: #1e40af;">${diaSemanaEnt}</span><br>
-                RECOLHER: ${dRec} <span style="color: #1e40af;">${diaSemanaRec}</span>
+                </thead>
+                <tbody>
+                  ${pedido.itens.map((i: any) => `
+                    <tr>
+                      <td>${i.quantidade}</td>
+                      <td class="align-left">${i.item.toUpperCase()}</td>
+                      <td>R$ ${(i.valor_total / i.quantidade).toFixed(2).replace('.', ',')}</td>
+                      <td>R$ ${i.valor_total.toFixed(2).replace('.', ',')}</td>
+                    </tr>
+                  `).join('')}
+                  
+                  <tr>
+                    <td>1</td>
+                    <td class="align-left">TAXA DE ENTREGA</td>
+                    <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
+                    <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
+                  </tr>
+
+                  ${desconto > 0 ? `
+                  <tr>
+                     <td>1</td>
+                     <td class="align-left" style="color:red;">DESCONTO PROMOCIONAL</td>
+                     <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
+                     <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
+                  </tr>` : ''}
+
+                  <tr>
+                    <td colspan="3" style="text-align: right; font-weight: 900; border-right: none;">TOTAL GERAL R$</td>
+                    <td style="font-weight: 900; background-color: #eee;">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
+                  </tr>
+                </tbody>
+              </table>
+
+              <div class="clauses">
+                 <div class="clause-item"><strong>Cláusula 1ª.</strong> O presente contrato tem como utensílios para a festa, todas em bom estado de conservação e limpeza, de propriedade da LOCADORA, que serão locadas ao (à) LOCATÁRIO (a).</div>
+                 
+                 <div class="clause-item"><strong>Cláusula 2ª.</strong> É vedado ao (à) LOCATÁRIO (a) transferir, sublocar, ceder ou emprestar os bens ora locados a terceiros.</div>
+                 
+                 <div class="clause-item"><strong>Cláusula 3ª.</strong> A locação terá duração conforme data abaixo descrita quando os bens serão entregues pelo (a) LOCADOR (A) no endereço indicado pelo (a) LOCATÁRIO, e finalizando no dia combinada abaixo quando os bens serão retirados pelo (a) LOCADOR (a).</div>
+                 
+                 <div class="clause-item"><strong>Cláusula 4ª.</strong> A LOCADORA se isenta de qualquer erro de manuseio do usuário LOCATÁRIO, que venha acarretar acidentes durante a locação.</div>
+                 
+                 <div class="clause-item"><strong>Cláusula 5ª.</strong> Na quebra de utensílios será cobrado. (Mesa R$80,00 - cadeira R$ 45,00 - prato R$ 15,00 - talher unid. R$ 8,00 - taça R$ 10,00 - toalha Oxford 1,50mt. R$ 25,00 - toalha Oxford 2,80mt. 35,00 - toalha amas. 2,80mt R$ 25,00. (Outros produtos serão avaliados o valor)</div>
               </div>
-              <div class="sig-line">LOCATÁRIO</div>
-              <div class="sig-line">CLAUDIA FESTAS</div>
-            </div>
+
+              <div class="obs-container">
+                <strong>OBS:</strong> ${pedido.observacoes || ''}
+              </div>
+
+              <div class="dates-info">
+                 ENTREGAR: ${dEnt} <span style="color: blue;">${diaSemanaEnt}</span><br>
+                 RECOLHER: ${dRec} <span style="color: blue;">${diaSemanaRec}</span>
+              </div>
+
+              <div class="signatures">
+                <div class="sig-box">LOCATÁRIO</div>
+                <div class="sig-box">CLAUDIA FESTAS</div>
+              </div>
           </div>
-          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 300); }</script>
+
+          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
         </body>
       </html>
     `);
@@ -591,6 +713,25 @@ const OrderManagement: React.FC = () => {
               <div className="w-full space-y-4">
                 {pedidosOnline.map((po) => {
                   const estaBloqueado = verificarSeEstaNaListaNegra(po.cliente_whatsapp);
+                  
+                  // ADAPTAÇÃO: Preparar dados para os botões de Lista e Contrato funcionarem com o pedido online
+                  const itensParaImprimir = po.itens_texto ? po.itens_texto.split(', ').map((str: string) => {
+                    const match = str.match(/(\d+)x (.+)/);
+                    return match ? { quantidade: parseInt(match[1]), item: match[2], valor_total: 0, data_evento: po.created_at } 
+                                 : { quantidade: 1, item: str, valor_total: 0, data_evento: po.created_at };
+                  }) : [];
+                  const clienteExistente = clientes.find(c => c.telefone === po.cliente_whatsapp) || {};
+                  const pedidoAdaptado = {
+                    id: po.id,
+                    nomeCliente: po.cliente_nome,
+                    cliente_id: clienteExistente.id || 0,
+                    telefone: po.cliente_whatsapp,
+                    dataDevolucao: po.created_at, 
+                    itens: itensParaImprimir,
+                    observacoes: 'Solicitação Online - Aguardando Aprovação',
+                    taxa_entrega: 0,
+                    desconto: 0
+                  };
 
                   return (
                     <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
@@ -600,8 +741,20 @@ const OrderManagement: React.FC = () => {
                           <span className="font-black text-[10px] uppercase tracking-tighter">Atenção: Lista Negra</span>
                         </div>
                       )}
-                      <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
-                      <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
+                      
+                      {/* LAYOUT AJUSTADO: Nome à esquerda, Botões à direita */}
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
+                        </div>
+                        <div className="flex gap-1 ml-2">
+                           <button onClick={() => abrirWhatsApp({ telefone: po.cliente_whatsapp })} className="w-9 h-9 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="WhatsApp"><i className="fa-brands fa-whatsapp text-xs"></i></button>
+                           <button onClick={() => gerarRomaneio(pedidoAdaptado)} className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="Lista de Conferência"><i className="fa-solid fa-list-check text-xs"></i></button>
+                           <button onClick={() => gerarContrato(pedidoAdaptado)} className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="Imprimir Contrato"><i className="fa-solid fa-file-contract text-xs"></i></button>
+                        </div>
+                      </div>
+
                       <div className="mt-3 bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
                         <span className="text-[8px] font-black text-[#b24a2b] uppercase tracking-tighter block mb-1">Itens Selecionados:</span>
                         <p className="text-[10px] font-bold text-gray-600 leading-tight">{po.itens_texto}</p>

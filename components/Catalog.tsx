@@ -193,6 +193,16 @@ const Catalog: React.FC = () => {
             <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-2 active:scale-95 touch-manipulation">
               {verificandoAcesso ? 'Verificando...' : 'Entrar no Catálogo'}
             </button>
+
+            {/* --- NOVO BOTÃO DE CADASTRO ADICIONADO AQUI --- */}
+            <button 
+              type="button"
+              onClick={() => window.location.href = '/cadastro'} 
+              className="w-full bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-[#b24a2b] hover:text-[#b24a2b] transition-all mt-1 active:scale-95 touch-manipulation"
+            >
+              Não tenho cadastro
+            </button>
+
           </form>
         </div>
       </div>
