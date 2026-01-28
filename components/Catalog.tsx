@@ -15,17 +15,19 @@ const Catalog: React.FC = () => {
   const [nomeCliente, setNomeCliente] = useState('');
   const [identificacaoCliente, setIdentificacaoCliente] = useState('');
   const [verificandoAcesso, setVerificandoAcesso] = useState(false);
-  const [mostrarModalErro, setMostrarModalErro] = useState(false);
   const [erroNome, setErroNome] = useState('');
+  
+  // NOVO ESTADO: Controle se o login falhou (usuário não encontrado)
+  const [usuarioNaoEncontrado, setUsuarioNaoEncontrado] = useState(false);
 
-  // --- ESTADOS DO CADASTRO (NOVO) ---
+  // --- ESTADOS DO CADASTRO ---
   const [showRegisterForm, setShowRegisterForm] = useState(false);
   const [regNome, setRegNome] = useState('');
   const [regTelefone, setRegTelefone] = useState('');
   const [regDocumento, setRegDocumento] = useState('');
   const [regEndereco, setRegEndereco] = useState('');
   const [regBairro, setRegBairro] = useState('');
-  const [regMunicipio, setRegMunicipio] = useState('Biguaçu'); // Valor padrão sugerido
+  const [regMunicipio, setRegMunicipio] = useState('Biguaçu'); 
   const [regIdPersonalizado, setRegIdPersonalizado] = useState('');
   const [registering, setRegistering] = useState(false);
 
@@ -52,19 +54,19 @@ const Catalog: React.FC = () => {
     if (isLoggedIn) fetchCatalog(); 
   }, [isLoggedIn]);
 
-  // --- BUSCAR PRÓXIMO ID AUTOMATICAMENTE ---
+  // --- LÓGICA PARA SUGERIR O PRÓXIMO ID (AUTO) ---
   useEffect(() => {
     if (showRegisterForm) {
         const fetchNextId = async () => {
-            // Tenta pegar o maior ID atual para sugerir o próximo
             const { data } = await db.from('cadastro').select('id-client');
             if (data && data.length > 0) {
-                // Filtra apenas números e pega o maior
-                const ids = data.map(d => parseInt(d['id-client'])).filter(n => !isNaN(n));
+                const ids = data
+                    .map(d => parseInt(d['id-client']))
+                    .filter(n => !isNaN(n));
                 const maxId = ids.length > 0 ? Math.max(...ids) : 99;
                 setRegIdPersonalizado(String(maxId + 1));
             } else {
-                setRegIdPersonalizado('100');
+                setRegIdPersonalizado('100'); 
             }
         };
         fetchNextId();
@@ -95,36 +97,45 @@ const Catalog: React.FC = () => {
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErroNome('');
+    setUsuarioNaoEncontrado(false); // Reseta o erro ao tentar de novo
+
     const nomeLimpo = nomeCliente.trim();
     if (!nomeLimpo.includes(' ')) {
       setErroNome('Adicione o sobrenome');
       return;
     }
+    
     setVerificandoAcesso(true);
     try {
       const { data: cadastros, error } = await db
         .from('cadastro')
         .select('cliente, identificação');
+      
       if (error) throw error;
+      
       const docLimpoUser = identificacaoCliente.replace(/\D/g, '');
       const nomeUser = nomeLimpo.toLowerCase();
+      
       const clienteEncontrado = cadastros?.find(c => {
         const nomeBanco = c.cliente.trim().toLowerCase();
         const docBanco = (c.identificação || "").replace(/\D/g, '');
         return nomeBanco === nomeUser && docBanco === docLimpoUser;
       });
+
       if (clienteEncontrado) {
         setIsLoggedIn(true);
       } else {
-        setMostrarModalErro(true);
+        // CLIENTE NÃO ENCONTRADO: Ativa o estado que muda o botão
+        setUsuarioNaoEncontrado(true);
       }
     } catch (err) {
-      setMostrarModalErro(true);
+      alert("Erro ao verificar conexão.");
     } finally {
       setVerificandoAcesso(false);
     }
   };
 
+  // --- FUNÇÃO DE CADASTRO NO SUPABASE ---
   const handleRegister = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!regNome.includes(' ')) return alert("Por favor, digite Nome e Sobrenome.");
@@ -132,22 +143,23 @@ const Catalog: React.FC = () => {
     setRegistering(true);
     try {
         const { error } = await db.from('cadastro').insert([{
-            cliente: regNome,
+            cliente: regNome.toUpperCase(),
             telefone: regTelefone,
-            'identificação': regDocumento,
-            endereco: regEndereco,
-            bairro: regBairro,
-            municipio: regMunicipio,
-            'id-client': regIdPersonalizado,
+            'identificação': regDocumento, 
+            endereco: regEndereco.toUpperCase(),
+            bairro: regBairro.toUpperCase(),
+            municipio: regMunicipio.toUpperCase(),
+            'id-client': regIdPersonalizado, 
             lista_negra: false
         }]);
 
         if (error) throw error;
 
-        alert('Cadastro realizado com sucesso! Você já pode entrar.');
-        // Preenche o login automaticamente e volta para a tela de entrar
+        alert('Cadastro realizado com sucesso! Entrando...');
+        
         setNomeCliente(regNome);
         setIdentificacaoCliente(regDocumento);
+        setIsLoggedIn(true);
         setShowRegisterForm(false);
 
     } catch (err: any) {
@@ -163,6 +175,7 @@ const Catalog: React.FC = () => {
     setNomeCliente('');
     setIdentificacaoCliente('');
     setIsLoggedIn(false);
+    setUsuarioNaoEncontrado(false);
   };
 
   const alterarQuantidade = (nomeItem: string, delta: number, max: number) => {
@@ -218,7 +231,6 @@ const Catalog: React.FC = () => {
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-8 text-gray-900 w-full overflow-hidden">
         <div className={`w-full bg-white rounded-[32px] p-8 shadow-2xl transition-all duration-500 ${showRegisterForm ? 'max-w-2xl' : 'max-w-sm text-center'}`}>
           
-          {/* CABEÇALHO COM LOGO */}
           <div className="text-center mb-6">
              <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-1 leading-none mt-2">
                 Claudia <span className="text-[#b24a2b]">Festas</span>
@@ -228,55 +240,55 @@ const Catalog: React.FC = () => {
 
           {showRegisterForm ? (
             // --- FORMULÁRIO DE CADASTRO ---
-            <form onSubmit={handleRegister} className="flex flex-col gap-4 animate-in fade-in slide-in-from-right duration-300">
-                <h2 className="text-lg font-black uppercase text-[#b24a2b] border-b pb-2 mb-2">Novo Cadastro</h2>
+            <form onSubmit={handleRegister} className="flex flex-col gap-4 animate-in fade-in slide-in-from-right duration-300 text-left">
+                <h2 className="text-[#b24a2b] font-black uppercase tracking-tight text-xl mb-4 border-b border-gray-100 pb-2">Novo Cadastro</h2>
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Nome Completo</label>
-                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
-                            value={regNome} onChange={e => setRegNome(e.target.value)} required placeholder="Ex: Maria Silva" />
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Nome Completo</label>
+                        <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
+                            value={regNome} onChange={e => setRegNome(e.target.value)} required placeholder="Ex: GABRIEL LIMA" />
                     </div>
                     <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Telefone</label>
-                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
-                            value={regTelefone} onChange={e => setRegTelefone(aplicarMascaraTelefone(e.target.value))} required placeholder="(48) 99999-9999" />
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Telefone</label>
+                        <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
+                            value={regTelefone} onChange={e => setRegTelefone(aplicarMascaraTelefone(e.target.value))} required placeholder="(99) 99999-9999" />
                     </div>
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">CPF ou CNPJ</label>
-                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">CPF ou CNPJ</label>
+                        <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regDocumento} onChange={e => setRegDocumento(aplicarMascaraDocumento(e.target.value))} required placeholder="000.000.000-00" />
                     </div>
                     <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">ID Personalizado (Auto)</label>
-                        <input type="text" className="w-full px-4 py-3 bg-gray-100 text-gray-500 rounded-xl font-bold uppercase outline-none" 
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">ID Personalizado (Auto)</label>
+                        <input type="text" className="w-full px-5 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold uppercase outline-none text-sm cursor-not-allowed" 
                             value={regIdPersonalizado} readOnly />
                     </div>
                 </div>
 
                 <div>
-                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Endereço Completo</label>
-                    <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
-                        value={regEndereco} onChange={e => setRegEndereco(e.target.value)} required placeholder="Rua, Número, Complemento" />
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Endereço Completo</label>
+                    <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
+                        value={regEndereco} onChange={e => setRegEndereco(e.target.value)} required placeholder="RUA, NÚMERO..." />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Bairro</label>
-                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Bairro</label>
+                        <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regBairro} onChange={e => setRegBairro(e.target.value)} required />
                     </div>
                     <div>
-                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Município</label>
-                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Município</label>
+                        <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regMunicipio} onChange={e => setRegMunicipio(e.target.value)} required />
                     </div>
                 </div>
 
-                <div className="flex gap-2 mt-4">
+                <div className="flex gap-3 mt-6">
                     <button type="button" onClick={() => setShowRegisterForm(false)} className="flex-1 bg-gray-200 text-gray-600 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-300 transition-all">
                         Voltar
                     </button>
@@ -297,6 +309,7 @@ const Catalog: React.FC = () => {
                     onChange={(e) => {
                         setNomeCliente(e.target.value.toLowerCase());
                         if(erroNome) setErroNome('');
+                        setUsuarioNaoEncontrado(false); // Resetar ao digitar
                     }}
                     required
                 />
@@ -312,20 +325,27 @@ const Catalog: React.FC = () => {
                 placeholder="CPF OU CNPJ" 
                 className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-base font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
                 value={identificacaoCliente}
-                onChange={(e) => setIdentificacaoCliente(aplicarMascaraDocumento(e.target.value))}
+                onChange={(e) => {
+                    setIdentificacaoCliente(aplicarMascaraDocumento(e.target.value));
+                    setUsuarioNaoEncontrado(false); // Resetar ao digitar
+                }}
                 required
                 />
                 <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-2 active:scale-95 touch-manipulation">
                 {verificandoAcesso ? 'Verificando...' : 'Entrar no Catálogo'}
                 </button>
 
-                {/* BOTÃO QUE ABRE O FORMULÁRIO */}
+                {/* BOTÃO QUE ABRE O FORMULÁRIO - MUDA DE COR SE NÃO ENCONTRAR */}
                 <button 
                 type="button"
                 onClick={() => setShowRegisterForm(true)} 
-                className="w-full bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-[#b24a2b] hover:text-[#b24a2b] transition-all mt-1 active:scale-95 touch-manipulation"
+                className={`w-full py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all mt-1 active:scale-95 touch-manipulation border-2
+                    ${usuarioNaoEncontrado 
+                        ? 'bg-red-500 border-red-500 text-white animate-pulse shadow-lg' // ESTILO QUANDO NÃO ENCONTRA
+                        : 'bg-white border-gray-100 text-gray-400 hover:border-[#b24a2b] hover:text-[#b24a2b]' // ESTILO NORMAL
+                    }`}
                 >
-                Não tenho cadastro
+                {usuarioNaoEncontrado ? 'SEM CADASTRO? FAÇA SEU CADASTRO' : 'Não tenho cadastro'}
                 </button>
             </form>
           )}
@@ -337,6 +357,7 @@ const Catalog: React.FC = () => {
   // --- ÁREA DO CATÁLOGO (APÓS LOGIN) ---
   return (
     <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-[env(safe-area-inset-bottom)] relative">
+      
       <div className="absolute top-4 right-4 z-50 flex flex-col items-center">
         <button 
           onClick={handleLogout}
