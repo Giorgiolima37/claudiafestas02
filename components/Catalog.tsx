@@ -10,12 +10,24 @@ const Catalog: React.FC = () => {
   const [carrinho, setCarrinho] = useState<{ [key: string]: number }>({});
   const [mostrarModalConfirma, setMostrarModalConfirma] = useState(false);
   
+  // --- ESTADOS DE LOGIN ---
   const [isLoggedIn, setIsLoggedIn] = useState(false);
   const [nomeCliente, setNomeCliente] = useState('');
   const [identificacaoCliente, setIdentificacaoCliente] = useState('');
   const [verificandoAcesso, setVerificandoAcesso] = useState(false);
   const [mostrarModalErro, setMostrarModalErro] = useState(false);
   const [erroNome, setErroNome] = useState('');
+
+  // --- ESTADOS DO CADASTRO (NOVO) ---
+  const [showRegisterForm, setShowRegisterForm] = useState(false);
+  const [regNome, setRegNome] = useState('');
+  const [regTelefone, setRegTelefone] = useState('');
+  const [regDocumento, setRegDocumento] = useState('');
+  const [regEndereco, setRegEndereco] = useState('');
+  const [regBairro, setRegBairro] = useState('');
+  const [regMunicipio, setRegMunicipio] = useState('Biguaçu'); // Valor padrão sugerido
+  const [regIdPersonalizado, setRegIdPersonalizado] = useState('');
+  const [registering, setRegistering] = useState(false);
 
   const [dataDevolucao, setDataDevolucao] = useState('');
   const dataHoje = new Date().toISOString().split('T')[0];
@@ -40,6 +52,25 @@ const Catalog: React.FC = () => {
     if (isLoggedIn) fetchCatalog(); 
   }, [isLoggedIn]);
 
+  // --- BUSCAR PRÓXIMO ID AUTOMATICAMENTE ---
+  useEffect(() => {
+    if (showRegisterForm) {
+        const fetchNextId = async () => {
+            // Tenta pegar o maior ID atual para sugerir o próximo
+            const { data } = await db.from('cadastro').select('id-client');
+            if (data && data.length > 0) {
+                // Filtra apenas números e pega o maior
+                const ids = data.map(d => parseInt(d['id-client'])).filter(n => !isNaN(n));
+                const maxId = ids.length > 0 ? Math.max(...ids) : 99;
+                setRegIdPersonalizado(String(maxId + 1));
+            } else {
+                setRegIdPersonalizado('100');
+            }
+        };
+        fetchNextId();
+    }
+  }, [showRegisterForm]);
+
   const aplicarMascaraDocumento = (valor: string) => {
     const v = valor.replace(/\D/g, ''); 
     if (v.length <= 11) {
@@ -54,6 +85,11 @@ const Catalog: React.FC = () => {
         .replace(/(\d{3})(\d)/, '$1/$2')
         .replace(/(\d{4})(\d{1,2})$/, '$1-$2');
     }
+  };
+
+  const aplicarMascaraTelefone = (valor: string) => {
+    const v = valor.replace(/\D/g, '');
+    return v.replace(/(\d{2})(\d{5})(\d{4})/, '($1) $2-$3');
   };
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -89,14 +125,43 @@ const Catalog: React.FC = () => {
     }
   };
 
-  // --- NOVA FUNÇÃO DE LOGOUT ---
+  const handleRegister = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!regNome.includes(' ')) return alert("Por favor, digite Nome e Sobrenome.");
+    
+    setRegistering(true);
+    try {
+        const { error } = await db.from('cadastro').insert([{
+            cliente: regNome,
+            telefone: regTelefone,
+            'identificação': regDocumento,
+            endereco: regEndereco,
+            bairro: regBairro,
+            municipio: regMunicipio,
+            'id-client': regIdPersonalizado,
+            lista_negra: false
+        }]);
+
+        if (error) throw error;
+
+        alert('Cadastro realizado com sucesso! Você já pode entrar.');
+        // Preenche o login automaticamente e volta para a tela de entrar
+        setNomeCliente(regNome);
+        setIdentificacaoCliente(regDocumento);
+        setShowRegisterForm(false);
+
+    } catch (err: any) {
+        console.error(err);
+        alert("Erro ao cadastrar. Verifique se o CPF ou ID já existem.");
+    } finally {
+        setRegistering(false);
+    }
+  };
+
   const handleLogout = () => {
-    // 1. Limpa o carrinho
     setCarrinho({});
-    // 2. Limpa os dados do cliente
     setNomeCliente('');
     setIdentificacaoCliente('');
-    // 3. Define como deslogado
     setIsLoggedIn(false);
   };
 
@@ -147,73 +212,131 @@ const Catalog: React.FC = () => {
     }
   };
 
+  // --- TELA DE LOGIN E CADASTRO ---
   if (!isLoggedIn) {
     return (
       <div className="min-h-screen bg-[#fafafa] flex items-center justify-center px-4 py-8 text-gray-900 w-full overflow-hidden">
-        <div className="w-full max-w-sm bg-white rounded-[32px] p-8 shadow-2xl text-center mx-auto">
+        <div className={`w-full bg-white rounded-[32px] p-8 shadow-2xl transition-all duration-500 ${showRegisterForm ? 'max-w-2xl' : 'max-w-sm text-center'}`}>
           
-          {/* LOGO NA TELA DE LOGIN */}
-          <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-1 leading-none mt-2">
-            Claudia <span className="text-[#b24a2b]">Festas</span>
-          </h1>
-          
-          {/* SUBTITULO */}
-          <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-8">Agilize o seu pedido</p>
+          {/* CABEÇALHO COM LOGO */}
+          <div className="text-center mb-6">
+             <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-1 leading-none mt-2">
+                Claudia <span className="text-[#b24a2b]">Festas</span>
+             </h1>
+             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Agilize o seu pedido</p>
+          </div>
 
-          <form onSubmit={handleLogin} className="flex flex-col gap-4">
-            <div className="relative">
-              <input 
+          {showRegisterForm ? (
+            // --- FORMULÁRIO DE CADASTRO ---
+            <form onSubmit={handleRegister} className="flex flex-col gap-4 animate-in fade-in slide-in-from-right duration-300">
+                <h2 className="text-lg font-black uppercase text-[#b24a2b] border-b pb-2 mb-2">Novo Cadastro</h2>
+                
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Nome Completo</label>
+                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                            value={regNome} onChange={e => setRegNome(e.target.value)} required placeholder="Ex: Maria Silva" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Telefone</label>
+                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                            value={regTelefone} onChange={e => setRegTelefone(aplicarMascaraTelefone(e.target.value))} required placeholder="(48) 99999-9999" />
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">CPF ou CNPJ</label>
+                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                            value={regDocumento} onChange={e => setRegDocumento(aplicarMascaraDocumento(e.target.value))} required placeholder="000.000.000-00" />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">ID Personalizado (Auto)</label>
+                        <input type="text" className="w-full px-4 py-3 bg-gray-100 text-gray-500 rounded-xl font-bold uppercase outline-none" 
+                            value={regIdPersonalizado} readOnly />
+                    </div>
+                </div>
+
+                <div>
+                    <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Endereço Completo</label>
+                    <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                        value={regEndereco} onChange={e => setRegEndereco(e.target.value)} required placeholder="Rua, Número, Complemento" />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Bairro</label>
+                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                            value={regBairro} onChange={e => setRegBairro(e.target.value)} required />
+                    </div>
+                    <div>
+                        <label className="text-[10px] font-bold text-gray-400 uppercase ml-2">Município</label>
+                        <input type="text" className="w-full px-4 py-3 bg-gray-50 rounded-xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20" 
+                            value={regMunicipio} onChange={e => setRegMunicipio(e.target.value)} required />
+                    </div>
+                </div>
+
+                <div className="flex gap-2 mt-4">
+                    <button type="button" onClick={() => setShowRegisterForm(false)} className="flex-1 bg-gray-200 text-gray-600 py-4 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-gray-300 transition-all">
+                        Voltar
+                    </button>
+                    <button type="submit" disabled={registering} className="flex-[2] bg-[#b24a2b] text-white py-4 rounded-xl font-black text-[10px] uppercase tracking-widest shadow-lg hover:bg-orange-800 transition-all">
+                        {registering ? 'Salvando...' : 'Concluir Cadastro'}
+                    </button>
+                </div>
+            </form>
+          ) : (
+            // --- FORMULÁRIO DE LOGIN ---
+            <form onSubmit={handleLogin} className="flex flex-col gap-4 animate-in fade-in slide-in-from-left duration-300">
+                <div className="relative">
+                <input 
+                    type="text" 
+                    placeholder="NOME E SOBRENOME" 
+                    className={`w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-base font-bold uppercase outline-none focus:ring-2 transition-all text-center ${erroNome ? 'ring-red-400' : 'ring-[#b24a2b]/20'}`}
+                    value={nomeCliente}
+                    onChange={(e) => {
+                        setNomeCliente(e.target.value.toLowerCase());
+                        if(erroNome) setErroNome('');
+                    }}
+                    required
+                />
+                {erroNome && (
+                    <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] font-black uppercase px-3 py-2 rounded-lg whitespace-nowrap shadow-lg animate-in fade-in zoom-in duration-300">
+                    {erroNome}
+                    </span>
+                )}
+                </div>
+
+                <input 
                 type="text" 
-                placeholder="NOME E SOBRENOME" 
-                // Ajustado para text-base para evitar zoom no iOS
-                className={`w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-base font-bold uppercase outline-none focus:ring-2 transition-all text-center ${erroNome ? 'ring-red-400' : 'ring-[#b24a2b]/20'}`}
-                value={nomeCliente}
-                onChange={(e) => {
-                    setNomeCliente(e.target.value.toLowerCase());
-                    if(erroNome) setErroNome('');
-                }}
+                placeholder="CPF OU CNPJ" 
+                className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-base font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
+                value={identificacaoCliente}
+                onChange={(e) => setIdentificacaoCliente(aplicarMascaraDocumento(e.target.value))}
                 required
-              />
-              {erroNome && (
-                <span className="absolute -top-10 left-1/2 -translate-x-1/2 bg-red-500 text-white text-[9px] font-black uppercase px-3 py-2 rounded-lg whitespace-nowrap shadow-lg animate-in fade-in zoom-in duration-300">
-                  {erroNome}
-                </span>
-              )}
-            </div>
+                />
+                <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-2 active:scale-95 touch-manipulation">
+                {verificandoAcesso ? 'Verificando...' : 'Entrar no Catálogo'}
+                </button>
 
-            <input 
-              type="text" 
-              placeholder="CPF OU CNPJ" 
-              // Ajustado para text-base para evitar zoom no iOS
-              className="w-full px-5 py-4 bg-gray-50 border-none rounded-2xl text-base font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-center"
-              value={identificacaoCliente}
-              onChange={(e) => setIdentificacaoCliente(aplicarMascaraDocumento(e.target.value))}
-              required
-            />
-            <button type="submit" disabled={verificandoAcesso} className="w-full bg-gray-900 text-white py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest shadow-xl hover:bg-[#b24a2b] transition-all mt-2 active:scale-95 touch-manipulation">
-              {verificandoAcesso ? 'Verificando...' : 'Entrar no Catálogo'}
-            </button>
-
-            {/* --- NOVO BOTÃO DE CADASTRO ADICIONADO AQUI --- */}
-            <button 
-              type="button"
-              onClick={() => window.location.href = '/cadastro'} 
-              className="w-full bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-[#b24a2b] hover:text-[#b24a2b] transition-all mt-1 active:scale-95 touch-manipulation"
-            >
-              Não tenho cadastro
-            </button>
-
-          </form>
+                {/* BOTÃO QUE ABRE O FORMULÁRIO */}
+                <button 
+                type="button"
+                onClick={() => setShowRegisterForm(true)} 
+                className="w-full bg-white border-2 border-gray-100 text-gray-400 py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest hover:border-[#b24a2b] hover:text-[#b24a2b] transition-all mt-1 active:scale-95 touch-manipulation"
+                >
+                Não tenho cadastro
+                </button>
+            </form>
+          )}
         </div>
       </div>
     );
   }
 
+  // --- ÁREA DO CATÁLOGO (APÓS LOGIN) ---
   return (
-    // Adicionado padding-bottom para safe-area do iPhone
     <div className="min-h-screen bg-[#fafafa] font-sans text-gray-800 pb-[env(safe-area-inset-bottom)] relative">
-      
-      {/* --- ÁREA DE LOGOUT COM NOME DO CLIENTE --- */}
       <div className="absolute top-4 right-4 z-50 flex flex-col items-center">
         <button 
           onClick={handleLogout}
@@ -222,34 +345,20 @@ const Catalog: React.FC = () => {
         >
           <i className="fa-solid fa-right-from-bracket text-sm"></i>
         </button>
-        {/* AQUI ESTÁ O NOME DO CLIENTE QUE ESTAVA FALTANDO */}
         <span className="text-[9px] font-black text-[#b24a2b] uppercase bg-white/90 backdrop-blur-sm px-2 py-1 rounded-lg shadow-sm border border-orange-50 max-w-[120px] truncate text-center">
             {nomeCliente}
         </span>
       </div>
 
       <header className="pt-12 pb-8 px-4 text-center">
-        {/* TÍTULO PRINCIPAL */}
         <h1 className="text-[#b24a2b] font-black text-4xl sm:text-6xl uppercase italic tracking-tighter block mb-4 leading-tight">
           Locações Claudia Festas
         </h1>
-        
-        {/* LOGO (Tamanho Grande) */}
-        <img 
-            src={logoImg} 
-            alt="Logo Claudia Festas" 
-            className="mx-auto mb-8 h-48 w-auto object-contain animate-in fade-in zoom-in duration-500"
-        />
+        <img src={logoImg} alt="Logo Claudia Festas" className="mx-auto mb-8 h-48 w-auto object-contain animate-in fade-in zoom-in duration-500"/>
 
         <div className="max-w-2xl mx-auto mb-8">
-          <input 
-             type="text" 
-             placeholder="O que você procura?" 
-             value={busca} 
-             onChange={(e) => setBusca(e.target.value)} 
-             // Ajustado para text-base para evitar zoom no iOS
-             className="w-full px-6 py-4 bg-white border border-gray-100 rounded-full text-base font-medium outline-none shadow-sm focus:ring-2 ring-orange-100 transition-all text-center"
-          />
+          <input type="text" placeholder="O que você procura?" value={busca} onChange={(e) => setBusca(e.target.value)} 
+             className="w-full px-6 py-4 bg-white border border-gray-100 rounded-full text-base font-medium outline-none shadow-sm focus:ring-2 ring-orange-100 transition-all text-center"/>
         </div>
         
         {resumoCarrinho.length > 0 && (
@@ -268,7 +377,6 @@ const Catalog: React.FC = () => {
         )}
       </header>
 
-      {/* GRID RESPONSIVO: Ajustado para Mobile */}
       <div className="max-w-7xl mx-auto px-4 grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 sm:gap-6 pb-32">
         {itensFiltrados.map((prod, idx) => {
           const qtde = carrinho[prod.item] || 0;
@@ -286,11 +394,8 @@ const Catalog: React.FC = () => {
               </div>
               
               {qtde === 0 ? (
-                <button 
-                  onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} 
-                  disabled={isEsgotado} 
-                  className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 touch-manipulation ${isEsgotado ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white shadow-lg'}`}
-                >
+                <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={isEsgotado} 
+                  className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 touch-manipulation ${isEsgotado ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white shadow-lg'}`}>
                   Adicionar
                 </button>
               ) : (
@@ -320,24 +425,14 @@ const Catalog: React.FC = () => {
           <div className="relative bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in slide-in-from-bottom duration-300 mb-[env(safe-area-inset-bottom)]">
             <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl"><i className="fa-solid fa-calendar-day"></i></div>
             <h2 className="text-xl font-black uppercase italic mb-2 tracking-tight">Quando irá devolver?</h2>
-            
             <div className="mb-6">
               <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Selecione a data prevista</label>
-              <input 
-                type="date" 
-                min={dataHoje}
-                value={dataDevolucao}
-                onChange={(e) => setDataDevolucao(e.target.value)}
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-base font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
-              />
+              <input type="date" min={dataHoje} value={dataDevolucao} onChange={(e) => setDataDevolucao(e.target.value)}
+                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-base font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"/>
             </div>
-
             <div className="flex flex-col gap-2">
-              <button 
-                onClick={confirmarPedidoFinal} 
-                disabled={!dataDevolucao}
-                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!dataDevolucao ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-md active:scale-95'}`}
-              >
+              <button onClick={confirmarPedidoFinal} disabled={!dataDevolucao}
+                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!dataDevolucao ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-md active:scale-95'}`}>
                 Sim, Finalizar!
               </button>
               <button onClick={() => {setMostrarModalConfirma(false); setDataDevolucao('');}} className="w-full py-4 text-gray-400 font-black text-xs uppercase tracking-widest">Cancelar</button>
