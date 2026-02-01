@@ -19,7 +19,7 @@ const ReservationForm: React.FC = () => {
   
   const [reservaGeral, setReservaGeral] = useState({
     clienteId: '',
-    dataReserva: '', // Novo campo adicionado para a data da reserva
+    dataReserva: '', // Novo campo para a data da reserva
     data: '',
     dataDevolucao: '',
     observacoes: '' 
@@ -235,7 +235,7 @@ END:VCALENDAR`;
       <h1 className="text-center text-[#b24a2b] text-3xl font-black mb-8 italic uppercase tracking-tighter">Nova Reserva Múltipla</h1>
       
       <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Aumentado para 4 colunas para acomodar o novo campo */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> 
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             
@@ -267,7 +267,13 @@ END:VCALENDAR`;
           {/* NOVO CAMPO: DATA DA RESERVA */}
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-green-600 ml-4 mb-2 uppercase tracking-widest">Data da Reserva</label>
-            <input type="date" required className="w-full p-4 bg-green-50 border-2 border-green-100 rounded-2xl outline-none font-bold focus:border-green-600 transition-all" value={reservaGeral.dataReserva} onChange={(e) => setReservaGeral({...reservaGeral, dataReserva: e.target.value})} />
+            <input 
+              type="date" 
+              required 
+              className="w-full p-4 bg-green-50 border-2 border-green-100 rounded-2xl outline-none font-bold focus:border-green-600 transition-all" 
+              value={reservaGeral.dataReserva} 
+              onChange={(e) => setReservaGeral({...reservaGeral, dataReserva: e.target.value})} 
+            />
             {reservaGeral.dataReserva && (
                 <span className="text-[10px] font-bold text-green-600 ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataReserva)}</span>
             )}
