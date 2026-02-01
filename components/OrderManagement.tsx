@@ -30,6 +30,9 @@ const OrderManagement: React.FC = () => {
   const [dadosPedidoFixo, setDadosPedidoFixo] = useState<any>(null);
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
   const [novaQtdItem, setNovaQtdItem] = useState(1);
+  
+  // NOVO ESTADO: Armazena a data original para garantir que o update encontre o registro certo
+  const [dataEventoOriginal, setDataEventoOriginal] = useState('');
 
   const fetchData = async () => {
     try {
@@ -167,6 +170,10 @@ const OrderManagement: React.FC = () => {
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
     const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({ ...i, _originalQty: i.quantidade }));
     setPedidoEmEdicao(itensFormatados);
+    
+    // Salva a data original para usar na cláusula WHERE do update
+    setDataEventoOriginal(pedidoAgrupado.itens[0].data_evento);
+
     setDadosPedidoFixo({
       cliente_id: pedidoAgrupado.cliente_id,
       data_evento: pedidoAgrupado.itens[0].data_evento,
@@ -213,10 +220,15 @@ const OrderManagement: React.FC = () => {
     if (!dadosPedidoFixo) return;
     setLoading(true);
     try {
+      // CORREÇÃO AQUI: Usamos dataEventoOriginal para encontrar os registros antigos
       await db.from('reservas')
-        .update({ data_devolucao: dadosPedidoFixo.data_devolucao })
+        .update({ 
+            data_devolucao: dadosPedidoFixo.data_devolucao,
+            data_evento: dadosPedidoFixo.data_evento 
+        })
         .eq('cliente_id', dadosPedidoFixo.cliente_id)
-        .eq('data_evento', dadosPedidoFixo.data_evento);
+        .eq('data_evento', dataEventoOriginal); // Usa a data ANTIGA para achar o registro
+
       for (const item of pedidoEmEdicao) {
         const produtoEstoque = estoque.find(e => e.item === item.item);
         if (!produtoEstoque) continue;
@@ -241,7 +253,7 @@ const OrderManagement: React.FC = () => {
             cliente_id: dadosPedidoFixo.cliente_id,
             item: item.item,
             quantidade: item.quantidade,
-            data_evento: dadosPedidoFixo.data_evento,
+            data_evento: dadosPedidoFixo.data_evento, // Salva com a nova data
             data_devolucao: dadosPedidoFixo.data_devolucao,
             status: 'Pendente',
             forma_pagamento: 'Ajuste',
@@ -487,10 +499,10 @@ const OrderManagement: React.FC = () => {
 
                   ${desconto > 0 ? `
                   <tr>
-                     <td>1</td>
-                     <td class="align-left" style="color:red;">DESCONTO PROMOCIONAL</td>
-                     <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
-                     <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
+                      <td>1</td>
+                      <td class="align-left" style="color:red;">DESCONTO PROMOCIONAL</td>
+                      <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
+                      <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
                   </tr>` : ''}
 
                   <tr>
@@ -783,7 +795,26 @@ const OrderManagement: React.FC = () => {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
-                <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
+                
+                {/* --- MUDANÇA AQUI: Lógica de editar Data do Evento --- */}
+                <div className="flex items-center gap-2 mt-1">
+                    {editandoData ? (
+                        <input 
+                            type="date" 
+                            className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none"
+                            value={dadosPedidoFixo?.data_evento?.split('T')[0]} 
+                            onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_evento: e.target.value })}
+                            onBlur={() => setEditandoData(false)}
+                            autoFocus
+                        />
+                    ) : (
+                        <p className="text-[10px] font-bold text-gray-400 uppercase">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
+                    )}
+                    <button onClick={() => setEditandoData(!editandoData)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                        <i className="fa-solid fa-pencil text-[9px]"></i>
+                    </button>
+                </div>
+
                 <div className="flex items-center gap-2 mt-1">
                   {editandoDevolucao ? (
                     <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" min={new Date().toISOString().split('T')[0]} value={dadosPedidoFixo?.data_devolucao?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_devolucao: e.target.value })} onBlur={() => setEditandoDevolucao(false)} autoFocus />
@@ -793,7 +824,7 @@ const OrderManagement: React.FC = () => {
                   <button onClick={() => setEditandoDevolucao(!editandoDevolucao)} className="text-gray-400 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
                 </div>
               </div>
-              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); }} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
             </div>
             <div className="bg-gray-50 rounded-3xl p-6 mb-6">
               <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens no Pedido</h4>
@@ -821,7 +852,7 @@ const OrderManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); }} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
               <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">Salvar Alterações</button>
             </div>
           </div>
