@@ -18,6 +18,9 @@ const OrderManagement: React.FC = () => {
   // Estados para pedidos online e controle de lista negra
   const [pedidosOnline, setPedidosOnline] = useState<any[]>([]);
   const [blacklist, setBlacklist] = useState<any[]>([]);
+  
+  // NOVO ESTADO: Para armazenar os dados da tabela reservas_futuras do banco
+  const [reservasFuturasBanco, setReservasFuturasBanco] = useState<any[]>([]);
 
   // Referência para armazenar a quantidade anterior de pedidos para comparação
   const prevPedidosLengthRef = useRef<number>(0);
@@ -38,18 +41,20 @@ const OrderManagement: React.FC = () => {
     try {
       // Removendo setLoading(true) daqui para evitar piscar a tela no polling
       // setLoading(true); 
-      const [resClientes, resReservas, resEstoque, resPedidosOnline, resBlacklist] = await Promise.all([
+      const [resClientes, resReservas, resEstoque, resPedidosOnline, resBlacklist, resReservasFuturas] = await Promise.all([
         db.from('cadastro').select('*'),
         db.from('reservas').select('*').order('data_evento', { ascending: false }),
         db.from('estoque').select('*').order('item'),
         db.from('pedidos_online').select('*').order('created_at', { ascending: false }),
-        db.from('blacklist').select('documento')
+        db.from('blacklist').select('documento'),
+        db.from('reservas_futuras').select('*').order('data_evento', { ascending: true }) // Busca as reservas futuras do banco
       ]);
       setClientes(resClientes.data || []);
       setReservas(resReservas.data || []);
       setEstoque(resEstoque.data || []);
       setPedidosOnline(resPedidosOnline.data || []);
       setBlacklist(resBlacklist.data || []);
+      setReservasFuturasBanco(resReservasFuturas.data || []); // Salva no estado
     } catch (err: any) {
       console.error("Erro ao sincronizar dados:", err.message);
     } finally {
@@ -263,15 +268,15 @@ const OrderManagement: React.FC = () => {
           continue;
         }
         if (item.quantidade !== item._originalQty) {
-          const diferenca = item.quantidade - item._originalQty;
-          if (diferenca > 0 && produtoEstoque.disponivel < diferenca) {
+          const diderenca = item.quantidade - item._originalQty;
+          if (diderenca > 0 && diderenca > produtoEstoque.disponivel) {
             alert(`Estoque insuficiente para aumentar qtd de: ${item.item}`);
             throw new Error("Estoque insuficiente");
           }
           await db.from('estoque').update({
-            disponivel: produtoEstoque.disponivel - diferenca,
-            reservado: produtoEstoque.reservado + diferenca
-          }).eq('id', produtoEstoque.id);
+            disponivel: produtoEstoque.disponivel - diderenca,
+            reservado: produtoEstoque.reservado + diderenca
+          }).eq('id', diderenca > 0 ? produtoEstoque.id : produtoEstoque.id);
           const precoUnitario = item.valor_total / item._originalQty;
           const novoTotal = precoUnitario * item.quantidade;
           await db.from('reservas').update({
@@ -467,8 +472,8 @@ const OrderManagement: React.FC = () => {
               </div>
 
               <div style="font-weight: 900; font-size: 11px; margin-bottom: 2px; display: flex; justify-content: space-between;">
-                  <span>DESCRIÇÃO DO BEM</span>
-                  <span>Telefone do cliente: ${pedido.telefone || cliente.telefone || '_____________'}</span>
+                 <span>DESCRIÇÃO DO BEM</span>
+                 <span>Telefone do cliente: ${pedido.telefone || cliente.telefone || '_____________'}</span>
               </div>
 
               <table>
@@ -623,6 +628,36 @@ const OrderManagement: React.FC = () => {
     return Object.values(grupos).sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
   };
 
+  // --- NOVA LÓGICA: Filtrar reservas futuras do banco e preparar para o modal ---
+  const exibirReservasFuturas = () => {
+    return reservasFuturasBanco.map((res) => {
+        const cliente = clientes.find(c => c.id === res.cliente_id);
+        const itemEstoque = estoque.find(e => e.id === res.item_id);
+        
+        // Agrupando para o modal de edição em caso de clique
+        const pedidoAgrupadoParaModal = {
+            nomeCliente: cliente?.cliente || 'ID: ' + res.cliente_id,
+            cliente_id: res.cliente_id,
+            dataDevolucao: res.data_devolucao,
+            itens: [{
+                id: res.id,
+                item: itemEstoque?.item || 'Item ' + res.item_id,
+                quantidade: res.quantidade,
+                data_evento: res.data_evento,
+                codigo_item: itemEstoque?.codigo_interno || 'S/C',
+                valor_total: (itemEstoque?.preco || 0) * res.quantidade
+            }]
+        };
+
+        return {
+            ...res,
+            nomeCliente: cliente?.cliente || 'ID: ' + res.cliente_id,
+            itemNome: itemEstoque?.item || 'Item ' + res.item_id,
+            objetoParaModal: pedidoAgrupadoParaModal
+        };
+    });
+  };
+
   const totalUrgentes = Object.values(
     reservas.filter(r => r.status?.toLowerCase() !== 'finalizado')
       .reduce((acc: any, r) => {
@@ -644,7 +679,7 @@ const OrderManagement: React.FC = () => {
   if (loading && !modalAberto) return <div className="p-20 text-center text-[#b24a2b] font-bold uppercase tracking-widest">Carregando Gestão...</div>;
 
   return (
-    <div className="max-w-[1200px] mx-auto pb-20 animate-in fade-in duration-700">
+    <div className="max-w-[1400px] mx-auto pb-20 animate-in fade-in duration-700">
       <header className="mb-12 text-center">
         <h1 className="text-4xl font-black text-gray-800 italic uppercase">Gestão de Pedidos</h1>
         <div className="flex flex-col items-center gap-4 mt-8">
@@ -658,7 +693,7 @@ const OrderManagement: React.FC = () => {
 
       <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
 
-        <div className="flex-1 flex flex-col items-center gap-8 w-full">
+        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
           {pedidosAgrupadosEFiltrados().map((pedido: any, idx) => {
             const atrasado = verificarAtraso(pedido.dataDevolucao);
             const urgente = verificarUrgencia(pedido.dataDevolucao);
@@ -666,20 +701,20 @@ const OrderManagement: React.FC = () => {
             const isOnline = pedido.origem === 'online';
 
             return (
-              <div key={idx} className={`w-full max-w-md rounded-[45px] p-8 border-2 shadow-xl ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-50'}`}>
-                <div className="flex justify-between items-start mb-6">
+              <div key={idx} className={`w-full rounded-[45px] p-8 border-2 shadow-xl ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-50'}`}>
+                <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
                   <div className="flex flex-col gap-1">
-                    <div className="flex items-center gap-2">
-                      {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
-                      {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Origem: Online</span>}
+                    <div className="flex flex-wrap items-center gap-2">
+                      {atrasado ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ EM BREVE</span> : <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
+                      {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Online</span>}
                     </div>
                     <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
                   </div>
-                  <div className="flex gap-2">
-                    <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center"><i className="fa-brands fa-whatsapp"></i></button>
-                    <button onClick={() => gerarRomaneio(pedido)} className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-list-check"></i></button>
-                    <button onClick={() => gerarContrato(pedido)} className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-file-contract"></i></button>
-                    <button onClick={() => confirmarDevolucao(pedido)} className={`w-12 h-12 ${corBotaoConfirmar} text-white rounded-full flex items-center justify-center shadow-md`} title={pedido.statusEstoque === 'processado' ? 'Estoque já atualizado pelo sistema' : 'Confirmar devolução manual'}>
+                  <div className="flex flex-wrap gap-2 justify-end">
+                    <button onClick={() => abrirWhatsApp(pedido)} className="w-9 h-9 bg-green-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-brands fa-whatsapp"></i></button>
+                    <button onClick={() => gerarRomaneio(pedido)} className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-list-check"></i></button>
+                    <button onClick={() => gerarContrato(pedido)} className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
+                    <button onClick={() => confirmarDevolucao(pedido)} className={`w-10 h-10 ${corBotaoConfirmar} text-white rounded-full flex items-center justify-center text-base shadow-md hover:scale-105 transition-transform`}>
                       <i className="fa-solid fa-check"></i>
                     </button>
                   </div>
@@ -712,80 +747,117 @@ const OrderManagement: React.FC = () => {
           })}
         </div>
 
-        <aside className="w-full lg:w-[350px] shrink-0 sticky top-4">
-          <div className="bg-[#a34b2f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
-            <i className="fa-solid fa-earth-americas text-white text-xl"></i>
-            <div className="text-center">
-              <h2 className="text-white font-black uppercase italic tracking-wider leading-none">Pedidos Online</h2>
-              <p className="text-white/60 text-[8px] font-bold uppercase mt-1">Solicitações via Web App</p>
+        <aside className="w-full lg:w-[350px] shrink-0 space-y-8 sticky top-4">
+          
+          <div>
+            <div className="bg-[#a34b2f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
+              <i className="fa-solid fa-earth-americas text-white text-xl"></i>
+              <div className="text-center">
+                <h2 className="text-white font-black uppercase italic tracking-wider leading-none">Pedidos Online</h2>
+                <p className="text-white/60 text-[8px] font-bold uppercase mt-1">Solicitações via Web App</p>
+              </div>
+            </div>
+            <div className="bg-white border-2 border-[#a34b2f]/20 rounded-b-[35px] p-8 shadow-xl min-h-[300px] flex flex-col items-center justify-start">
+              {pedidosOnline.length > 0 ? (
+                <div className="w-full space-y-4">
+                  {pedidosOnline.map((po) => {
+                    const estaBloqueado = verificarSeEstaNaListaNegra(po.cliente_whatsapp);
+                    const itensParaImprimir = po.itens_texto ? po.itens_texto.split(', ').map((str: string) => {
+                      const match = str.match(/(\d+)x (.+)/);
+                      return match ? { quantidade: parseInt(match[1]), item: match[2], valor_total: 0, data_evento: po.created_at } 
+                                   : { quantidade: 1, item: str, valor_total: 0, data_evento: po.created_at };
+                    }) : [];
+                    const clienteExistente = clientes.find(c => c.telefone === po.cliente_whatsapp) || {};
+                    const pedidoAdaptado = {
+                      id: po.id,
+                      nomeCliente: po.cliente_nome,
+                      cliente_id: clienteExistente.id || 0,
+                      telefone: po.cliente_whatsapp,
+                      dataDevolucao: po.created_at, 
+                      itens: itensParaImprimir,
+                      observacoes: 'Solicitação Online - Aguardando Aprovação',
+                      taxa_entrega: 0,
+                      desconto: 0
+                    };
+
+                    return (
+                      <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
+                        {estaBloqueado && (
+                          <div className="flex items-center justify-center gap-2 mb-3 bg-red-600 text-white py-1.5 rounded-xl animate-pulse">
+                            <i className="fa-solid fa-circle-exclamation"></i>
+                            <span className="font-black text-[10px] uppercase tracking-tighter">Atenção: Lista Negra</span>
+                          </div>
+                        )}
+                        <div className="flex justify-between items-start mb-2">
+                          <div>
+                            <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
+                            <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
+                          </div>
+                          <div className="flex gap-1 ml-2">
+                             <button onClick={() => abrirWhatsApp({ telefone: po.cliente_whatsapp })} className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm"><i className="fa-brands fa-whatsapp text-xs"></i></button>
+                             <button onClick={() => gerarRomaneio(pedidoAdaptado)} className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-sm"><i className="fa-solid fa-list-check text-xs"></i></button>
+                          </div>
+                        </div>
+                        <div className="mt-3 bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
+                          <p className="text-[10px] font-bold text-gray-600 leading-tight">{po.itens_texto}</p>
+                        </div>
+                        <div className="flex gap-2 mt-4">
+                          <button onClick={() => handleAceitarPedido(po)} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase">Aceitar</button>
+                          <button onClick={() => handleRecusarPedido(po.id)} className="bg-white border-2 border-red-500 text-red-500 px-4 py-2 rounded-full text-[9px] font-black uppercase">Recusar</button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="text-center mt-10 text-gray-300 uppercase font-black text-[9px]">Sem novos pedidos.</div>
+              )}
             </div>
           </div>
-          <div className="bg-white border-2 border-[#a34b2f]/20 rounded-b-[35px] p-8 shadow-xl min-h-[400px] flex flex-col items-center justify-start">
-            {pedidosOnline.length > 0 ? (
-              <div className="w-full space-y-4">
-                {pedidosOnline.map((po) => {
-                  const estaBloqueado = verificarSeEstaNaListaNegra(po.cliente_whatsapp);
-                  
-                  // ADAPTAÇÃO: Preparar dados para os botões de Lista e Contrato funcionarem com o pedido online
-                  const itensParaImprimir = po.itens_texto ? po.itens_texto.split(', ').map((str: string) => {
-                    const match = str.match(/(\d+)x (.+)/);
-                    return match ? { quantidade: parseInt(match[1]), item: match[2], valor_total: 0, data_evento: po.created_at } 
-                                 : { quantidade: 1, item: str, valor_total: 0, data_evento: po.created_at };
-                  }) : [];
-                  const clienteExistente = clientes.find(c => c.telefone === po.cliente_whatsapp) || {};
-                  const pedidoAdaptado = {
-                    id: po.id,
-                    nomeCliente: po.cliente_nome,
-                    cliente_id: clienteExistente.id || 0,
-                    telefone: po.cliente_whatsapp,
-                    dataDevolucao: po.created_at, 
-                    itens: itensParaImprimir,
-                    observacoes: 'Solicitação Online - Aguardando Aprovação',
-                    taxa_entrega: 0,
-                    desconto: 0
-                  };
 
-                  return (
-                    <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
-                      {estaBloqueado && (
-                        <div className="flex items-center justify-center gap-2 mb-3 bg-red-600 text-white py-1.5 rounded-xl animate-pulse">
-                          <i className="fa-solid fa-circle-exclamation"></i>
-                          <span className="font-black text-[10px] uppercase tracking-tighter">Atenção: Lista Negra</span>
-                        </div>
-                      )}
-                      
-                      {/* LAYOUT AJUSTADO: Nome à esquerda, Botões à direita */}
+          <div>
+            <div className="bg-[#2f4f4f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
+              <i className="fa-solid fa-calendar-days text-white text-xl"></i>
+              <div className="text-center">
+                <h2 className="text-white font-black uppercase italic tracking-wider leading-none">Reservas Futuras</h2>
+                <p className="text-white/60 text-[8px] font-bold uppercase mt-1">Conforme Banco de Dados</p>
+              </div>
+            </div>
+            <div className="bg-white border-2 border-[#2f4f4f]/20 rounded-b-[35px] p-8 shadow-xl min-h-[300px] flex flex-col items-center justify-start overflow-y-auto max-h-[500px]">
+              {exibirReservasFuturas().length > 0 ? (
+                <div className="w-full space-y-4">
+                  {exibirReservasFuturas().map((res, i) => (
+                    <div key={i} className="bg-gray-50 border border-gray-100 p-4 rounded-3xl">
                       <div className="flex justify-between items-start mb-2">
                         <div>
-                          <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
-                          <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
+                           <h4 className="font-black text-sm uppercase text-gray-800">{res.nomeCliente}</h4>
+                           {/* --- AJUSTE: Botão Editar Pedido na barra lateral --- */}
+                           <button 
+                             onClick={() => handleAbrirEdicao(res.objetoParaModal)} 
+                             className="mt-1 text-[8px] font-black uppercase bg-black text-white px-2 py-1 rounded-full hover:bg-gray-800 transition-colors"
+                           >
+                             Editar Pedido
+                           </button>
                         </div>
-                        <div className="flex gap-1 ml-2">
-                           <button onClick={() => abrirWhatsApp({ telefone: po.cliente_whatsapp })} className="w-9 h-9 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="WhatsApp"><i className="fa-brands fa-whatsapp text-xs"></i></button>
-                           <button onClick={() => gerarRomaneio(pedidoAdaptado)} className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="Lista de Conferência"><i className="fa-solid fa-list-check text-xs"></i></button>
-                           <button onClick={() => gerarContrato(pedidoAdaptado)} className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="Imprimir Contrato"><i className="fa-solid fa-file-contract text-xs"></i></button>
-                        </div>
+                        <span className="bg-blue-100 text-blue-600 text-[9px] font-black px-2 py-1 rounded-lg">
+                          {formatarDataBR(res.data_evento)}
+                        </span>
                       </div>
-
-                      <div className="mt-3 bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
-                        <span className="text-[8px] font-black text-[#b24a2b] uppercase tracking-tighter block mb-1">Itens Selecionados:</span>
-                        <p className="text-[10px] font-bold text-gray-600 leading-tight">{po.itens_texto}</p>
-                      </div>
-                      <div className="flex gap-2 mt-4">
-                        <button onClick={() => handleAceitarPedido(po)} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase flex items-center justify-center hover:bg-green-600 transition-all">Aceitar pedido</button>
-                        <button onClick={() => handleRecusarPedido(po.id)} className="bg-white border-2 border-red-500 text-red-500 px-4 py-2 rounded-full text-[9px] font-black uppercase hover:bg-red-50 transition-all">Recusar</button>
+                      <div className="bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
+                        <p className="text-[10px] font-bold text-gray-500 leading-tight">
+                           {res.quantidade}x {res.itemNome}
+                        </p>
+                        <p className="text-[8px] font-black text-gray-300 mt-2 uppercase italic">Status: {res.status}</p>
                       </div>
                     </div>
-                  );
-                })}
-              </div>
-            ) : (
-              <div className="flex flex-col items-center justify-center mt-20">
-                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4"><i className="fa-solid fa-box-open text-gray-300 text-2xl"></i></div>
-                <p className="text-[10px] font-black text-gray-300 uppercase text-center tracking-widest leading-relaxed">Nenhuma solicitação nova.</p>
-              </div>
-            )}
+                  ))}
+                </div>
+              ) : (
+                <div className="text-center mt-10 text-gray-300 uppercase font-black text-[9px]">Nenhuma reserva futura salva.</div>
+              )}
+            </div>
           </div>
+
         </aside>
       </div>
 
@@ -796,7 +868,6 @@ const OrderManagement: React.FC = () => {
               <div>
                 <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
                 
-                {/* --- MUDANÇA AQUI: Lógica de editar Data do Evento --- */}
                 <div className="flex items-center gap-2 mt-1">
                     {editandoData ? (
                         <input 
@@ -836,7 +907,7 @@ const OrderManagement: React.FC = () => {
                       <div className="flex-1"><p className="text-xs font-black text-gray-700 uppercase">{item.item} {item._isNew && <span className="text-green-500 text-[8px] ml-2">(NOVO)</span>}</p></div>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg"><span className="text-[8px] font-bold text-gray-400 uppercase">Qtd:</span><input type="number" className="w-12 bg-transparent text-center font-black text-sm outline-none" value={item.quantidade} min="1" onChange={(e) => handleAlterarQtdExistente(idx, parseInt(e.target.value))} /></div>
-                        <button onClick={() => handleRemoverItemLista(idx)} className="text-red-400 hover:text-red-600 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                        <button onClick={() => handleRemoverItemLista(idx)} className="text-red-500 hover:text-red-700 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
                       </div>
                     </div>
                   );
@@ -846,7 +917,10 @@ const OrderManagement: React.FC = () => {
             <div className="border-t border-dashed border-gray-200 pt-6 mb-8">
               <h4 className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest mb-4">+ Adicionar Novo Item</h4>
               <div className="flex gap-3">
-                <select className="flex-1 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-600" value={novoItemSelecionado} onChange={(e) => setNovoItemSelecionado(e.target.value)}><option value="">Selecione um produto...</option>{estoque.map(e => (<option key={e.id} value={e.item}>{e.item} (Disp: {e.disponivel})</option>))}</select>
+                <select className="flex-1 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-600" value={novoItemSelecionado} onChange={(e) => setNovoItemSelecionado(e.target.value)}>
+                  <option value="">Selecione um produto...</option>
+                  {estoque.map(e => (<option key={e.id} value={e.item}>{e.item} (Disp: {e.disponivel})</option>))}
+                </select>
                 <input type="number" min="1" placeholder="Qtd" className="w-20 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-center" value={novaQtdItem} onChange={(e) => setNovaQtdItem(parseInt(e.target.value))} />
                 <button onClick={handleAdicionarNovoItem} className="bg-green-500 hover:bg-green-600 text-white w-12 rounded-xl flex items-center justify-center transition-all shadow-lg"><i className="fa-solid fa-plus"></i></button>
               </div>

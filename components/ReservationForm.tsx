@@ -19,6 +19,7 @@ const ReservationForm: React.FC = () => {
   
   const [reservaGeral, setReservaGeral] = useState({
     clienteId: '',
+    dataReserva: '', // Novo campo adicionado para a data da reserva
     data: '',
     dataDevolucao: '',
     observacoes: '' 
@@ -79,8 +80,9 @@ const ReservationForm: React.FC = () => {
 
   const handleAbrirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reservaGeral.clienteId || !reservaGeral.data || !reservaGeral.dataDevolucao) {
-      alert("Preencha os dados do cliente e as datas de aluguel e devolução.");
+    // Ajuste na validação para incluir a nova data de reserva
+    if (!reservaGeral.clienteId || !reservaGeral.dataReserva || !reservaGeral.data || !reservaGeral.dataDevolucao) {
+      alert("Preencha os dados do cliente e todas as datas (Reserva, Aluguel e Devolução).");
       return;
     }
     setShowFreteModal(true);
@@ -123,52 +125,65 @@ END:VCALENDAR`;
     setLoading(true);
     setShowFreteModal(false);
 
+    // Identifica se a data selecionada é hoje (01/02/2026)
+    const hoje = new Date().toISOString().split('T')[0];
+    const ehAluguelHoje = reservaGeral.data === hoje;
+
     try {
-      // --- REMOÇÃO DA TRAVA DE ESTOQUE ---
-      // A verificação agora é apenas informativa, permitindo estoque negativo
+      // Verificação de itens
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
         if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
-
-        const estoqueTotalPatrimonial = itemEstoque.disponivel + itemEstoque.reservado;
-
-        if (estoqueTotalPatrimonial < selecionado.quantidade) {
-          console.warn(`⚠️ Aviso: Item "${itemEstoque.item}" ficará com saldo negativo.`);
-          // A linha abaixo foi removida para liberar a reserva:
-          // alert(`🚨 ESTOQUE INSUFICIENTE!\n\nMaterial: ${itemEstoque.item}...`); return;
-        }
       }
-      // --------------------------------------------------
 
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
-        const valorItemTotal = selecionado.quantidade * itemEstoque.preco;
+        const valorItemTotal = (selecionado.quantidade * itemEstoque.preco);
 
-        // AGORA SALVA NA COLUNA "desconto" QUE VOCÊ CRIOU
-        const { error: erroReserva } = await db.from('reservas').insert([{
-          cliente_id: parseInt(reservaGeral.clienteId),
-          item: selecionado.item,
-          quantidade: selecionado.quantidade,
-          data_evento: reservaGeral.data,
-          data_devolucao: reservaGeral.dataDevolucao,
-          status: 'Pendente',
-          forma_pagamento: 'Não Informado',
-          valor_total: valorItemTotal,
-          taxa_entrega: freteAjustado,
-          desconto: desconto, 
-          codigo_item: itemEstoque.codigo_interno || 'S/C',
-          observacoes: reservaGeral.observacoes 
-        }]);
+        if (ehAluguelHoje) {
+          // LÓGICA: SE FOR HOJE, SALVA EM 'RESERVAS' E SUBTRAI ESTOQUE
+          const { error: erroReserva } = await db.from('reservas').insert([{
+            cliente_id: parseInt(reservaGeral.clienteId),
+            item: selecionado.item,
+            quantidade: selecionado.quantidade,
+            data_reserva: reservaGeral.dataReserva, // Enviando nova data para o banco
+            data_evento: reservaGeral.data,
+            data_devolucao: reservaGeral.dataDevolucao,
+            status: 'Pendente',
+            forma_pagamento: 'Não Informado',
+            valor_total: valorItemTotal,
+            taxa_entrega: freteAjustado,
+            desconto: desconto, 
+            codigo_item: itemEstoque.codigo_interno || 'S/C',
+            observacoes: reservaGeral.observacoes 
+          }]);
 
-        if (erroReserva) throw erroReserva;
+          if (erroReserva) throw erroReserva;
 
-        await db.from('estoque').update({ 
-          disponivel: itemEstoque.disponivel - selecionado.quantidade,
-          reservado: itemEstoque.reservado + selecionado.quantidade 
-        }).eq('id', itemEstoque.id);
+          // ATUALIZA ESTOQUE APENAS SE FOR HOJE
+          await db.from('estoque').update({ 
+            disponivel: itemEstoque.disponivel - selecionado.quantidade,
+            reservado: itemEstoque.reservado + selecionado.quantidade 
+          }).eq('id', itemEstoque.id);
 
+        } else {
+          // LÓGICA: SE FOR DATA FUTURA, SALVA EM 'RESERVAS_FUTURAS' SEM SUBTRAIR ESTOQUE
+          const { error: erroReservaFutura } = await db.from('reservas_futuras').insert([{
+            cliente_id: parseInt(reservaGeral.clienteId),
+            item_id: itemEstoque.id, // Conforme sua tabela do Supabase
+            quantidade: selecionado.quantidade,
+            data_reserva: reservaGeral.dataReserva, // Enviando nova data para o banco
+            data_evento: reservaGeral.data,
+            data_devolucao: reservaGeral.dataDevolucao,
+            status: 'Pendente'
+          }]);
+
+          if (erroReservaFutura) throw erroReservaFutura;
+        }
+
+        // Registra movimentação de caixa
         await db.from('movimentacao_caixa').insert([{
-            descricao: `Reserva Múltipla: ${selecionado.item}`,
+            descricao: `${ehAluguelHoje ? 'Aluguel Hoje' : 'Reserva Futura'}: ${selecionado.item}`,
             valor: valorItemTotal,
             tipo: 'Receita',
             cliente_id: parseInt(reservaGeral.clienteId),
@@ -196,15 +211,15 @@ END:VCALENDAR`;
         }]);
       }
 
-      if(window.confirm("🎉 Pedido Salvo! Deseja adicionar à agenda do computador?")) {
+      if(window.confirm(`🎉 ${ehAluguelHoje ? 'Aluguel' : 'Reserva Futura'} Salva! Deseja adicionar à agenda?`)) {
           gerarArquivoCalendario();
       }
       
-      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
+      setReservaGeral({ clienteId: '', dataReserva: '', data: '', dataDevolucao: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
-      setFiltroCliente(''); // Reseta o filtro
+      setFiltroCliente('');
       await carregarDados();
       
     } catch (err: any) {
@@ -220,11 +235,10 @@ END:VCALENDAR`;
       <h1 className="text-center text-[#b24a2b] text-3xl font-black mb-8 italic uppercase tracking-tighter">Nova Reserva Múltipla</h1>
       
       <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Aumentado para 4 colunas para acomodar o novo campo */}
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             
-            {/* --- INPUT DE BUSCA ADICIONADO --- */}
             <input 
               type="text" 
               placeholder="🔍 Procurar cliente..." 
@@ -232,7 +246,6 @@ END:VCALENDAR`;
               value={filtroCliente}
               onChange={(e) => setFiltroCliente(e.target.value)}
             />
-            {/* --------------------------------- */}
 
             <select 
               required 
@@ -244,11 +257,20 @@ END:VCALENDAR`;
               {clientes
                 .filter(c => 
                   c.cliente.toLowerCase().includes(filtroCliente.toLowerCase()) || 
-                  c.id.toString().includes(filtroCliente) // LÓGICA DE BUSCA POR ID ADICIONADA
+                  c.id.toString().includes(filtroCliente)
                 )
                 .map(c => <option key={c.id} value={c.id}>ID: {c.id} - {c.cliente}</option>)
               }
             </select>
+          </div>
+
+          {/* NOVO CAMPO: DATA DA RESERVA */}
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black text-green-600 ml-4 mb-2 uppercase tracking-widest">Data da Reserva</label>
+            <input type="date" required className="w-full p-4 bg-green-50 border-2 border-green-100 rounded-2xl outline-none font-bold focus:border-green-600 transition-all" value={reservaGeral.dataReserva} onChange={(e) => setReservaGeral({...reservaGeral, dataReserva: e.target.value})} />
+            {reservaGeral.dataReserva && (
+                <span className="text-[10px] font-bold text-green-600 ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataReserva)}</span>
+            )}
           </div>
 
           <div className="flex flex-col">
