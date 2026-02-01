@@ -19,7 +19,6 @@ const ReservationForm: React.FC = () => {
   
   const [reservaGeral, setReservaGeral] = useState({
     clienteId: '',
-    dataReserva: '', // Novo campo adicionado para a data da reserva
     data: '',
     dataDevolucao: '',
     observacoes: '' 
@@ -80,9 +79,8 @@ const ReservationForm: React.FC = () => {
 
   const handleAbrirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
-    // Ajuste na validação para incluir a nova data de reserva
-    if (!reservaGeral.clienteId || !reservaGeral.dataReserva || !reservaGeral.data || !reservaGeral.dataDevolucao) {
-      alert("Preencha os dados do cliente e todas as datas (Reserva, Aluguel e Devolução).");
+    if (!reservaGeral.clienteId || !reservaGeral.data || !reservaGeral.dataDevolucao) {
+      alert("Preencha os dados do cliente e as datas de aluguel e devolução.");
       return;
     }
     setShowFreteModal(true);
@@ -146,7 +144,6 @@ END:VCALENDAR`;
             cliente_id: parseInt(reservaGeral.clienteId),
             item: selecionado.item,
             quantidade: selecionado.quantidade,
-            data_reserva: reservaGeral.dataReserva, // Enviando nova data para o banco
             data_evento: reservaGeral.data,
             data_devolucao: reservaGeral.dataDevolucao,
             status: 'Pendente',
@@ -172,7 +169,6 @@ END:VCALENDAR`;
             cliente_id: parseInt(reservaGeral.clienteId),
             item_id: itemEstoque.id, // Conforme sua tabela do Supabase
             quantidade: selecionado.quantidade,
-            data_reserva: reservaGeral.dataReserva, // Enviando nova data para o banco
             data_evento: reservaGeral.data,
             data_devolucao: reservaGeral.dataDevolucao,
             status: 'Pendente'
@@ -215,7 +211,7 @@ END:VCALENDAR`;
           gerarArquivoCalendario();
       }
       
-      setReservaGeral({ clienteId: '', dataReserva: '', data: '', dataDevolucao: '', observacoes: '' });
+      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
@@ -235,7 +231,7 @@ END:VCALENDAR`;
       <h1 className="text-center text-[#b24a2b] text-3xl font-black mb-8 italic uppercase tracking-tighter">Nova Reserva Múltipla</h1>
       
       <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Aumentado para 4 colunas para acomodar o novo campo */}
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             
@@ -262,15 +258,6 @@ END:VCALENDAR`;
                 .map(c => <option key={c.id} value={c.id}>ID: {c.id} - {c.cliente}</option>)
               }
             </select>
-          </div>
-
-          {/* NOVO CAMPO: DATA DA RESERVA */}
-          <div className="flex flex-col">
-            <label className="text-[10px] font-black text-green-600 ml-4 mb-2 uppercase tracking-widest">Data da Reserva</label>
-            <input type="date" required className="w-full p-4 bg-green-50 border-2 border-green-100 rounded-2xl outline-none font-bold focus:border-green-600 transition-all" value={reservaGeral.dataReserva} onChange={(e) => setReservaGeral({...reservaGeral, dataReserva: e.target.value})} />
-            {reservaGeral.dataReserva && (
-                <span className="text-[10px] font-bold text-green-600 ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataReserva)}</span>
-            )}
           </div>
 
           <div className="flex flex-col">
