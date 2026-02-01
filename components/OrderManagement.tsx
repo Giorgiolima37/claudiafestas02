@@ -638,6 +638,7 @@ const OrderManagement: React.FC = () => {
         const pedidoAgrupadoParaModal = {
             nomeCliente: cliente?.cliente || 'ID: ' + res.cliente_id,
             cliente_id: res.cliente_id,
+            telefone: cliente?.telefone,
             dataDevolucao: res.data_devolucao,
             itens: [{
                 id: res.id,
@@ -656,6 +657,25 @@ const OrderManagement: React.FC = () => {
             objetoParaModal: pedidoAgrupadoParaModal
         };
     });
+  };
+
+  // NOVA FUNÇÃO: CANCELAR RESERVA FUTURA
+  const handleCancelarReservaFutura = async (id: string, nomeCliente: string) => {
+    if (!window.confirm(`Tem certeza que deseja CANCELAR e apagar permanentemente a reserva de ${nomeCliente}?`)) return;
+    
+    try {
+      setLoading(true);
+      const { error } = await db.from('reservas_futuras').delete().eq('id', id);
+      
+      if (error) throw error;
+      
+      alert("Reserva futura cancelada com sucesso!");
+      fetchData(); // Atualiza a lista
+    } catch (err: any) {
+      alert("Erro ao cancelar reserva: " + err.message);
+    } finally {
+      setLoading(false);
+    }
   };
 
   const totalUrgentes = Object.values(
@@ -831,17 +851,32 @@ const OrderManagement: React.FC = () => {
                       <div className="flex justify-between items-start mb-2">
                         <div>
                            <h4 className="font-black text-sm uppercase text-gray-800">{res.nomeCliente}</h4>
-                           {/* --- AJUSTE: Botão Editar Pedido na barra lateral --- */}
+                           <div className="flex gap-1 mt-1">
+                               {/* Botões de Ação Adicionados */}
+                               <button onClick={() => abrirWhatsApp(res.objetoParaModal)} className="w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-brands fa-whatsapp"></i></button>
+                               <button onClick={() => gerarRomaneio(res.objetoParaModal)} className="w-7 h-7 bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-list-check"></i></button>
+                               <button onClick={() => gerarContrato(res.objetoParaModal)} className="w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
+                               <button onClick={() => confirmarDevolucao(res.objetoParaModal)} className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-check"></i></button>
+                           </div>
                            <button 
                              onClick={() => handleAbrirEdicao(res.objetoParaModal)} 
-                             className="mt-1 text-[8px] font-black uppercase bg-black text-white px-2 py-1 rounded-full hover:bg-gray-800 transition-colors"
+                             className="mt-2 text-[8px] font-black uppercase bg-black text-white px-2 py-1 rounded-full hover:bg-gray-800 transition-colors"
                            >
                              Editar Pedido
                            </button>
                         </div>
-                        <span className="bg-blue-100 text-blue-600 text-[9px] font-black px-2 py-1 rounded-lg">
-                          {formatarDataBR(res.data_evento)}
-                        </span>
+                        <div className="flex flex-col items-end gap-2">
+                           <span className="bg-blue-100 text-blue-600 text-[9px] font-black px-2 py-1 rounded-lg">
+                             {formatarDataBR(res.data_evento)}
+                           </span>
+                           {/* --- BOTÃO CANCELAR RESERVA ADICIONADO ABAIXO DA DATA AZUL --- */}
+                           <button 
+                             onClick={() => handleCancelarReservaFutura(res.id, res.nomeCliente)}
+                             className="text-[8px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100 transition-all active:scale-95"
+                           >
+                             <i className="fa-solid fa-xmark mr-1"></i> Cancelar Reserva
+                           </button>
+                        </div>
                       </div>
                       <div className="bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
                         <p className="text-[10px] font-bold text-gray-500 leading-tight">

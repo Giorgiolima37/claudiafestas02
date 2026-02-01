@@ -97,18 +97,7 @@ const ReservationForm: React.FC = () => {
     const inicio = formatData(reservaGeral.data);
     const fim = formatData(reservaGeral.dataDevolucao);
 
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//ClaudiaFestas//Gestao//PT
-BEGIN:VEVENT
-UID:${new Date().getTime()}@claudiafestas.com
-DTSTAMP:${formatData(new Date().toISOString().split('T')[0])}T000000Z
-DTSTART;VALUE=DATE:${inicio}
-DTEND;VALUE=DATE:${fim}
-SUMMARY:${titulo}
-DESCRIPTION:${descricao}
-END:VEVENT
-END:VCALENDAR`;
+    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//ClaudiaFestas//Gestao//PT\nBEGIN:VEVENT\nUID:${new Date().getTime()}@claudiafestas.com\nDTSTAMP:${formatData(new Date().toISOString().split('T')[0])}T000000Z\nDTSTART;VALUE=DATE:${inicio}\nDTEND;VALUE=DATE:${fim}\nSUMMARY:${titulo}\nDESCRIPTION:${descricao}\nEND:VEVENT\nEND:VCALENDAR`;
 
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
@@ -123,30 +112,37 @@ END:VCALENDAR`;
     setLoading(true);
     setShowFreteModal(false);
 
-    // Identifica se a data selecionada é hoje (01/02/2026)
-    const hoje = new Date().toISOString().split('T')[0];
-    const ehAluguelHoje = reservaGeral.data === hoje;
-
     try {
-      // Verificação de itens
+      // Data de Hoje para comparação (01/02/2026)
+      const hoje = new Date().toISOString().split('T')[0];
+      const ehParaHoje = reservaGeral.data === hoje;
+
+      // --- VERIFICAÇÃO INFORMATIVA DE ESTOQUE ---
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
         if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
+
+        const estoqueTotalPatrimonial = itemEstoque.disponivel + itemEstoque.reservado;
+
+        if (estoqueTotalPatrimonial < selecionado.quantidade) {
+          console.warn(`⚠️ Aviso: Item "${itemEstoque.item}" poderá faltar no dia do evento.`);
+        }
       }
 
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
         const valorItemTotal = (selecionado.quantidade * itemEstoque.preco);
 
-        if (ehAluguelHoje) {
-          // LÓGICA: SE FOR HOJE, SALVA EM 'RESERVAS' E SUBTRAI ESTOQUE
+        if (ehParaHoje) {
+          // --- LOGICA PARA RESERVA IMEDIATA (HOJE) ---
+          // Salva na tabela 'reservas' com status 'Em Aluguel'
           const { error: erroReserva } = await db.from('reservas').insert([{
             cliente_id: parseInt(reservaGeral.clienteId),
             item: selecionado.item,
             quantidade: selecionado.quantidade,
             data_evento: reservaGeral.data,
             data_devolucao: reservaGeral.dataDevolucao,
-            status: 'Pendente',
+            status: 'Em Aluguel',
             forma_pagamento: 'Não Informado',
             valor_total: valorItemTotal,
             taxa_entrega: freteAjustado,
@@ -157,29 +153,29 @@ END:VCALENDAR`;
 
           if (erroReserva) throw erroReserva;
 
-          // ATUALIZA ESTOQUE APENAS SE FOR HOJE
+          // Subtrai do estoque disponível imediatamente
           await db.from('estoque').update({ 
             disponivel: itemEstoque.disponivel - selecionado.quantidade,
             reservado: itemEstoque.reservado + selecionado.quantidade 
           }).eq('id', itemEstoque.id);
 
         } else {
-          // LÓGICA: SE FOR DATA FUTURA, SALVA EM 'RESERVAS_FUTURAS' SEM SUBTRAIR ESTOQUE
-          const { error: erroReservaFutura } = await db.from('reservas_futuras').insert([{
+          // --- LOGICA PARA RESERVA FUTURA ---
+          const { error: erroFutura } = await db.from('reservas_futuras').insert([{
             cliente_id: parseInt(reservaGeral.clienteId),
-            item_id: itemEstoque.id, // Conforme sua tabela do Supabase
+            item_id: itemEstoque.id,
             quantidade: selecionado.quantidade,
             data_evento: reservaGeral.data,
             data_devolucao: reservaGeral.dataDevolucao,
-            status: 'Pendente'
+            status: 'Agendada'
           }]);
 
-          if (erroReservaFutura) throw erroReservaFutura;
+          if (erroFutura) throw erroFutura;
         }
 
-        // Registra movimentação de caixa
+        // REGISTRA A ENTRADA NO CAIXA (PARA AMBOS OS CASOS)
         await db.from('movimentacao_caixa').insert([{
-            descricao: `${ehAluguelHoje ? 'Aluguel Hoje' : 'Reserva Futura'}: ${selecionado.item}`,
+            descricao: `Reserva ${ehParaHoje ? 'Imediata' : 'Futura'}: ${selecionado.item}`,
             valor: valorItemTotal,
             tipo: 'Receita',
             cliente_id: parseInt(reservaGeral.clienteId),
@@ -187,6 +183,7 @@ END:VCALENDAR`;
         }]);
       }
 
+      // REGISTROS ADICIONAIS DE FINANCEIRO (FRETE E DESCONTO)
       if (freteAjustado > 0) {
         await db.from('movimentacao_caixa').insert([{
           descricao: `Taxa de Entrega - Pedido Cliente ID: ${reservaGeral.clienteId}`,
@@ -207,10 +204,13 @@ END:VCALENDAR`;
         }]);
       }
 
-      if(window.confirm(`🎉 ${ehAluguelHoje ? 'Aluguel' : 'Reserva Futura'} Salva! Deseja adicionar à agenda?`)) {
+      alert(ehParaHoje ? "🎉 Aluguel IMEDIATO finalizado! Estoque atualizado." : "🎉 Reserva FUTURA agendada!");
+
+      if(window.confirm("Deseja adicionar à agenda do computador?")) {
           gerarArquivoCalendario();
       }
       
+      // RESET DE ESTADOS APÓS SUCESSO
       setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
@@ -348,7 +348,6 @@ END:VCALENDAR`;
         </div>
       </form>
 
-      {/* MODAL DE CONFIRMAÇÃO DE FRETE E DESCONTO */}
       {showFreteModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-[40px] p-8 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
