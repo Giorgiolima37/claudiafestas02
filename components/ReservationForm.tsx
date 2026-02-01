@@ -81,8 +81,8 @@ const ReservationForm: React.FC = () => {
   const handleAbrirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
     // Ajuste na validação para incluir a nova data de reserva
-    if (!reservaGeral.clienteId) {
-      alert("Selecione um cliente primeiro.");
+    if (!reservaGeral.clienteId || !reservaGeral.dataReserva || !reservaGeral.data || !reservaGeral.dataDevolucao) {
+      alert("Preencha os dados do cliente e todas as datas (Reserva, Aluguel e Devolução).");
       return;
     }
     setShowFreteModal(true);
@@ -96,7 +96,7 @@ const ReservationForm: React.FC = () => {
     
     const titulo = `ENTREGA: ${cliente}`;
     const descricao = `Itens Alugados:\\n${itensDescricao}\\n\\nObs: ${reservaGeral.observacoes}`;
-    const inicio = formatData(reservaGeral.dataReserva);
+    const inicio = formatData(reservaGeral.data);
     const fim = formatData(reservaGeral.dataDevolucao);
 
     const icsContent = `BEGIN:VCALENDAR
@@ -122,17 +122,12 @@ END:VCALENDAR`;
   };
 
   const finalizarPedidoCompleto = async () => {
-    if (!reservaGeral.dataReserva || !reservaGeral.dataDevolucao) {
-      alert("Por favor, preencha as datas de Reserva e Devolução.");
-      return;
-    }
-
     setLoading(true);
     setShowFreteModal(false);
 
     // Identifica se a data selecionada é hoje (01/02/2026)
     const hoje = new Date().toISOString().split('T')[0];
-    const ehAluguelHoje = reservaGeral.dataReserva === hoje;
+    const ehAluguelHoje = reservaGeral.data === hoje;
 
     try {
       // Verificação de itens
@@ -151,8 +146,8 @@ END:VCALENDAR`;
             cliente_id: parseInt(reservaGeral.clienteId),
             item: selecionado.item,
             quantidade: selecionado.quantidade,
-            data_reserva: reservaGeral.dataReserva, 
-            data_evento: reservaGeral.dataReserva,
+            data_reserva: reservaGeral.dataReserva, // Enviando nova data para o banco
+            data_evento: reservaGeral.data,
             data_devolucao: reservaGeral.dataDevolucao,
             status: 'Pendente',
             forma_pagamento: 'Não Informado',
@@ -175,10 +170,10 @@ END:VCALENDAR`;
           // LÓGICA: SE FOR DATA FUTURA, SALVA EM 'RESERVAS_FUTURAS' SEM SUBTRAIR ESTOQUE
           const { error: erroReservaFutura } = await db.from('reservas_futuras').insert([{
             cliente_id: parseInt(reservaGeral.clienteId),
-            item_id: itemEstoque.id, 
+            item_id: itemEstoque.id, // Conforme sua tabela do Supabase
             quantidade: selecionado.quantidade,
-            data_reserva: reservaGeral.dataReserva,
-            data_evento: reservaGeral.dataReserva,
+            data_reserva: reservaGeral.dataReserva, // Enviando nova data para o banco
+            data_evento: reservaGeral.data,
             data_devolucao: reservaGeral.dataDevolucao,
             status: 'Pendente'
           }]);
@@ -240,7 +235,7 @@ END:VCALENDAR`;
       <h1 className="text-center text-[#b24a2b] text-3xl font-black mb-8 italic uppercase tracking-tighter">Nova Reserva Múltipla</h1>
       
       <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6"> 
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4"> {/* Aumentado para 4 colunas para acomodar o novo campo */}
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             
@@ -269,14 +264,29 @@ END:VCALENDAR`;
             </select>
           </div>
 
+          {/* NOVO CAMPO: DATA DA RESERVA */}
           <div className="flex flex-col">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-4 mb-2">Observações (Opcional)</label>
-            <textarea 
-              placeholder="Ex: Entrega no período da manhã..."
-              className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl font-bold outline-none focus:border-[#b24a2b] transition-all h-[110px] resize-none"
-              value={reservaGeral.observacoes}
-              onChange={(e) => setReservaGeral({...reservaGeral, observacoes: e.target.value})}
-            />
+            <label className="text-[10px] font-black text-green-600 ml-4 mb-2 uppercase tracking-widest">Data da Reserva</label>
+            <input type="date" required className="w-full p-4 bg-green-50 border-2 border-green-100 rounded-2xl outline-none font-bold focus:border-green-600 transition-all" value={reservaGeral.dataReserva} onChange={(e) => setReservaGeral({...reservaGeral, dataReserva: e.target.value})} />
+            {reservaGeral.dataReserva && (
+                <span className="text-[10px] font-bold text-green-600 ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataReserva)}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Data de Aluguel</label>
+            <input type="date" required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold focus:border-[#b24a2b] transition-all" value={reservaGeral.data} onChange={(e) => setReservaGeral({...reservaGeral, data: e.target.value})} />
+            {reservaGeral.data && (
+                <span className="text-[10px] font-bold text-blue-600 ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.data)}</span>
+            )}
+          </div>
+
+          <div className="flex flex-col relative">
+            <label className="text-[10px] font-black text-[#b24a2b] ml-4 mb-2 uppercase tracking-widest">Data de Devolução</label>
+            <input type="date" required className="w-full p-4 bg-orange-50 border-2 border-[#f2c6b4] rounded-2xl outline-none font-bold text-[#b24a2b] focus:border-[#b24a2b] transition-all" value={reservaGeral.dataDevolucao} onChange={(e) => setReservaGeral({...reservaGeral, dataDevolucao: e.target.value})} />
+            {reservaGeral.dataDevolucao && (
+                <span className="text-[10px] font-bold text-[#b24a2b] ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataDevolucao)}</span>
+            )}
           </div>
         </div>
 
@@ -336,64 +346,94 @@ END:VCALENDAR`;
             type="submit" 
             className={`w-full p-6 text-white font-black rounded-[25px] transition-all shadow-xl active:scale-95 uppercase tracking-widest text-xs ${loading ? 'bg-gray-400' : 'bg-[#b24a2b] hover:bg-[#943a20]'}`}
           >
-            {loading ? 'PROCESSANDO...' : 'FINALIZAR PEDIDO'}
+            {loading ? 'PROCESSANDO RESERVAS...' : 'FINALIZAR PEDIDO COMPLETO'}
           </button>
+
+          <div className="w-full max-w-sm flex flex-col items-center">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Campo de OBS</label>
+            <textarea 
+              placeholder="Digite aqui observações ou detalhes extras..."
+              className="w-full p-5 bg-[#b24a2b] text-white rounded-[25px] text-center font-bold outline-none shadow-lg placeholder:text-orange-200 focus:ring-4 ring-orange-200 transition-all resize-none min-h-[80px]"
+              value={reservaGeral.observacoes}
+              onChange={(e) => setReservaGeral({...reservaGeral, observacoes: e.target.value})}
+            />
+          </div>
         </div>
       </form>
 
-      {/* MODAL DE FINALIZAÇÃO AJUSTADO CONFORME REFERÊNCIA */}
+      {/* MODAL DE CONFIRMAÇÃO DE FRETE E DESCONTO */}
       {showFreteModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[40px] p-8 w-full max-w-sm shadow-2xl border border-gray-100 animate-in zoom-in duration-300 text-center">
-            
-            {/* Ícone de Calendário Verde */}
-            <div className="bg-green-100 w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4">
-               <i className="fa-solid fa-calendar-day text-green-500 text-3xl"></i>
+          <div className="bg-white rounded-[40px] p-8 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+            <div className="text-center mb-6">
+              <h2 className="text-xl font-black text-gray-800 uppercase italic">Confirmar Frete</h2>
+              <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Ajuste valores antes de finalizar</p>
             </div>
 
-            {/* Bloco Data da Reserva */}
-            <div className="mb-6">
-              <h2 className="text-xl font-black text-gray-800 uppercase italic leading-tight">Data da Reserva</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Selecione a data inicial</p>
-              <input 
-                type="date" 
-                required 
-                className="w-full mt-3 p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-center font-black text-gray-700 outline-none focus:border-green-500 transition-all" 
-                value={reservaGeral.dataReserva} 
-                onChange={(e) => setReservaGeral({...reservaGeral, dataReserva: e.target.value})} 
-              />
-            </div>
+            <div className="space-y-4">
+              <div className="flex flex-col items-center">
+                <label className="text-[9px] font-black text-[#b24a2b] uppercase mb-2">Valor do Frete (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="w-full p-4 bg-orange-50 border-2 border-orange-200 rounded-2xl text-center font-black text-2xl text-[#b24a2b] outline-none"
+                  value={freteAjustado}
+                  onChange={(e) => setFreteAjustado(parseFloat(e.target.value) || 0)}
+                  autoFocus
+                />
+              </div>
 
-            {/* Bloco Data de Devolução */}
-            <div className="mb-8">
-              <h2 className="text-xl font-black text-gray-800 uppercase italic leading-tight">QUANDO IRÁ DEVOLVER?</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-1">Selecione a data prevista</p>
-              <input 
-                type="date" 
-                required 
-                className="w-full mt-3 p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl text-center font-black text-gray-700 outline-none focus:border-green-500 transition-all" 
-                value={reservaGeral.dataDevolucao} 
-                onChange={(e) => setReservaGeral({...reservaGeral, dataDevolucao: e.target.value})} 
-              />
-            </div>
+              <div className="flex flex-col items-center">
+                <label className="text-[9px] font-black text-green-600 uppercase mb-2">Desconto para Cliente (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="w-full p-4 bg-green-50 border-2 border-green-200 rounded-2xl text-center font-black text-2xl text-green-600 outline-none"
+                  value={desconto}
+                  onChange={(e) => setDesconto(parseFloat(e.target.value) || 0)}
+                />
+              </div>
 
-            {/* Botões de Ação */}
-            <div className="flex flex-col gap-3">
+              <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
+                <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-2">
+                  <span>Subtotal Itens:</span>
+                  <span>R$ {calcularSubtotal().toFixed(2).replace('.', ',')}</span>
+                </div>
+                {desconto > 0 && (
+                    <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
+                      <span>Desconto:</span>
+                      <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
+                    </div>
+                )}
+                <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
+                  <span>Total Geral:</span>
+                  <span>R$ {(calcularSubtotal() + freteAjustado - desconto).toFixed(2).replace('.', ',')}</span>
+                </div>
+              </div>
+
               <button 
-                onClick={finalizarPedidoCompleto} 
-                className="w-full p-5 bg-[#22c55e] text-white rounded-3xl font-black uppercase tracking-widest text-sm shadow-lg shadow-green-200 hover:bg-[#16a34a] active:scale-95 transition-all"
+                type="button" 
+                onClick={gerarArquivoCalendario}
+                className="w-full p-3 mb-2 bg-blue-50 text-blue-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
               >
-                SIM, FINALIZAR!
+                <i className="fa-solid fa-calendar-days"></i> Baixar Arquivo de Agenda
               </button>
-              
-              <button 
-                onClick={() => setShowFreteModal(false)} 
-                className="text-gray-400 font-black uppercase text-[11px] tracking-widest hover:text-gray-600 transition-all"
-              >
-                CANCELAR
-              </button>
-            </div>
 
+              <div className="flex gap-3 pt-2">
+                <button 
+                  onClick={() => setShowFreteModal(false)} 
+                  className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+                >
+                  Voltar
+                </button>
+                <button 
+                  onClick={finalizarPedidoCompleto} 
+                  className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] transition-all"
+                >
+                  Confirmar e Salvar
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}
