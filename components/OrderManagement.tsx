@@ -2,10 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { db } from '../services/supabase';
 import logoImg from '../logo.png';
 // --- IMPORTANTE: Importar o som de notificação ---
-// Certifique-se de que o caminho está correto. Se estiver na pasta public, use apenas o caminho relativo.
-// Se estiver em src, importe como o logo. Vou assumir que está em src ou assets.
-// Se estiver na public, pode usar: const audioUrl = '/notificacao.mp3';
-import audioNotification from '../notificacao.mp3'; // Ajuste o caminho conforme necessário
+import audioNotification from '../notificacao.mp3'; 
 
 const OrderManagement: React.FC = () => {
   const [clientes, setClientes] = useState<any[]>([]);
@@ -39,58 +36,44 @@ const OrderManagement: React.FC = () => {
 
   const fetchData = async () => {
     try {
-      // Removendo setLoading(true) daqui para evitar piscar a tela no polling
-      // setLoading(true); 
       const [resClientes, resReservas, resEstoque, resPedidosOnline, resBlacklist, resReservasFuturas] = await Promise.all([
         db.from('cadastro').select('*'),
         db.from('reservas').select('*').order('data_evento', { ascending: false }),
         db.from('estoque').select('*').order('item'),
         db.from('pedidos_online').select('*').order('created_at', { ascending: false }),
         db.from('blacklist').select('documento'),
-        db.from('reservas_futuras').select('*').order('data_evento', { ascending: true }) // Busca as reservas futuras do banco
+        db.from('reservas_futuras').select('*').order('data_evento', { ascending: true }) 
       ]);
       setClientes(resClientes.data || []);
       setReservas(resReservas.data || []);
       setEstoque(resEstoque.data || []);
       setPedidosOnline(resPedidosOnline.data || []);
       setBlacklist(resBlacklist.data || []);
-      setReservasFuturasBanco(resReservasFuturas.data || []); // Salva no estado
+      setReservasFuturasBanco(resReservasFuturas.data || []); 
     } catch (err: any) {
       console.error("Erro ao sincronizar dados:", err.message);
     } finally {
-      setLoading(false); // Mantém apenas no final da carga inicial
+      setLoading(false); 
     }
   };
 
-  // Carga inicial
   useEffect(() => {
-    setLoading(true); // Loading visível apenas na primeira vez
+    setLoading(true); 
     fetchData();
   }, []);
 
-  // --- LÓGICA DE SOM DE NOTIFICAÇÃO ---
   useEffect(() => {
-    // Se o número de pedidos aumentou, toca o som
     if (pedidosOnline.length > prevPedidosLengthRef.current) {
-        // Ignora a primeira carga (quando prev é 0 e atual > 0, mas loading acabou de terminar)
-        // Porém, se quiser tocar na entrada, remova a verificação de loading se necessário.
-        // Aqui vamos tocar sempre que aumentar.
         const audio = new Audio(audioNotification);
-        audio.play().catch(e => console.log("Erro ao tocar som (interação necessária):", e));
+        audio.play().catch(e => console.log("Erro ao tocar som:", e));
     }
-    // Atualiza a referência
     prevPedidosLengthRef.current = pedidosOnline.length;
   }, [pedidosOnline]);
 
-  // BLOCO DE ATUALIZAÇÃO AUTOMÁTICA ADICIONADO
   useEffect(() => {
-    // Configura o intervalo para rodar a cada 60.000 milissegundos (1 minuto)
     const intervalo = setInterval(() => {
-      console.log("Atualizando dados automaticamente...");
-      fetchData(); // Executa a função que busca novos pedidos e atualiza o estoque
+      fetchData(); 
     }, 60000);
-
-    // Limpa o intervalo quando o proprietário sai da tela para não gastar memória
     return () => clearInterval(intervalo);
   }, []);
 
@@ -102,29 +85,22 @@ const OrderManagement: React.FC = () => {
     );
   };
 
-  // FUNÇÃO ATUALIZADA: Agora ela deleta para ativar o TRIGGER SQL que você criou
   const handleAceitarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
-
     try {
       setLoading(true);
-
-      // 1. Atualizar o estoque primeiro (importante para manter o controle)
       const linhasItens = pedido.itens_texto.split(', ');
-
       for (const linha of linhasItens) {
         const match = linha.match(/(\d+)x (.+)/);
         if (match) {
           const qtd = parseInt(match[1]);
           const nomeItem = match[2];
           const infoEstoque = estoque.find(e => e.item === nomeItem);
-
           if (infoEstoque) {
             if (infoEstoque.disponivel < qtd) {
               alert(`Estoque insuficiente para: ${nomeItem}`);
               throw new Error(`Estoque insuficiente: ${nomeItem}`);
             }
-
             await db.from('estoque').update({
               disponivel: infoEstoque.disponivel - qtd,
               reservado: (infoEstoque.reservado || 0) + qtd
@@ -132,13 +108,8 @@ const OrderManagement: React.FC = () => {
           }
         }
       }
-
-      // 2. DELETAR DO ONLINE: Isso dispara o gatilho processar_aceite_pedido() no Supabase
-      // Removida qualquer referência à coluna "origem" para evitar o erro anterior
       const { error } = await db.from('pedidos_online').delete().eq('id', pedido.id);
-
       if (error) throw error;
-
       alert("Pedido processado! O banco de dados gerou a reserva automaticamente.");
       fetchData();
     } catch (err: any) {
@@ -175,10 +146,7 @@ const OrderManagement: React.FC = () => {
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
     const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({ ...i, _originalQty: i.quantidade }));
     setPedidoEmEdicao(itensFormatados);
-    
-    // Salva a data original para usar na cláusula WHERE do update
     setDataEventoOriginal(pedidoAgrupado.itens[0].data_evento);
-
     setDadosPedidoFixo({
       cliente_id: pedidoAgrupado.cliente_id,
       data_evento: pedidoAgrupado.itens[0].data_evento,
@@ -225,14 +193,13 @@ const OrderManagement: React.FC = () => {
     if (!dadosPedidoFixo) return;
     setLoading(true);
     try {
-      // CORREÇÃO AQUI: Usamos dataEventoOriginal para encontrar os registros antigos
       await db.from('reservas')
         .update({ 
             data_devolucao: dadosPedidoFixo.data_devolucao,
             data_evento: dadosPedidoFixo.data_evento 
         })
         .eq('cliente_id', dadosPedidoFixo.cliente_id)
-        .eq('data_evento', dataEventoOriginal); // Usa a data ANTIGA para achar o registro
+        .eq('data_evento', dataEventoOriginal);
 
       for (const item of pedidoEmEdicao) {
         const produtoEstoque = estoque.find(e => e.item === item.item);
@@ -258,7 +225,7 @@ const OrderManagement: React.FC = () => {
             cliente_id: dadosPedidoFixo.cliente_id,
             item: item.item,
             quantidade: item.quantidade,
-            data_evento: dadosPedidoFixo.data_evento, // Salva com a nova data
+            data_evento: dadosPedidoFixo.data_evento, 
             data_devolucao: dadosPedidoFixo.data_devolucao,
             status: 'Pendente',
             forma_pagamento: 'Ajuste',
@@ -322,7 +289,7 @@ const OrderManagement: React.FC = () => {
           <title>CONTRATO - ${pedido.nomeCliente}</title>
           <style>
             @page { size: A4; margin: 0; }
-            body { font-family: Arial, sans-serif; margin: 0; padding: 0; width: 210mm; min-height: 297mm; display: flex; justify-content: center; box-sizing: border-box; padding-top: 5mm; }
+            body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 0; width: 210mm; min-height: 297mm; display: flex; justify-content: center; box-sizing: border-box; padding-top: 5mm; }
             .page-container { width: 200mm; padding: 10px; border: 2px solid black; box-sizing: border-box; display: flex; flex-direction: column; min-height: 285mm; }
             .header { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
             .company-name { font-weight: 900; font-size: 16px; color: #1e40af; text-decoration: underline; }
@@ -331,8 +298,11 @@ const OrderManagement: React.FC = () => {
             table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
             th, td { border: 1px solid #000; padding: 4px; text-align: center; }
             th { background-color: #eee; font-weight: 900; }
+            .align-left { text-align: left; padding-left: 5px; }
+            .clauses { text-align: justify; font-size: 10px; margin-bottom: auto; }
+            .clause-item { margin-bottom: 5px; }
             .obs-container { border: 1px solid #000; padding: 5px; margin-top: 10px; margin-bottom: 10px; font-size: 10px; min-height: 150px; }
-            .signatures { display: flex; justify-content: space-between; margin-top: 20px; }
+            .signatures { display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 5px; }
             .sig-box { width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 10px; }
             .dates-info { font-weight: 900; margin-top: 10px; margin-bottom: 15px; font-size: 11px; }
           </style>
@@ -356,10 +326,9 @@ const OrderManagement: React.FC = () => {
 
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
-                locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, 
-                com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, 
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, 
                 Município: <strong>${cliente.municipio?.toUpperCase() || '_________________'}</strong>,
-                tem ajustado the presente contrato de locação dos equipamentos e utensílios (denominados diante
+                tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
                 Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
@@ -383,24 +352,27 @@ const OrderManagement: React.FC = () => {
                   ${pedido.itens.map((i: any) => `
                     <tr>
                       <td>${i.quantidade}</td>
-                      <td style="text-align: left; padding-left: 5px;">${i.item.toUpperCase()}</td>
+                      <td class="align-left">${i.item.toUpperCase()}</td>
                       <td>R$ ${(i.valor_total / i.quantidade).toFixed(2).replace('.', ',')}</td>
                       <td>R$ ${i.valor_total.toFixed(2).replace('.', ',')}</td>
                     </tr>
                   `).join('')}
+                  
                   <tr>
                     <td>1</td>
-                    <td style="text-align: left; padding-left: 5px;">TAXA DE ENTREGA</td>
+                    <td class="align-left">TAXA DE ENTREGA</td>
                     <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
                     <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
                   </tr>
+
                   ${desconto > 0 ? `
                   <tr>
                       <td>1</td>
-                      <td style="text-align: left; padding-left: 5px; color:red;">DESCONTO PROMOCIONAL</td>
+                      <td class="align-left" style="color:red;">DESCONTO PROMOCIONAL</td>
                       <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
                       <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
                   </tr>` : ''}
+
                   <tr>
                     <td colspan="3" style="text-align: right; font-weight: 900;">TOTAL GERAL R$</td>
                     <td style="font-weight: 900; background-color: #eee;">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
@@ -408,11 +380,12 @@ const OrderManagement: React.FC = () => {
                 </tbody>
               </table>
 
-              <div class="clauses" style="font-size: 10px; text-align: justify;">
-                 <p><strong>Cláusula 1ª.</strong> O presente contrato tem como utensílios para a festa em bom estado de conservação e limpeza.</p>
-                 <p><strong>Cláusula 2ª.</strong> É vedado ao LOCATÁRIO transferir ou sublocar os bens.</p>
-                 <p><strong>Cláusula 3ª.</strong> A locação terá duração conforme datas descritas abaixo.</p>
-                 <p><strong>Cláusula 5ª.</strong> Na quebra será cobrado: Mesa R$80, Cadeira R$45, Prato R$15, Talher R$8, Taça R$10.</p>
+              <div class="clauses">
+                 <div class="clause-item"><strong>Cláusula 1ª.</strong> O presente contrato tem como utensílios para a festa, todas em bom estado de conservação e limpeza, de propriedade da LOCADORA, que serão locadas ao (à) LOCATÁRIO (a).</div>
+                 <div class="clause-item"><strong>Cláusula 2ª.</strong> É vedado ao (à) LOCATÁRIO (a) transferir, sublocar, ceder ou emprestar os bens ora locados a terceiros.</div>
+                 <div class="clause-item"><strong>Cláusula 3ª.</strong> A locação terá duração conforme data abaixo descrita quando os bens serão entregues pelo (a) LOCADOR (A) no endereço indicado pelo (a) LOCATÁRIO, e finalizando no dia combinada abaixo quando os bens serão retirados pelo (a) LOCADOR (a).</div>
+                 <div class="clause-item"><strong>Cláusula 4ª.</strong> A LOCADORA se isenta de qualquer erro de manuseio do usuário LOCATÁRIO, que venha acarretar acidentes durante a locação.</div>
+                 <div class="clause-item"><strong>Cláusula 5ª.</strong> Na quebra de utensílios será cobrado. (Mesa R$80,00 - cadeira R$ 45,00 - prato R$ 15,00 - talher unid. R$ 8,00 - taça R$ 10,00 - toalha Oxford 1,50mt. R$ 25,00 - toalha Oxford 2,80mt. 35,00 - toalha amas. 2,80mt R$ 25,00. (Outros produtos serão avaliados o valor)</div>
               </div>
 
               <div class="obs-container">
@@ -464,49 +437,58 @@ const OrderManagement: React.FC = () => {
     return Object.values(grupos).sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
   };
 
-  // --- NOVA LÓGICA: Filtrar reservas futuras do banco e preparar para o modal ---
   const exibirReservasFuturas = () => {
-    return reservasFuturasBanco.map((res) => {
+    const grupos: { [key: string]: any } = {};
+
+    reservasFuturasBanco.forEach((res) => {
         const cliente = clientes.find(c => c.id === res.cliente_id);
         const itemEstoque = estoque.find(e => e.id === res.item_id);
-        
-        // Agrupando para o modal de edição em caso de clique
-        const pedidoAgrupadoParaModal = {
-            nomeCliente: cliente?.cliente || 'ID: ' + res.cliente_id,
-            cliente_id: res.cliente_id,
-            telefone: cliente?.telefone,
-            dataDevolucao: res.data_devolucao,
-            itens: [{
-                id: res.id,
-                item: itemEstoque?.item || 'Item ' + res.item_id,
-                quantidade: res.quantidade,
-                data_evento: res.data_evento,
-                codigo_item: itemEstoque?.codigo_interno || 'S/C',
-                valor_total: (itemEstoque?.preco || 0) * res.quantidade
-            }]
-        };
+        const chave = `${res.cliente_id}_${res.data_evento}`;
 
-        return {
-            ...res,
-            nomeCliente: cliente?.cliente || 'ID: ' + res.cliente_id,
-            itemNome: itemEstoque?.item || 'Item ' + res.item_id,
-            objetoParaModal: pedidoAgrupadoParaModal
-        };
+        if (!grupos[chave]) {
+            grupos[chave] = {
+                id: res.id,
+                cliente_id: res.cliente_id,
+                nomeCliente: cliente?.cliente || 'ID: ' + res.cliente_id,
+                telefone: cliente?.telefone,
+                data_evento: res.data_evento,
+                data_devolucao: res.data_devolucao,
+                status: res.status,
+                itens: []
+            };
+        }
+
+        grupos[chave].itens.push({
+            id: res.id,
+            item: itemEstoque?.item || 'Item ' + res.item_id,
+            quantidade: res.quantidade,
+            data_evento: res.data_evento,
+            codigo_item: itemEstoque?.codigo_interno || 'S/C',
+            valor_total: (itemEstoque?.preco || 0) * res.quantidade
+        });
     });
+
+    return Object.values(grupos).map((grupo: any) => ({
+        ...grupo,
+        objetoParaModal: {
+            nomeCliente: grupo.nomeCliente,
+            cliente_id: grupo.cliente_id,
+            telefone: grupo.telefone,
+            dataDevolucao: grupo.data_devolucao,
+            itens: grupo.itens,
+            observacoes: 'Reserva Futura'
+        }
+    }));
   };
 
-  // NOVA FUNÇÃO: CANCELAR RESERVA FUTURA
   const handleCancelarReservaFutura = async (id: string, nomeCliente: string) => {
     if (!window.confirm(`Tem certeza que deseja CANCELAR e apagar permanentemente a reserva de ${nomeCliente}?`)) return;
-    
     try {
       setLoading(true);
       const { error } = await db.from('reservas_futuras').delete().eq('id', id);
-      
       if (error) throw error;
-      
       alert("Reserva futura cancelada com sucesso!");
-      fetchData(); // Atualiza a lista
+      fetchData();
     } catch (err: any) {
       alert("Erro ao cancelar reserva: " + err.message);
     } finally {
@@ -532,31 +514,22 @@ const OrderManagement: React.FC = () => {
     }
   };
 
-  // --- NOVA FUNÇÃO SOLICITADA: CANCELAR PEDIDO COM ESTORNO AO ESTOQUE ---
   const handleCancelarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja cancelar permanentemente o pedido de ${pedido.nomeCliente}? Todos os produtos retornarão ao estoque disponível.`)) return;
-
     try {
       setLoading(true);
-
       for (const item of pedido.itens) {
-        // 1. Recupera o estado atual do estoque para esse item específico
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
-
         if (est) {
-          // 2. Devolve a quantidade ao 'disponivel' e remove do 'reservado'
           await db.from('estoque').update({
             disponivel: est.disponivel + item.quantidade,
             reservado: Math.max(0, est.reservado - item.quantidade)
           }).eq('item', item.item);
         }
-
-        // 3. Deleta o registro da reserva na tabela 'reservas'
         await db.from('reservas').delete().eq('id', item.id);
       }
-
       alert("Pedido cancelado e produtos devolvidos ao estoque!");
-      fetchData(); // Atualiza a tela
+      fetchData(); 
     } catch (err: any) {
       alert("Erro ao cancelar pedido: " + err.message);
     } finally {
@@ -652,14 +625,7 @@ const OrderManagement: React.FC = () => {
                     <button onClick={() => gerarRomaneio(pedido)} className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-list-check"></i></button>
                     <button onClick={() => gerarContrato(pedido)} className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
                     
-                    {/* --- NOVO BOTÃO DE CANCELAR PEDIDO --- */}
-                    <button 
-                      onClick={() => handleCancelarPedido(pedido)} 
-                      className="w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"
-                      title="Cancelar Pedido e Estornar Estoque"
-                    >
-                      <i className="fa-solid fa-trash-can"></i>
-                    </button>
+                    <button onClick={() => handleCancelarPedido(pedido)} className="w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform" title="Cancelar Pedido e Estornar Estoque"><i className="fa-solid fa-trash-can"></i></button>
 
                     <button onClick={() => confirmarDevolucao(pedido)} className={`w-10 h-10 ${corBotaoConfirmar} text-white rounded-full flex items-center justify-center text-base shadow-md hover:scale-105 transition-transform`}>
                       <i className="fa-solid fa-check"></i>
@@ -695,7 +661,6 @@ const OrderManagement: React.FC = () => {
         </div>
 
         <aside className="w-full lg:w-[350px] shrink-0 space-y-8 sticky top-4">
-          
           <div>
             <div className="bg-[#a34b2f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
               <i className="fa-solid fa-earth-americas text-white text-xl"></i>
@@ -726,7 +691,6 @@ const OrderManagement: React.FC = () => {
                       taxa_entrega: 0,
                       desconto: 0
                     };
-
                     return (
                       <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
                         {estaBloqueado && (
@@ -761,7 +725,6 @@ const OrderManagement: React.FC = () => {
               )}
             </div>
           </div>
-
           <div>
             <div className="bg-[#2f4f4f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
               <i className="fa-solid fa-calendar-days text-white text-xl"></i>
@@ -773,43 +736,31 @@ const OrderManagement: React.FC = () => {
             <div className="bg-white border-2 border-[#2f4f4f]/20 rounded-b-[35px] p-8 shadow-xl min-h-[300px] flex flex-col items-center justify-start overflow-y-auto max-h-[500px]">
               {exibirReservasFuturas().length > 0 ? (
                 <div className="w-full space-y-4">
-                  {exibirReservasFuturas().map((res, i) => (
+                  {exibirReservasFuturas().map((res: any, i) => (
                     <div key={i} className="bg-gray-50 border border-gray-100 p-4 rounded-3xl">
                       <div className="flex justify-between items-start mb-2">
                         <div>
                            <h4 className="font-black text-sm uppercase text-gray-800">{res.nomeCliente}</h4>
                            <div className="flex gap-1 mt-1">
-                               {/* Botões de Ação Adicionados */}
                                <button onClick={() => abrirWhatsApp(res.objetoParaModal)} className="w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-brands fa-whatsapp"></i></button>
                                <button onClick={() => gerarRomaneio(res.objetoParaModal)} className="w-7 h-7 bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-list-check"></i></button>
                                <button onClick={() => gerarContrato(res.objetoParaModal)} className="w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
                                <button onClick={() => confirmarDevolucao(res.objetoParaModal)} className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-check"></i></button>
-                               
                            </div>
-                           <button 
-                             onClick={() => handleAbrirEdicao(res.objetoParaModal)} 
-                             className="mt-2 text-[8px] font-black uppercase bg-black text-white px-2 py-1 rounded-full hover:bg-gray-800 transition-colors"
-                           >
-                             Editar Pedido
-                           </button>
+                           <button onClick={() => handleAbrirEdicao(res.objetoParaModal)} className="mt-2 text-[8px] font-black uppercase bg-black text-white px-2 py-1 rounded-full hover:bg-gray-800 transition-colors">Editar Pedido</button>
                         </div>
                         <div className="flex flex-col items-end gap-2">
-                           <span className="bg-blue-100 text-blue-600 text-[9px] font-black px-2 py-1 rounded-lg">
-                             {formatarDataBR(res.data_evento)}
-                           </span>
-                           {/* --- BOTÃO CANCELAR RESERVA ADICIONADO ABAIXO DA DATA AZUL --- */}
-                           <button 
-                             onClick={() => handleCancelarReservaFutura(res.id, res.nomeCliente)}
-                             className="text-[8px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100 transition-all active:scale-95"
-                           >
-                             <i className="fa-solid fa-xmark mr-1"></i> Cancelar Reserva
-                           </button>
+                           <span className="bg-blue-100 text-blue-600 text-[9px] font-black px-2 py-1 rounded-lg">{formatarDataBR(res.data_evento)}</span>
+                           <button onClick={() => handleCancelarReservaFutura(res.id, res.nomeCliente)} className="text-[8px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100 transition-all active:scale-95"><i className="fa-solid fa-xmark mr-1"></i> Cancelar Reserva</button>
                         </div>
                       </div>
-                      <div className="bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
-                        <p className="text-[10px] font-bold text-gray-500 leading-tight">
-                           {res.quantidade}x {res.itemNome}
-                        </p>
+                      <div className="bg-white/50 p-3 rounded-xl border border-dashed border-gray-200 space-y-2">
+                        {res.itens.map((item: any, itemIdx: number) => (
+                          <div key={itemIdx} className="flex justify-between items-center border-b border-gray-100 last:border-0 pb-1 last:pb-0">
+                            <p className="text-[10px] font-bold text-gray-500 leading-tight">{item.quantidade}x {item.item}</p>
+                            <span className="text-[8px] font-black text-gray-300 uppercase italic">[{item.codigo_item}]</span>
+                          </div>
+                        ))}
                         <p className="text-[8px] font-black text-gray-300 mt-2 uppercase italic">Status: {res.status}</p>
                       </div>
                     </div>
@@ -820,7 +771,6 @@ const OrderManagement: React.FC = () => {
               )}
             </div>
           </div>
-
         </aside>
       </div>
 
@@ -830,25 +780,14 @@ const OrderManagement: React.FC = () => {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
-                
                 <div className="flex items-center gap-2 mt-1">
                     {editandoData ? (
-                        <input 
-                            type="date" 
-                            className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none"
-                            value={dadosPedidoFixo?.data_evento?.split('T')[0]} 
-                            onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_evento: e.target.value })}
-                            onBlur={() => setEditandoData(false)}
-                            autoFocus
-                        />
+                        <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" value={dadosPedidoFixo?.data_evento?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_evento: e.target.value })} onBlur={() => setEditandoData(false)} autoFocus />
                     ) : (
                         <p className="text-[10px] font-bold text-gray-400 uppercase">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
                     )}
-                    <button onClick={() => setEditandoData(!editandoData)} className="text-gray-400 hover:text-gray-600 transition-colors">
-                        <i className="fa-solid fa-pencil text-[9px]"></i>
-                    </button>
+                    <button onClick={() => setEditandoData(!editandoData)} className="text-gray-400 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
                 </div>
-
                 <div className="flex items-center gap-2 mt-1">
                   {editandoDevolucao ? (
                     <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" min={new Date().toISOString().split('T')[0]} value={dadosPedidoFixo?.data_devolucao?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_devolucao: e.target.value })} onBlur={() => setEditandoDevolucao(false)} autoFocus />
