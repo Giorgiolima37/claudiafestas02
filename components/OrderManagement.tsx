@@ -359,7 +359,7 @@ const OrderManagement: React.FC = () => {
                 locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, 
                 com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, 
                 Município: <strong>${cliente.municipio?.toUpperCase() || '_________________'}</strong>,
-                tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante
+                tem ajustado the presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
                 Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
@@ -532,6 +532,87 @@ const OrderManagement: React.FC = () => {
     }
   };
 
+  // --- NOVA FUNÇÃO SOLICITADA: CANCELAR PEDIDO COM ESTORNO AO ESTOQUE ---
+  const handleCancelarPedido = async (pedido: any) => {
+    if (!window.confirm(`Deseja cancelar permanentemente o pedido de ${pedido.nomeCliente}? Todos os produtos retornarão ao estoque disponível.`)) return;
+
+    try {
+      setLoading(true);
+
+      for (const item of pedido.itens) {
+        // 1. Recupera o estado atual do estoque para esse item específico
+        const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
+
+        if (est) {
+          // 2. Devolve a quantidade ao 'disponivel' e remove do 'reservado'
+          await db.from('estoque').update({
+            disponivel: est.disponivel + item.quantidade,
+            reservado: Math.max(0, est.reservado - item.quantidade)
+          }).eq('item', item.item);
+        }
+
+        // 3. Deleta o registro da reserva na tabela 'reservas'
+        await db.from('reservas').delete().eq('id', item.id);
+      }
+
+      alert("Pedido cancelado e produtos devolvidos ao estoque!");
+      fetchData(); // Atualiza a tela
+    } catch (err: any) {
+      alert("Erro ao cancelar pedido: " + err.message);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const confirmarDevolucao = async (pedido: any) => {
+    if (!window.confirm(`Confirmar devolução física de ${pedido.nomeCliente}?`)) return;
+    try {
+      for (const item of pedido.itens) {
+        await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
+        const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
+        if (est) {
+          await db.from('estoque').update({
+            disponivel: est.disponivel + item.quantidade,
+            reservado: Math.max(0, est.reservado - item.quantidade)
+          }).eq('item', item.item);
+        }
+      }
+      fetchData();
+      alert("Material devolvido com sucesso!");
+    } catch (err: any) { alert(err.message); }
+  };
+
+  const abrirWhatsApp = (pedido: any) => {
+    if (!pedido.telefone) return alert("Telefone não cadastrado.");
+    const numero = pedido.telefone.replace(/\D/g, '');
+    window.open(`https://wa.me/55${numero}`, '_blank');
+  };
+
+  const gerarRomaneio = (pedido: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <html>
+        <head><title>ROMANEIO - ${pedido.nomeCliente}</title>
+        <style>body { font-family: sans-serif; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }</style></head>
+        <body>
+          <h2 style="text-align: center">📋 ROMANEIO DE CONFERÊNCIA</h2>
+          <p><strong>OBS:</strong> ${pedido.observacoes || '--'}</p>
+          <table>
+            <thead><tr><th>CÓDIGO</th><th>ITEM</th><th>QTD</th></tr></thead>
+            <tbody>
+              ${pedido.itens.map((i: any) => `
+                <tr><td>${i.codigo_item || '--'}</td><td>${i.item.toUpperCase()}</td><td>${i.quantidade}</td></tr>
+              `).join('')}
+            </tbody>
+          </table>
+          <script>window.onload = () => { window.print(); window.close(); }</script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
+  };
+
   if (loading && !modalAberto) return <div className="p-20 text-center text-[#b24a2b] font-bold uppercase tracking-widest">Carregando Gestão...</div>;
 
   return (
@@ -570,6 +651,16 @@ const OrderManagement: React.FC = () => {
                     <button onClick={() => abrirWhatsApp(pedido)} className="w-9 h-9 bg-green-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-brands fa-whatsapp"></i></button>
                     <button onClick={() => gerarRomaneio(pedido)} className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-list-check"></i></button>
                     <button onClick={() => gerarContrato(pedido)} className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
+                    
+                    {/* --- NOVO BOTÃO DE CANCELAR PEDIDO --- */}
+                    <button 
+                      onClick={() => handleCancelarPedido(pedido)} 
+                      className="w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"
+                      title="Cancelar Pedido e Estornar Estoque"
+                    >
+                      <i className="fa-solid fa-trash-can"></i>
+                    </button>
+
                     <button onClick={() => confirmarDevolucao(pedido)} className={`w-10 h-10 ${corBotaoConfirmar} text-white rounded-full flex items-center justify-center text-base shadow-md hover:scale-105 transition-transform`}>
                       <i className="fa-solid fa-check"></i>
                     </button>
@@ -693,6 +784,7 @@ const OrderManagement: React.FC = () => {
                                <button onClick={() => gerarRomaneio(res.objetoParaModal)} className="w-7 h-7 bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-list-check"></i></button>
                                <button onClick={() => gerarContrato(res.objetoParaModal)} className="w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
                                <button onClick={() => confirmarDevolucao(res.objetoParaModal)} className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-check"></i></button>
+                               
                            </div>
                            <button 
                              onClick={() => handleAbrirEdicao(res.objetoParaModal)} 
