@@ -321,131 +321,23 @@ const OrderManagement: React.FC = () => {
         <head>
           <title>CONTRATO - ${pedido.nomeCliente}</title>
           <style>
-            @page { 
-                size: A4; 
-                margin: 0; /* Removemos a margem do navegador para controlar via CSS */
-            }
-            body { 
-                font-family: Arial, Helvetica, sans-serif; 
-                margin: 0; 
-                padding: 0;
-                width: 210mm; /* FORÇA A LARGURA A4 */
-                min-height: 297mm;
-                display: flex;
-                justify-content: center;
-                box-sizing: border-box;
-                padding-top: 5mm; /* Margem superior */
-            }
-            .page-container {
-                width: 200mm; /* Largura fixa do conteúdo (210mm - margens) */
-                padding: 10px;
-                border: 2px solid black; /* Borda preta grossa em volta de tudo */
-                box-sizing: border-box;
-                display: flex;
-                flex-direction: column;
-                min-height: 285mm; /* Altura para ocupar a folha quase toda */
-            }
-            .header {
-                margin-bottom: 15px;
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-            }
-            .company-info {
-                flex: 1;
-            }
-            .logo-box {
-                width: 80px;
-                height: 80px;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                margin-left: 10px;
-            }
-            .logo-box img {
-                max-width: 100%;
-                max-height: 100%;
-                object-fit: contain;
-                border-radius: 50%;
-            }
-            .company-name {
-                font-weight: 900;
-                font-size: 16px;
-                color: #1e40af; /* COR AZUL RESTAURADA */
-                text-decoration: underline;
-            }
-            .contract-title {
-                text-align: center;
-                font-weight: 900;
-                font-size: 18px;
-                margin: 15px 0;
-                letter-spacing: 2px;
-            }
-            .intro-text {
-                text-align: justify;
-                margin-bottom: 15px;
-                font-size: 11px;
-                line-height: 1.3;
-            }
-            table { 
-                width: 100%; /* Força a tabela a abrir até a borda */
-                border-collapse: collapse; 
-                margin-bottom: 15px; 
-                font-size: 11px;
-            }
-            th, td { 
-                border: 1px solid #000; 
-                padding: 4px; 
-                text-align: center; 
-            }
-            th {
-                background-color: #eee;
-                font-weight: 900;
-            }
-            .align-left { 
-                text-align: left; 
-                padding-left: 5px; 
-            }
-            .clauses {
-                text-align: justify;
-                font-size: 10px; 
-                margin-bottom: auto; /* Empurra o rodapé para baixo */
-            }
-            .clause-item {
-                margin-bottom: 5px;
-            }
-            .obs-container { 
-                border: 1px solid #000; 
-                padding: 5px; 
-                margin-top: 10px;
-                margin-bottom: 10px; 
-                font-size: 10px; 
-                min-height: 150px; /* CAIXA GRANDE IGUAL A FOTO */
-            }
-            .signatures {
-                display: flex;
-                justify-content: space-between;
-                margin-top: 20px;
-                margin-bottom: 5px;
-            }
-            .sig-box {
-                width: 40%;
-                text-align: center;
-                border-top: 1px solid #000;
-                padding-top: 5px;
-                font-weight: bold;
-                font-size: 10px;
-            }
-            .dates-info {
-                font-weight: 900;
-                margin-top: 10px;
-                margin-bottom: 15px;
-                font-size: 11px;
-            }
+            @page { size: A4; margin: 0; }
+            body { font-family: Arial, sans-serif; margin: 0; padding: 0; width: 210mm; min-height: 297mm; display: flex; justify-content: center; box-sizing: border-box; padding-top: 5mm; }
+            .page-container { width: 200mm; padding: 10px; border: 2px solid black; box-sizing: border-box; display: flex; flex-direction: column; min-height: 285mm; }
+            .header { margin-bottom: 15px; display: flex; justify-content: space-between; align-items: center; }
+            .company-name { font-weight: 900; font-size: 16px; color: #1e40af; text-decoration: underline; }
+            .contract-title { text-align: center; font-weight: 900; font-size: 18px; margin: 15px 0; letter-spacing: 2px; }
+            .intro-text { text-align: justify; margin-bottom: 15px; font-size: 11px; line-height: 1.3; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 15px; font-size: 11px; }
+            th, td { border: 1px solid #000; padding: 4px; text-align: center; }
+            th { background-color: #eee; font-weight: 900; }
+            .obs-container { border: 1px solid #000; padding: 5px; margin-top: 10px; margin-bottom: 10px; font-size: 10px; min-height: 150px; }
+            .signatures { display: flex; justify-content: space-between; margin-top: 20px; }
+            .sig-box { width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 10px; }
+            .dates-info { font-weight: 900; margin-top: 10px; margin-bottom: 15px; font-size: 11px; }
           </style>
         </head>
         <body>
-          
           <div class="page-container">
               <div class="header">
                  <div class="company-info">
@@ -456,7 +348,7 @@ const OrderManagement: React.FC = () => {
                     <div style="font-size: 9px; margin-top: 2px;">${new Date().toLocaleString('pt-BR')}</div>
                  </div>
                  <div class="logo-box">
-                    <img src="${logoImg}" alt="Logo">
+                    <img src="${logoImg}" alt="Logo" style="width: 80px; height: 80px; border-radius: 50%;">
                  </div>
               </div>
 
@@ -464,7 +356,9 @@ const OrderManagement: React.FC = () => {
 
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
-                locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, 
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, 
+                com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, 
+                Município: <strong>${cliente.municipio?.toUpperCase() || '_________________'}</strong>,
                 tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
@@ -489,44 +383,36 @@ const OrderManagement: React.FC = () => {
                   ${pedido.itens.map((i: any) => `
                     <tr>
                       <td>${i.quantidade}</td>
-                      <td class="align-left">${i.item.toUpperCase()}</td>
+                      <td style="text-align: left; padding-left: 5px;">${i.item.toUpperCase()}</td>
                       <td>R$ ${(i.valor_total / i.quantidade).toFixed(2).replace('.', ',')}</td>
                       <td>R$ ${i.valor_total.toFixed(2).replace('.', ',')}</td>
                     </tr>
                   `).join('')}
-                  
                   <tr>
                     <td>1</td>
-                    <td class="align-left">TAXA DE ENTREGA</td>
+                    <td style="text-align: left; padding-left: 5px;">TAXA DE ENTREGA</td>
                     <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
                     <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
                   </tr>
-
                   ${desconto > 0 ? `
                   <tr>
                       <td>1</td>
-                      <td class="align-left" style="color:red;">DESCONTO PROMOCIONAL</td>
+                      <td style="text-align: left; padding-left: 5px; color:red;">DESCONTO PROMOCIONAL</td>
                       <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
                       <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
                   </tr>` : ''}
-
                   <tr>
-                    <td colspan="3" style="text-align: right; font-weight: 900; border-right: none;">TOTAL GERAL R$</td>
+                    <td colspan="3" style="text-align: right; font-weight: 900;">TOTAL GERAL R$</td>
                     <td style="font-weight: 900; background-color: #eee;">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
                   </tr>
                 </tbody>
               </table>
 
-              <div class="clauses">
-                 <div class="clause-item"><strong>Cláusula 1ª.</strong> O presente contrato tem como utensílios para a festa, todas em bom estado de conservação e limpeza, de propriedade da LOCADORA, que serão locadas ao (à) LOCATÁRIO (a).</div>
-                 
-                 <div class="clause-item"><strong>Cláusula 2ª.</strong> É vedado ao (à) LOCATÁRIO (a) transferir, sublocar, ceder ou emprestar os bens ora locados a terceiros.</div>
-                 
-                 <div class="clause-item"><strong>Cláusula 3ª.</strong> A locação terá duração conforme data abaixo descrita quando os bens serão entregues pelo (a) LOCADOR (A) no endereço indicado pelo (a) LOCATÁRIO, e finalizando no dia combinada abaixo quando os bens serão retirados pelo (a) LOCADOR (a).</div>
-                 
-                 <div class="clause-item"><strong>Cláusula 4ª.</strong> A LOCADORA se isenta de qualquer erro de manuseio do usuário LOCATÁRIO, que venha acarretar acidentes durante a locação.</div>
-                 
-                 <div class="clause-item"><strong>Cláusula 5ª.</strong> Na quebra de utensílios será cobrado. (Mesa R$80,00 - cadeira R$ 45,00 - prato R$ 15,00 - talher unid. R$ 8,00 - taça R$ 10,00 - toalha Oxford 1,50mt. R$ 25,00 - toalha Oxford 2,80mt. 35,00 - toalha amas. 2,80mt R$ 25,00. (Outros produtos serão avaliados o valor)</div>
+              <div class="clauses" style="font-size: 10px; text-align: justify;">
+                 <p><strong>Cláusula 1ª.</strong> O presente contrato tem como utensílios para a festa em bom estado de conservação e limpeza.</p>
+                 <p><strong>Cláusula 2ª.</strong> É vedado ao LOCATÁRIO transferir ou sublocar os bens.</p>
+                 <p><strong>Cláusula 3ª.</strong> A locação terá duração conforme datas descritas abaixo.</p>
+                 <p><strong>Cláusula 5ª.</strong> Na quebra será cobrado: Mesa R$80, Cadeira R$45, Prato R$15, Talher R$8, Taça R$10.</p>
               </div>
 
               <div class="obs-container">
@@ -543,57 +429,7 @@ const OrderManagement: React.FC = () => {
                 <div class="sig-box">CLAUDIA FESTAS</div>
               </div>
           </div>
-
           <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
-        </body>
-      </html>
-    `);
-    printWindow.document.close();
-  };
-
-  const confirmarDevolucao = async (pedido: any) => {
-    if (!window.confirm(`Confirmar devolução física de ${pedido.nomeCliente}?`)) return;
-    try {
-      for (const item of pedido.itens) {
-        await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
-        const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
-        if (est) {
-          await db.from('estoque').update({
-            disponivel: est.disponivel + item.quantidade,
-            reservado: Math.max(0, est.reservado - item.quantidade)
-          }).eq('item', item.item);
-        }
-      }
-      fetchData();
-      alert("Material devolvido com sucesso!");
-    } catch (err: any) { alert(err.message); }
-  };
-
-  const abrirWhatsApp = (pedido: any) => {
-    if (!pedido.telefone) return alert("Telefone não cadastrado.");
-    const numero = pedido.telefone.replace(/\D/g, '');
-    window.open(`https://wa.me/55${numero}`, '_blank');
-  };
-
-  const gerarRomaneio = (pedido: any) => {
-    const printWindow = window.open('', '_blank');
-    if (!printWindow) return;
-    printWindow.document.write(`
-      <html>
-        <head><title>ROMANEIO - ${pedido.nomeCliente}</title>
-        <style>body { font-family: sans-serif; padding: 20px; } table { width: 100%; border-collapse: collapse; } th, td { border: 1px solid #ddd; padding: 10px; text-align: center; }</style></head>
-        <body>
-          <h2 style="text-align: center">📋 ROMANEIO DE CONFERÊNCIA</h2>
-          <p><strong>OBS:</strong> ${pedido.observacoes || '--'}</p>
-          <table>
-            <thead><tr><th>CÓDIGO</th><th>ITEM</th><th>QTD</th></tr></thead>
-            <tbody>
-              ${pedido.itens.map((i: any) => `
-                <tr><td>${i.codigo_item || '--'}</td><td>${i.item.toUpperCase()}</td><td>${i.quantidade}</td></tr>
-              `).join('')}
-            </tbody>
-          </table>
-          <script>window.onload = () => { window.print(); window.close(); }</script>
         </body>
       </html>
     `);

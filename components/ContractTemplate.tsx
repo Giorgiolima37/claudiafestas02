@@ -34,7 +34,10 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
         {/* Dados do Locatário */}
         <div className="mb-6 space-y-1">
           <p className="uppercase"><strong>LOCATÁRIO:</strong> {cliente.cliente} | <strong>ID:</strong> {cliente.id || '---'}</p>
-          <p className="uppercase"><strong>ENDEREÇO:</strong> {cliente.endereco || 'NÃO INFORMADO'}</p>
+          <p className="uppercase">
+            <strong>ENDEREÇO:</strong> {cliente.endereco || 'NÃO INFORMADO'} 
+            {cliente.municipio ? ` - ${cliente.municipio.toUpperCase()}` : ''}
+          </p>
           <p className="text-[10px] text-justify mt-2">
             Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830/0001.45 e como locatário, tem ajustado o presente contrato de locação de equipamentos e utensílios denominados diante descritos, sobre as cláusulas e condições seguintes.
           </p>
@@ -101,7 +104,7 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
           <div className="pt-6 border-t border-black uppercase mt-10">Claudia Festas</div>
         </div>
         <div className="flex flex-col justify-end">
-           <div className="pt-6 border-t border-black uppercase">Locatário</div>
+            <div className="pt-6 border-t border-black uppercase">Locatário</div>
         </div>
       </div>
     </div>
