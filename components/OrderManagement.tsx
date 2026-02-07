@@ -318,6 +318,7 @@ const OrderManagement: React.FC = () => {
                 justify-content: center;
                 box-sizing: border-box;
                 padding-top: 5mm; /* Margem superior */
+                padding-bottom: 5mm;
             }
             .page-container {
                 width: 200mm; /* Largura fixa do conteúdo (210mm - margens) */
@@ -392,7 +393,7 @@ const OrderManagement: React.FC = () => {
             .clauses {
                 text-align: justify;
                 font-size: 10px; 
-                margin-bottom: auto; /* Empurra o rodapé para baixo */
+                margin-bottom: 10px;
             }
             .clause-item {
                 margin-bottom: 5px;
@@ -403,7 +404,7 @@ const OrderManagement: React.FC = () => {
                 margin-top: 10px;
                 margin-bottom: 10px; 
                 font-size: 10px; 
-                min-height: 150px; /* CAIXA GRANDE IGUAL A FOTO */
+                min-height: 50px; /* CAIXA GRANDE IGUAL A FOTO */
             }
             .signatures {
                 display: flex;
