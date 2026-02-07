@@ -3,18 +3,11 @@ import { db } from '../services/supabase';
 
 const InventoryDashboard: React.FC = () => {
   const [itens, setItens] = useState<any[]>([]);
-  const [reservasAtivas, setReservasAtivas] = useState<any[]>([]);
-  const [reservasFuturasLista, setReservasFuturasLista] = useState<any[]>([]); // Novo estado
-  const [clientes, setClientes] = useState<any[]>([]); // Novo estado para nomes
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState(''); 
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
-
-  // Estados para Modal de Detalhes de Reservas Futuras
-  const [isReservaModalOpen, setIsReservaModalOpen] = useState(false);
-  const [itemSelecionadoReservas, setItemSelecionadoReservas] = useState<any>(null);
 
   // Estados para edição rápida do ID (Cód. Interno) direto no card
   const [editandoIdRapido, setEditandoIdRapido] = useState<number | null>(null);
@@ -23,21 +16,10 @@ const InventoryDashboard: React.FC = () => {
   const fetchEstoque = async () => {
     try {
       setLoading(true);
-      
-      const [resEstoque, resReservas, resFuturas, resClientes] = await Promise.all([
-        db.from('estoque').select('*').order('item'),
-        db.from('reservas').select('*').neq('status', 'Finalizado'),
-        db.from('reservas_futuras').select('*'),
-        db.from('cadastro').select('id, cliente')
-      ]);
-
-      if (resEstoque.error) throw resEstoque.error;
-      
-      setItens(resEstoque.data || []);
-      setReservasAtivas(resReservas.data || []);
-      setReservasFuturasLista(resFuturas.data || []);
-      setClientes(resClientes.data || []);
-
+      // Sincroniza todos os campos, incluindo o codigo_interno
+      const { data, error } = await db.from('estoque').select('*').order('item');
+      if (error) throw error;
+      setItens(data || []);
     } catch (err: any) {
       console.error("Erro ao sincronizar estoque:", err.message);
     } finally {
@@ -47,60 +29,12 @@ const InventoryDashboard: React.FC = () => {
 
   useEffect(() => { fetchEstoque(); }, []);
 
-  // --- NOVA LÓGICA: CALCULAR ESTOQUE REAL (HOJE) E FUTURO ---
-  const calcularStatus = (item: any) => {
-    const totalPatrimonio = (item.disponivel || 0) + (item.reservado || 0) + (item.alugado || 0);
-
-    const hoje = new Date();
-    hoje.setHours(0, 0, 0, 0);
-    const hojeTime = hoje.getTime();
-
-    let alugadoHoje = 0;
-
-    // Reservas da tabela principal (Hoje/Ativas)
-    reservasAtivas.filter(r => r.item === item.item).forEach(reserva => {
-        const inicio = new Date(reserva.data_evento);
-        const fim = new Date(reserva.data_devolucao);
-        inicio.setHours(0, 0, 0, 0);
-        fim.setHours(23, 59, 59, 999);
-
-        if (hojeTime >= inicio.getTime() && hojeTime <= fim.getTime()) {
-            alugadoHoje += (reserva.quantidade || 0);
-        } 
-    });
-
-    // Reservas da tabela Reservas Futuras (Apenas contagem)
-    const reservadoFuturo = reservasFuturasLista
-      .filter(rf => rf.item_id === item.id)
-      .reduce((acc, curr) => acc + (curr.quantidade || 0), 0);
-
-    return {
-        livreHoje: Math.max(0, totalPatrimonio - alugadoHoje),
-        alugadoHoje: alugadoHoje,
-        reservadoFuturo: reservadoFuturo
-    };
-  };
-
-  const abrirModalReservas = (item: any) => {
-    const detalhes = reservasFuturasLista
-      .filter(rf => rf.item_id === item.id)
-      .map(rf => ({
-        ...rf,
-        nomeCliente: clientes.find(c => c.id === rf.cliente_id)?.cliente || "Cliente não identificado"
-      }));
-    
-    setItemSelecionadoReservas({
-      nome: item.item,
-      reservas: detalhes
-    });
-    setIsReservaModalOpen(true);
-  };
-
+  // FUNÇÃO PARA SALVAR O CÓDIGO INTERNO (INTERLIGAÇÃO DIRETA COM SUPABASE)
   const salvarIdRapido = async (itemIdInterno: number) => {
     try {
       const { error } = await db
         .from('estoque')
-        .update({ codigo_interno: novoIdValor }) 
+        .update({ codigo_interno: novoIdValor }) // Alvo: coluna codigo_interno
         .eq('id', itemIdInterno);
 
       if (error) throw error;
@@ -130,7 +64,7 @@ const InventoryDashboard: React.FC = () => {
         item: editingItem.item,
         codigo_interno: editingItem.codigo_interno,
         disponivel: parseInt(editingItem.disponivel),
-        reservado: parseInt(editingItem.reservado), 
+        reservado: parseInt(editingItem.reservado), // Gravação manual do saldo em aluguel
         preco: parseFloat(editingItem.preco)
       })
       .eq('id', editingItem.id);
@@ -206,10 +140,7 @@ const InventoryDashboard: React.FC = () => {
       </header>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
-        {itensFiltrados.map((item) => {
-          const status = calcularStatus(item);
-
-          return (
+        {itensFiltrados.map((item) => (
           <div key={item.id} className="bg-white rounded-[45px] p-10 shadow-sm border border-gray-50 group hover:shadow-xl transition-all relative">
             
             <div className="absolute top-8 left-10">
@@ -263,72 +194,17 @@ const InventoryDashboard: React.FC = () => {
             
             <div className="space-y-4">
               <div className="w-full flex justify-between items-center p-6 bg-emerald-50/40 rounded-[30px] border border-emerald-100/30">
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Livre Hoje</span>
-                <span className="text-3xl font-black text-emerald-600 leading-none">{status.livreHoje}</span>
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Livre</span>
+                <span className="text-3xl font-black text-emerald-600 leading-none">{item.disponivel}</span>
               </div>
               <div className="flex justify-between items-center p-6 bg-indigo-50/40 rounded-[30px] border border-indigo-100/30">
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Em Aluguel (Hoje)</span>
-                <span className="text-3xl font-black text-indigo-600 leading-none">{status.alugadoHoje}</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Em Aluguel</span>
+                <span className="text-3xl font-black text-indigo-600 leading-none">{item.reservado}</span>
               </div>
-              
-              {/* CAMPO NOVO: RESERVAS FUTURAS COM CLIQUE */}
-              <button 
-                onClick={() => abrirModalReservas(item)}
-                className="w-full flex justify-between items-center p-6 bg-orange-50/40 rounded-[30px] border border-orange-100/30 hover:bg-orange-100/60 transition-colors"
-              >
-                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Reservas Futuras</span>
-                <span className="text-3xl font-black text-orange-600 leading-none">{status.reservadoFuturo}</span>
-              </button>
             </div>
           </div>
-          );
-        })}
+        ))}
       </div>
-
-      {/* JANELA DE RESERVAS FUTURAS */}
-      {isReservaModalOpen && itemSelecionadoReservas && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[60] p-4">
-          <div className="bg-white rounded-[50px] p-10 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
-            <div className="flex justify-between items-center mb-6">
-              <h2 className="text-2xl font-black text-gray-900 uppercase italic tracking-tighter">Agenda de Reservas</h2>
-              <button onClick={() => setIsReservaModalOpen(false)} className="bg-gray-100 p-2 rounded-full hover:bg-red-100 hover:text-red-500 transition-all">
-                <i className="fa-solid fa-xmark px-1"></i>
-              </button>
-            </div>
-            
-            <p className="text-[10px] font-black text-[#b24a2b] uppercase mb-4 tracking-widest">Material: {itemSelecionadoReservas.nome}</p>
-            
-            <div className="space-y-3 max-h-96 overflow-y-auto pr-2 custom-scrollbar">
-              {itemSelecionadoReservas.reservas.length > 0 ? (
-                itemSelecionadoReservas.reservas.map((res: any, idx: number) => (
-                  <div key={idx} className="bg-gray-50 p-5 rounded-3xl border border-gray-100 flex justify-between items-center">
-                    <div>
-                      <p className="text-xs font-black text-gray-800 uppercase">{res.nomeCliente}</p>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
-                        Evento: {new Date(res.data_evento).toLocaleDateString('pt-BR')}
-                      </p>
-                    </div>
-                    <div className="text-right">
-                      <span className="bg-[#b24a2b] text-white px-3 py-1 rounded-full text-[10px] font-black">
-                        {res.quantidade} UN
-                      </span>
-                    </div>
-                  </div>
-                ))
-              ) : (
-                <div className="text-center py-10 text-gray-400 font-bold uppercase text-[10px]">Nenhuma reserva futura para este item.</div>
-              )}
-            </div>
-
-            <button 
-              onClick={() => setIsReservaModalOpen(false)}
-              className="w-full mt-8 bg-gray-900 text-white py-5 rounded-3xl font-black uppercase text-[10px] tracking-widest hover:bg-black transition-all"
-            >
-              Fechar Visualização
-            </button>
-          </div>
-        </div>
-      )}
 
       {isEditModalOpen && editingItem && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-50 p-4">
