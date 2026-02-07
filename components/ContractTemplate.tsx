@@ -6,7 +6,15 @@ interface ContractProps {
 }
 
 const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
-  const totalGeral = pedido.itens.reduce((acc: number, cur: any) => acc + (cur.valor_total || 0), 0);
+  // Cálculo do subtotal dos itens
+  const subtotalItens = pedido.itens.reduce((acc: number, cur: any) => acc + (cur.valor_total || 0), 0);
+  
+  // Recupera frete e desconto (garantindo que sejam números)
+  const valorFrete = Number(pedido.frete || 0);
+  const valorDesconto = Number(pedido.desconto || 0);
+  
+  // Cálculo do Total Final: Itens + Frete - Desconto
+  const totalFinal = subtotalItens + valorFrete - valorDesconto;
   
   // Aumentamos a reserva de linhas para garantir o preenchimento visual
   const totalLinhasDesejadas = 12; 
@@ -34,13 +42,16 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
         {/* Dados do Locatário */}
         <div className="mb-6 space-y-1">
           <p className="uppercase"><strong>LOCATÁRIO:</strong> {cliente.cliente} | <strong>ID:</strong> {cliente.id || '---'}</p>
-          <p className="uppercase"><strong>ENDEREÇO:</strong> {cliente.endereco || 'NÃO INFORMADO'}</p>
+          <p className="uppercase">
+            <strong>ENDEREÇO:</strong> {cliente.endereco || 'NÃO INFORMADO'} 
+            {cliente.municipio ? ` - ${cliente.municipio.toUpperCase()}` : ''}
+          </p>
           <p className="text-[10px] text-justify mt-2">
             Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830/0001.45 e como locatário, tem ajustado o presente contrato de locação de equipamentos e utensílios denominados diante descritos, sobre as cláusulas e condições seguintes.
           </p>
         </div>
 
-        {/* Tabela de Bens com altura mínima forçada */}
+        {/* Tabela de Bens */}
         <table className="w-full border-collapse border border-black mb-6">
           <thead>
             <tr className="bg-gray-100 uppercase font-black text-center border border-black">
@@ -60,7 +71,7 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
               </tr>
             ))}
             
-            {/* Linhas vazias com altura fixa para "esticar" a tabela */}
+            {/* Linhas vazias */}
             {[...Array(linhasVazias)].map((_, i) => (
               <tr key={`empty-${i}`} className="h-8">
                 <td className="border border-black"></td>
@@ -70,10 +81,26 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
               </tr>
             ))}
 
+            {/* Linha de Frete (só aparece se houver valor) */}
+            {valorFrete > 0 && (
+              <tr className="h-8">
+                <td colSpan={3} className="border border-black p-1 text-right uppercase font-bold">Taxa de Entrega/Frete:</td>
+                <td className="border border-black p-1 text-center font-bold">R$ {valorFrete.toFixed(2).replace('.',',')}</td>
+              </tr>
+            )}
+
+            {/* Linha de Desconto (só aparece se houver valor) */}
+            {valorDesconto > 0 && (
+              <tr className="h-8 text-green-700">
+                <td colSpan={3} className="border border-black p-1 text-right uppercase font-bold">Desconto:</td>
+                <td className="border border-black p-1 text-center font-bold">- R$ {valorDesconto.toFixed(2).replace('.',',')}</td>
+              </tr>
+            )}
+
             <tr className="font-black text-lg">
               <td colSpan={3} className="border border-black p-2 text-right uppercase">Total Geral R$</td>
               <td className="border border-black p-2 text-center bg-gray-50 underline decoration-double">
-                {totalGeral.toFixed(2).replace('.',',')}
+                {totalFinal.toFixed(2).replace('.',',')}
               </td>
             </tr>
           </tbody>
@@ -89,7 +116,7 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
         </div>
       </div>
 
-      {/* Rodapé com Datas e Assinaturas sempre no fundo da página */}
+      {/* Rodapé com Datas e Assinaturas */}
       <div className="grid grid-cols-2 gap-20 text-center font-bold">
         <div className="space-y-4">
           <div className="bg-gray-100 p-2 border border-black uppercase text-[11px] text-left">
@@ -101,7 +128,7 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
           <div className="pt-6 border-t border-black uppercase mt-10">Claudia Festas</div>
         </div>
         <div className="flex flex-col justify-end">
-           <div className="pt-6 border-t border-black uppercase">Locatário</div>
+            <div className="pt-6 border-t border-black uppercase">Locatário</div>
         </div>
       </div>
     </div>
