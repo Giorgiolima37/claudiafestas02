@@ -301,10 +301,10 @@ const OrderManagement: React.FC = () => {
             .align-left { text-align: left; padding-left: 5px; }
             .clauses { text-align: justify; font-size: 10px; margin-bottom: auto; }
             .clause-item { margin-bottom: 5px; }
-            .obs-container { border: 1px solid #000; padding: 5px; margin-top: 10px; margin-bottom: 10px; font-size: 10px; min-height: 150px; }
-            .signatures { display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 5px; }
+            .obs-container { border: 1px solid #000; padding: 5px; margin-top: 10px; margin-bottom: 10px; font-size: 10px; min-height: 40px; }
+            .signatures { display: flex; justify-content: space-between; margin-top: 20px; margin-bottom: 350px; }
             .sig-box { width: 40%; text-align: center; border-top: 1px solid #000; padding-top: 5px; font-weight: bold; font-size: 10px; }
-            .dates-info { font-weight: 900; margin-top: 10px; margin-bottom: 15px; font-size: 11px; }
+            .dates-info { font-weight: 900; margin-top: 60px; margin-bottom: 5px; font-size: 11px; }
           </style>
         </head>
         <body>
