@@ -6,9 +6,8 @@ const ReservationForm: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // --- NOVA ESTADO PARA FILTRO DE CLIENTE ---
+  // --- ESTADO PARA FILTRO DE CLIENTE ---
   const [filtroCliente, setFiltroCliente] = useState('');
-  // ------------------------------------------
   
   // Estados para o Modal de Frete e Desconto
   const [showFreteModal, setShowFreteModal] = useState(false);
@@ -25,11 +24,10 @@ const ReservationForm: React.FC = () => {
   });
 
   const carregarDados = async () => {
-    // --- ALTERAÇÃO AQUI: ORDENANDO CLIENTES ALFABETICAMENTE ---
+    // ORDENANDO CLIENTES ALFABETICAMENTE
     const resClientes = await db.from('cadastro')
       .select('id, cliente')
-      .order('cliente', { ascending: true }); // Ordem A-Z
-    // ----------------------------------------------------------
+      .order('cliente', { ascending: true });
 
     const resEstoque = await db.from('estoque')
       .select('id, item, disponivel, reservado, preco, codigo_interno')
@@ -43,16 +41,13 @@ const ReservationForm: React.FC = () => {
     carregarDados();
   }, []);
 
-  // --- FUNÇÃO PARA OBTER O DIA DA SEMANA ---
   const obterDiaDaSemana = (dataString: string) => {
     if (!dataString) return '';
     const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-    // Cria a data ajustando o fuso horário para pegar o dia correto
     const date = new Date(dataString);
     date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
     return dias[date.getDay()];
   };
-  // -----------------------------------------
 
   const adicionarLinhaItem = () => {
     setItensSelecionados([...itensSelecionados, { item: '', quantidade: 1 }]);
@@ -86,7 +81,6 @@ const ReservationForm: React.FC = () => {
     setShowFreteModal(true);
   };
 
-  // --- FUNÇÃO: GERAR ARQUIVO DE CALENDÁRIO (.ics) ---
   const gerarArquivoCalendario = () => {
     const cliente = clientes.find(c => c.id == reservaGeral.clienteId)?.cliente || "Cliente";
     const itensDescricao = itensSelecionados.map(i => `${i.quantidade}x ${i.item}`).join('\\n');
@@ -113,69 +107,44 @@ const ReservationForm: React.FC = () => {
     setShowFreteModal(false);
 
     try {
-      // Data de Hoje para comparação (01/02/2026)
       const hoje = new Date().toISOString().split('T')[0];
-      const ehParaHoje = reservaGeral.data === hoje;
-
-      // --- VERIFICAÇÃO INFORMATIVA DE ESTOQUE ---
-      for (const selecionado of itensSelecionados) {
-        const itemEstoque = estoque.find(i => i.item === selecionado.item);
-        if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
-
-        const estoqueTotalPatrimonial = itemEstoque.disponivel + itemEstoque.reservado;
-
-        if (estoqueTotalPatrimonial < selecionado.quantidade) {
-          console.warn(`⚠️ Aviso: Item "${itemEstoque.item}" poderá faltar no dia do evento.`);
-        }
-      }
 
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
         const valorItemTotal = (selecionado.quantidade * itemEstoque.preco);
 
-        if (ehParaHoje) {
-          // --- LOGICA PARA RESERVA IMEDIATA (HOJE) ---
-          // Salva na tabela 'reservas' com status 'Em Aluguel'
-          const { error: erroReserva } = await db.from('reservas').insert([{
-            cliente_id: parseInt(reservaGeral.clienteId),
-            item: selecionado.item,
-            quantidade: selecionado.quantidade,
-            data_evento: reservaGeral.data,
-            data_devolucao: reservaGeral.dataDevolucao,
-            status: 'Em Aluguel',
-            forma_pagamento: 'Não Informado',
-            valor_total: valorItemTotal,
-            taxa_entrega: freteAjustado,
-            desconto: desconto, 
-            codigo_item: itemEstoque.codigo_interno || 'S/C',
-            observacoes: reservaGeral.observacoes 
-          }]);
+        // UNIFICAÇÃO: Independente da data, salvamos sempre na tabela 'reservas'
+        // Definimos o status como 'Em Aluguel' se for para hoje, ou 'Pendente' se for futuro.
+        const statusReserva = reservaGeral.data === hoje ? 'Em Aluguel' : 'Pendente';
 
-          if (erroReserva) throw erroReserva;
+        const { error: erroReserva } = await db.from('reservas').insert([{
+          cliente_id: parseInt(reservaGeral.clienteId),
+          item: selecionado.item,
+          quantidade: selecionado.quantidade,
+          data_evento: reservaGeral.data,
+          data_devolucao: reservaGeral.dataDevolucao,
+          status: statusReserva,
+          forma_pagamento: 'Não Informado',
+          valor_total: valorItemTotal,
+          taxa_entrega: freteAjustado,
+          desconto: desconto, 
+          codigo_item: itemEstoque.codigo_interno || 'S/C',
+          observacoes: reservaGeral.observacoes // SALVANDO A OBSERVAÇÃO AQUI
+        }]);
 
-          // Subtrai do estoque disponível imediatamente
-          await db.from('estoque').update({ 
-            disponivel: itemEstoque.disponivel - selecionado.quantidade,
-            reservado: itemEstoque.reservado + selecionado.quantidade 
-          }).eq('id', itemEstoque.id);
+        if (erroReserva) throw erroReserva;
 
-        } else {
-          // --- LOGICA PARA RESERVA FUTURA ---
-          const { error: erroFutura } = await db.from('reservas_futuras').insert([{
-            cliente_id: parseInt(reservaGeral.clienteId),
-            item_id: itemEstoque.id,
-            quantidade: selecionado.quantidade,
-            data_evento: reservaGeral.data,
-            data_devolucao: reservaGeral.dataDevolucao,
-            status: 'Agendada'
-          }]);
-
-          if (erroFutura) throw erroFutura;
+        // Se for para hoje, já damos baixa no estoque disponível
+        if (reservaGeral.data === hoje) {
+            await db.from('estoque').update({ 
+                disponivel: itemEstoque.disponivel - selecionado.quantidade,
+                reservado: itemEstoque.reservado + selecionado.quantidade 
+            }).eq('id', itemEstoque.id);
         }
 
-        // REGISTRA A ENTRADA NO CAIXA (PARA AMBOS OS CASOS)
+        // REGISTRA A ENTRADA NO CAIXA
         await db.from('movimentacao_caixa').insert([{
-            descricao: `Reserva ${ehParaHoje ? 'Imediata' : 'Futura'}: ${selecionado.item}`,
+            descricao: `Reserva (${statusReserva}): ${selecionado.item}`,
             valor: valorItemTotal,
             tipo: 'Receita',
             cliente_id: parseInt(reservaGeral.clienteId),
@@ -186,7 +155,7 @@ const ReservationForm: React.FC = () => {
       // REGISTROS ADICIONAIS DE FINANCEIRO (FRETE E DESCONTO)
       if (freteAjustado > 0) {
         await db.from('movimentacao_caixa').insert([{
-          descricao: `Taxa de Entrega - Pedido Cliente ID: ${reservaGeral.clienteId}`,
+          descricao: `Taxa de Entrega - Cliente ID: ${reservaGeral.clienteId}`,
           valor: freteAjustado,
           tipo: 'Receita',
           cliente_id: parseInt(reservaGeral.clienteId),
@@ -196,7 +165,7 @@ const ReservationForm: React.FC = () => {
 
       if (desconto > 0) {
         await db.from('movimentacao_caixa').insert([{
-          descricao: `Desconto Aplicado - Pedido Cliente ID: ${reservaGeral.clienteId}`,
+          descricao: `Desconto Aplicado - Cliente ID: ${reservaGeral.clienteId}`,
           valor: desconto,
           tipo: 'Despesa',
           cliente_id: parseInt(reservaGeral.clienteId),
@@ -204,13 +173,13 @@ const ReservationForm: React.FC = () => {
         }]);
       }
 
-      alert(ehParaHoje ? "🎉 Aluguel IMEDIATO finalizado! Estoque atualizado." : "🎉 Reserva FUTURA agendada!");
+      alert("🎉 Pedido finalizado com sucesso e unificado na Gestão!");
 
       if(window.confirm("Deseja adicionar à agenda do computador?")) {
           gerarArquivoCalendario();
       }
       
-      // RESET DE ESTADOS APÓS SUCESSO
+      // RESET DE ESTADOS
       setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
@@ -396,14 +365,6 @@ const ReservationForm: React.FC = () => {
                   <span>R$ {(calcularSubtotal() + freteAjustado - desconto).toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
-
-              <button 
-                type="button" 
-                onClick={gerarArquivoCalendario}
-                className="w-full p-3 mb-2 bg-blue-50 text-blue-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
-              >
-                <i className="fa-solid fa-calendar-days"></i> Baixar Arquivo de Agenda
-              </button>
 
               <div className="flex gap-3 pt-2">
                 <button 

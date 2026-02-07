@@ -291,28 +291,28 @@ const OrderManagement: React.FC = () => {
           <style>
             @page { 
                 size: A4; 
-                margin: 0; /* Removemos a margem do navegador para controlar via CSS */
+                margin: 0;
             }
             body { 
                 font-family: Arial, Helvetica, sans-serif; 
                 margin: 0; 
                 padding: 0;
-                width: 210mm; /* FORÇA A LARGURA A4 */
+                width: 210mm;
                 min-height: 107mm;
                 display: flex;
                 justify-content: center;
                 box-sizing: border-box;
-                padding-top: 5mm; /* Margem superior */
+                padding-top: 5mm;
                 padding-bottom: 5mm;
             }
             .page-container {
-                width: 200mm; /* Largura fixa do conteúdo (210mm - margens) */
+                width: 200mm;
                 padding: 10px;
-                border: 2px solid black; /* Borda preta grossa em volta de tudo */
+                border: 2px solid black;
                 box-sizing: border-box;
                 display: flex;
                 flex-direction: column;
-                min-height: 105mm; /* Altura para ocupar a folha quase toda */
+                min-height: 105mm;
             }
             .header {
                 margin-bottom: 15px;
@@ -340,7 +340,7 @@ const OrderManagement: React.FC = () => {
             .company-name {
                 font-weight: 900;
                 font-size: 16px;
-                color: #1e40af; /* COR AZUL RESTAURADA */
+                color: #1e40af;
                 text-decoration: underline;
             }
             .contract-title {
@@ -357,7 +357,7 @@ const OrderManagement: React.FC = () => {
                 line-height: 1.3;
             }
             table { 
-                width: 100%; /* Força a tabela a abrir até a borda */
+                width: 100%;
                 border-collapse: collapse; 
                 margin-bottom: 15px; 
                 font-size: 11px;
@@ -389,7 +389,7 @@ const OrderManagement: React.FC = () => {
                 margin-top: 10px;
                 margin-bottom: 10px; 
                 font-size: 10px; 
-                min-height: 50px; /* CAIXA GRANDE IGUAL A FOTO */
+                min-height: 50px;
             }
             .signatures {
                 display: flex;
@@ -441,8 +441,8 @@ const OrderManagement: React.FC = () => {
               </div>
 
               <div style="font-weight: 900; font-size: 11px; margin-bottom: 2px; display: flex; justify-content: space-between;">
-                  <span>DESCRIÇÃO DO BEM</span>
-                  <span>Telefone do cliente: ${pedido.telefone || cliente.telefone || '_____________'}</span>
+                 <span>DESCRIÇÃO DO BEM</span>
+                 <span>Telefone do cliente: ${pedido.telefone || cliente.telefone || '_____________'}</span>
               </div>
 
               <table>
@@ -523,6 +523,8 @@ const OrderManagement: React.FC = () => {
   const pedidosAgrupadosEFiltrados = () => {
     const pendentes = reservas.filter(r => r.status?.toLowerCase() !== 'finalizado');
     const grupos: { [key: string]: any } = {};
+    
+    // Processar reservas normais (pendentes)
     pendentes.forEach(r => {
       const cliente = clientes.find(c => c.id === r.cliente_id);
       const nomeCliente = cliente ? cliente.cliente : 'Desconhecido';
@@ -545,50 +547,45 @@ const OrderManagement: React.FC = () => {
         grupos[chave].itens.push(r);
       }
     });
-    return Object.values(grupos).sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
-  };
 
-  const exibirReservasFuturas = () => {
-    const grupos: { [key: string]: any } = {};
-    reservasFuturasBanco.forEach((res) => {
-        const cliente = clientes.find(c => c.id === res.cliente_id);
-        const itemEstoque = estoque.find(e => e.id === res.item_id);
+    // UNIFICAR: Processar reservas_futuras do banco e adicionar à lista principal
+    reservasFuturasBanco.forEach(res => {
+      const cliente = clientes.find(c => c.id === res.cliente_id);
+      const nomeCliente = cliente ? cliente.cliente : 'ID: ' + res.cliente_id;
+      const bateBusca = !busca || nomeCliente.toLowerCase().includes(busca.toLowerCase()) || String(res.cliente_id).includes(busca);
+      
+      if (bateBusca && (!filtroUrgentes || verificarUrgencia(res.data_devolucao))) {
         const chave = `${res.cliente_id}_${res.data_evento}`;
-
         if (!grupos[chave]) {
-            grupos[chave] = {
-                id: res.id,
-                cliente_id: res.cliente_id,
-                nomeCliente: cliente?.cliente || 'ID: ' + res.cliente_id,
-                telefone: cliente?.telefone,
-                data_evento: res.data_evento,
-                data_devolucao: res.data_devolucao,
-                status: res.status,
-                itens: []
-            };
+          grupos[chave] = {
+            nomeCliente,
+            telefone: cliente?.telefone,
+            dataDevolucao: res.data_devolucao,
+            cliente_id: res.cliente_id,
+            idPersonalizado: cliente?.['id-client'],
+            observacoes: 'Reserva Salva no Banco',
+            statusEstoque: 'pendente',
+            origem: 'banco',
+            isFutura: true, // Tag interna
+            idFutura: res.id, // ID para cancelamento
+            itens: []
+          };
         }
-
+        
+        // Encontrar info do estoque para compor o item
+        const itemEstoque = estoque.find(e => e.id === res.item_id);
         grupos[chave].itens.push({
-            id: res.id,
-            item: itemEstoque?.item || 'Item ' + res.item_id,
-            quantidade: res.quantidade,
-            data_evento: res.data_evento,
-            codigo_item: itemEstoque?.codigo_interno || 'S/C',
-            valor_total: (itemEstoque?.preco || 0) * res.quantidade
+          id: res.id,
+          item: itemEstoque?.item || 'Item ' + res.item_id,
+          quantidade: res.quantidade,
+          data_evento: res.data_evento,
+          codigo_item: itemEstoque?.codigo_interno || 'S/C',
+          valor_total: (itemEstoque?.preco || 0) * res.quantidade
         });
+      }
     });
 
-    return Object.values(grupos).map((grupo: any) => ({
-        ...grupo,
-        objetoParaModal: {
-            nomeCliente: grupo.nomeCliente,
-            cliente_id: grupo.cliente_id,
-            telefone: grupo.telefone,
-            dataDevolucao: grupo.data_devolucao,
-            itens: grupo.itens,
-            observacoes: grupo.observacoes || '',
-        }
-    }));
+    return Object.values(grupos).sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
   };
 
   const handleCancelarReservaFutura = async (id: string, nomeCliente: string) => {
@@ -625,6 +622,11 @@ const OrderManagement: React.FC = () => {
   };
 
   const handleCancelarPedido = async (pedido: any) => {
+    // Se for uma reserva vinda da tabela 'reservas_futuras', chama o cancelamento específico
+    if (pedido.isFutura) {
+       return handleCancelarReservaFutura(pedido.idFutura, pedido.nomeCliente);
+    }
+
     if (!window.confirm(`Deseja cancelar permanentemente o pedido de ${pedido.nomeCliente}? Todos os produtos retornarão ao estoque disponível.`)) return;
     try {
       setLoading(true);
@@ -648,6 +650,8 @@ const OrderManagement: React.FC = () => {
   };
 
   const confirmarDevolucao = async (pedido: any) => {
+    if (pedido.isFutura) return alert("Esta é uma reserva salva no banco de dados. Para devolvê-la, ela precisa primeiro ser processada como um pedido ativo.");
+
     if (!window.confirm(`Confirmar devolução física de ${pedido.nomeCliente}?`)) return;
     try {
       for (const item of pedido.itens) {
@@ -727,6 +731,7 @@ const OrderManagement: React.FC = () => {
                     <div className="flex flex-wrap items-center gap-2">
                       {atrasado ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ EM BREVE</span> : <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
                       {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Online</span>}
+                      {pedido.isFutura && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-gray-800 text-white shadow-sm border border-gray-600">Reserva Futura</span>}
                     </div>
                     <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
                   </div>
@@ -832,52 +837,6 @@ const OrderManagement: React.FC = () => {
                 </div>
               ) : (
                 <div className="text-center mt-10 text-gray-300 uppercase font-black text-[9px]">Sem novos pedidos.</div>
-              )}
-            </div>
-          </div>
-          <div>
-            <div className="bg-[#2f4f4f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
-              <i className="fa-solid fa-calendar-days text-white text-xl"></i>
-              <div className="text-center">
-                <h2 className="text-white font-black uppercase italic tracking-wider leading-none">Reservas Futuras</h2>
-                <p className="text-white/60 text-[8px] font-bold uppercase mt-1">Conforme Banco de Dados</p>
-              </div>
-            </div>
-            <div className="bg-white border-2 border-[#2f4f4f]/20 rounded-b-[35px] p-8 shadow-xl min-h-[300px] flex flex-col items-center justify-start overflow-y-auto max-h-[500px]">
-              {exibirReservasFuturas().length > 0 ? (
-                <div className="w-full space-y-4">
-                  {exibirReservasFuturas().map((res: any, i) => (
-                    <div key={i} className="bg-gray-50 border border-gray-100 p-4 rounded-3xl">
-                      <div className="flex justify-between items-start mb-2">
-                        <div>
-                           <h4 className="font-black text-sm uppercase text-gray-800">{res.nomeCliente}</h4>
-                           <div className="flex gap-1 mt-1">
-                               <button onClick={() => abrirWhatsApp(res.objetoParaModal)} className="w-7 h-7 bg-green-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-brands fa-whatsapp"></i></button>
-                               <button onClick={() => gerarRomaneio(res.objetoParaModal)} className="w-7 h-7 bg-purple-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-list-check"></i></button>
-                               <button onClick={() => gerarContrato(res.objetoParaModal)} className="w-7 h-7 bg-blue-500 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
-                               <button onClick={() => confirmarDevolucao(res.objetoParaModal)} className="w-7 h-7 bg-green-600 text-white rounded-full flex items-center justify-center text-[10px] shadow-sm hover:scale-110 transition-transform"><i className="fa-solid fa-check"></i></button>
-                           </div>
-                           <button onClick={() => handleAbrirEdicao(res.objetoParaModal)} className="mt-2 text-[8px] font-black uppercase bg-black text-white px-2 py-1 rounded-full hover:bg-gray-800 transition-colors">Editar Pedido</button>
-                        </div>
-                        <div className="flex flex-col items-end gap-2">
-                           <span className="bg-blue-100 text-blue-600 text-[9px] font-black px-2 py-1 rounded-lg">{formatarDataBR(res.data_evento)}</span>
-                           <button onClick={() => handleCancelarReservaFutura(res.id, res.nomeCliente)} className="text-[8px] font-black uppercase text-red-500 hover:text-red-700 bg-red-50 px-2 py-1 rounded-md border border-red-100 transition-all active:scale-95"><i className="fa-solid fa-xmark mr-1"></i> Cancelar Reserva</button>
-                        </div>
-                      </div>
-                      <div className="bg-white/50 p-3 rounded-xl border border-dashed border-gray-200 space-y-2">
-                        {res.itens.map((item: any, itemIdx: number) => (
-                          <div key={itemIdx} className="flex justify-between items-center border-b border-gray-100 last:border-0 pb-1 last:pb-0">
-                            <p className="text-[10px] font-bold text-gray-500 leading-tight">{item.quantidade}x {item.item}</p>
-                            <span className="text-[8px] font-black text-gray-300 uppercase italic">[{item.codigo_item}]</span>
-                          </div>
-                        ))}
-                        <p className="text-[8px] font-black text-gray-300 mt-2 uppercase italic">Status: {res.status}</p>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              ) : (
-                <div className="text-center mt-10 text-gray-300 uppercase font-black text-[9px]">Nenhuma reserva futura salva.</div>
               )}
             </div>
           </div>
