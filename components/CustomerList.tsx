@@ -81,7 +81,6 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     }
   };
 
-  // --- FUNÇÃO PARA SALVAR BLOQUEIO COM MOTIVO ---
   const confirmarBloqueioComMotivo = async () => {
     if (!motivoTexto.trim()) return alert("Por favor, descreva o motivo.");
 
@@ -112,11 +111,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     const novoStatus = !cliente.lista_negra;
 
     if (novoStatus) {
-        // Abre o modal para digitar o motivo antes de bloquear
         setClienteParaBloqueio(cliente);
         setModalMotivoAberto(true);
     } else {
-        // Desbloqueia direto com confirmação
         if (!window.confirm(`Deseja remover ${cliente.cliente} da Lista Negra?`)) return;
         try {
             const { error } = await db
@@ -385,13 +382,13 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
               </button>
             </div>
 
-            {/* AJUSTE DE RESPONSIVIDADE: overflow-x-auto permite scroll no celular */}
             <div className="mx-4 md:mx-0 overflow-x-auto rounded-[30px] md:rounded-[40px] border border-gray-100 bg-white shadow-xl">
               <table className="w-full text-left border-collapse min-w-[600px] md:min-w-full">
                 <thead>
                   <tr className="bg-gray-50/50 uppercase text-[9px] font-black text-gray-400 tracking-[0.2em]">
                     <th className="p-5 md:p-8">Nome do Cliente</th>
                     <th className="p-5 md:p-8 hidden md:table-cell">Bairro</th>
+                    <th className="p-5 md:p-8 hidden md:table-cell">Município</th>
                     <th className="p-5 md:p-8">Contato / WhatsApp</th>
                     <th className="p-5 md:p-8 text-center hidden sm:table-cell">ID</th>
                     <th className="p-5 md:p-8 text-center hidden md:table-cell">MOTIVO</th>
@@ -408,12 +405,16 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         >
                           {item.cliente}
                         </button>
-                        {/* ID visível apenas no celular abaixo do nome se necessário */}
                         <p className="sm:hidden text-[8px] font-bold text-gray-400 mt-1">ID: {item['id-client'] || '---'}</p>
                       </td>
                       <td className="p-5 md:p-8 hidden md:table-cell">
                         <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
                           {item.bairro || '---'}
+                        </span>
+                      </td>
+                      <td className="p-5 md:p-8 hidden md:table-cell">
+                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                          {item.municipio || '---'}
                         </span>
                       </td>
                       <td className="p-5 md:p-8">

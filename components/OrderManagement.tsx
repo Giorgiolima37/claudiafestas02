@@ -650,12 +650,19 @@ const OrderManagement: React.FC = () => {
   };
 
   const confirmarDevolucao = async (pedido: any) => {
-    if (pedido.isFutura) return alert("Esta é uma reserva salva no banco de dados. Para devolvê-la, ela precisa primeiro ser processada como um pedido ativo.");
-
+    // REMOVIDO ALERTA DE BLOQUEIO PARA RESERVA FUTURA
     if (!window.confirm(`Confirmar devolução física de ${pedido.nomeCliente}?`)) return;
     try {
+      setLoading(true);
       for (const item of pedido.itens) {
-        await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
+        // Se for reserva_futura, deleta do banco. Se for reserva ativa, atualiza status para Finalizado.
+        if (pedido.isFutura) {
+           await db.from('reservas_futuras').delete().eq('id', item.id);
+        } else {
+           await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
+        }
+
+        // Devolve os itens ao estoque disponível
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
         if (est) {
           await db.from('estoque').update({
@@ -665,8 +672,12 @@ const OrderManagement: React.FC = () => {
         }
       }
       fetchData();
-      alert("Material devolvido com sucesso!");
-    } catch (err: any) { alert(err.message); }
+      alert("Material devolvido e estoque atualizado com sucesso!");
+    } catch (err: any) { 
+      alert("Erro ao processar devolução: " + err.message); 
+    } finally {
+      setLoading(false);
+    }
   };
 
   const abrirWhatsApp = (pedido: any) => {
