@@ -20,13 +20,6 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
   const totalLinhasDesejadas = 12; 
   const linhasVazias = Math.max(0, totalLinhasDesejadas - pedido.itens.length);
 
-  // Formatação da data atual para o rodapé
-  const dataHoje = new Date().toLocaleDateString('pt-BR', {
-    day: '2-digit',
-    month: 'long',
-    year: 'numeric'
-  });
-
   return (
     /* Definimos uma largura fixa e altura mínima para simular o papel A4 */
     <div className="w-[794px] min-h-[1123px] mx-auto p-12 bg-white text-black font-serif text-[12px] leading-tight flex flex-col justify-between">
@@ -88,7 +81,7 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
               </tr>
             ))}
 
-            {/* Linha de Frete */}
+            {/* Linha de Frete (só aparece se houver valor) */}
             {valorFrete > 0 && (
               <tr className="h-8">
                 <td colSpan={3} className="border border-black p-1 text-right uppercase font-bold">Taxa de Entrega/Frete:</td>
@@ -96,7 +89,7 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
               </tr>
             )}
 
-            {/* Linha de Desconto */}
+            {/* Linha de Desconto (só aparece se houver valor) */}
             {valorDesconto > 0 && (
               <tr className="h-8 text-green-700">
                 <td colSpan={3} className="border border-black p-1 text-right uppercase font-bold">Desconto:</td>
@@ -121,21 +114,16 @@ const ContractTemplate: React.FC<ContractProps> = ({ pedido, cliente }) => {
           <p><strong>Cláusula 4ª:</strong> A LOCADORA se isenta de qualquer erro de manuseio que venha acarretar acidentes durante a locação.</p>
           <p><strong>Cláusula 5ª:</strong> Na quebra de utensílios será cobrado o valor de reposição conforme tabela vigente (Mesa R$ 80, Cadeira R$ 45, etc).</p>
         </div>
-
-        {/* Localidade e Data */}
-        <div className="text-right italic mb-8 pr-4">
-          {cliente.municipio ? cliente.municipio.toUpperCase() : '__________'}, {dataHoje}
-        </div>
       </div>
 
       {/* Rodapé com Datas e Assinaturas */}
       <div className="grid grid-cols-2 gap-20 text-center font-bold">
         <div className="space-y-4">
           <div className="bg-gray-100 p-2 border border-black uppercase text-[11px] text-left">
-            ENTREGAR: {pedido.itens[0]?.data_evento ? new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR') : '--/--/----'}
+            ENTREGAR: {new Date(pedido.itens[0].data_evento).toLocaleDateString('pt-BR')}
           </div>
           <div className="bg-gray-100 p-2 border border-black uppercase text-[11px] text-left">
-            RECOLHER: {pedido.dataDevolucao ? new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR') : '--/--/----'}
+            RECOLHER: {new Date(pedido.dataDevolucao).toLocaleDateString('pt-BR')}
           </div>
           <div className="pt-6 border-t border-black uppercase mt-10">Claudia Festas</div>
         </div>
