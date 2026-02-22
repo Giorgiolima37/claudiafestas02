@@ -6,9 +6,8 @@ const ReservationForm: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [loading, setLoading] = useState(false);
   
-  // --- NOVA ESTADO PARA FILTRO DE CLIENTE ---
+  // --- ESTADO PARA FILTRO DE CLIENTE ---
   const [filtroCliente, setFiltroCliente] = useState('');
-  // ------------------------------------------
   
   // Estados para o Modal de Frete e Desconto
   const [showFreteModal, setShowFreteModal] = useState(false);
@@ -25,11 +24,10 @@ const ReservationForm: React.FC = () => {
   });
 
   const carregarDados = async () => {
-    // --- ALTERAÇÃO AQUI: ORDENANDO CLIENTES ALFABETICAMENTE ---
+    // ORDENANDO CLIENTES ALFABETICAMENTE
     const resClientes = await db.from('cadastro')
       .select('id, cliente')
-      .order('cliente', { ascending: true }); // Ordem A-Z
-    // ----------------------------------------------------------
+      .order('cliente', { ascending: true });
 
     const resEstoque = await db.from('estoque')
       .select('id, item, disponivel, reservado, preco, codigo_interno')
@@ -43,16 +41,13 @@ const ReservationForm: React.FC = () => {
     carregarDados();
   }, []);
 
-  // --- FUNÇÃO PARA OBTER O DIA DA SEMANA ---
   const obterDiaDaSemana = (dataString: string) => {
     if (!dataString) return '';
     const dias = ['Domingo', 'Segunda-feira', 'Terça-feira', 'Quarta-feira', 'Quinta-feira', 'Sexta-feira', 'Sábado'];
-    // Cria a data ajustando o fuso horário para pegar o dia correto
     const date = new Date(dataString);
     date.setMinutes(date.getMinutes() + date.getTimezoneOffset());
     return dias[date.getDay()];
   };
-  // -----------------------------------------
 
   const adicionarLinhaItem = () => {
     setItensSelecionados([...itensSelecionados, { item: '', quantidade: 1 }]);
@@ -86,7 +81,6 @@ const ReservationForm: React.FC = () => {
     setShowFreteModal(true);
   };
 
-  // --- FUNÇÃO: GERAR ARQUIVO DE CALENDÁRIO (.ics) ---
   const gerarArquivoCalendario = () => {
     const cliente = clientes.find(c => c.id == reservaGeral.clienteId)?.cliente || "Cliente";
     const itensDescricao = itensSelecionados.map(i => `${i.quantidade}x ${i.item}`).join('\\n');
@@ -97,18 +91,7 @@ const ReservationForm: React.FC = () => {
     const inicio = formatData(reservaGeral.data);
     const fim = formatData(reservaGeral.dataDevolucao);
 
-    const icsContent = `BEGIN:VCALENDAR
-VERSION:2.0
-PRODID:-//ClaudiaFestas//Gestao//PT
-BEGIN:VEVENT
-UID:${new Date().getTime()}@claudiafestas.com
-DTSTAMP:${formatData(new Date().toISOString().split('T')[0])}T000000Z
-DTSTART;VALUE=DATE:${inicio}
-DTEND;VALUE=DATE:${fim}
-SUMMARY:${titulo}
-DESCRIPTION:${descricao}
-END:VEVENT
-END:VCALENDAR`;
+    const icsContent = `BEGIN:VCALENDAR\nVERSION:2.0\nPRODID:-//ClaudiaFestas//Gestao//PT\nBEGIN:VEVENT\nUID:${new Date().getTime()}@claudiafestas.com\nDTSTAMP:${formatData(new Date().toISOString().split('T')[0])}T000000Z\nDTSTART;VALUE=DATE:${inicio}\nDTEND;VALUE=DATE:${fim}\nSUMMARY:${titulo}\nDESCRIPTION:${descricao}\nEND:VEVENT\nEND:VCALENDAR`;
 
     const blob = new Blob([icsContent], { type: 'text/calendar;charset=utf-8' });
     const link = document.createElement('a');
@@ -124,51 +107,44 @@ END:VCALENDAR`;
     setShowFreteModal(false);
 
     try {
-      // --- REMOÇÃO DA TRAVA DE ESTOQUE ---
-      // A verificação agora é apenas informativa, permitindo estoque negativo
-      for (const selecionado of itensSelecionados) {
-        const itemEstoque = estoque.find(i => i.item === selecionado.item);
-        if (!itemEstoque) throw new Error(`Item "${selecionado.item}" não encontrado.`);
-
-        const estoqueTotalPatrimonial = itemEstoque.disponivel + itemEstoque.reservado;
-
-        if (estoqueTotalPatrimonial < selecionado.quantidade) {
-          console.warn(`⚠️ Aviso: Item "${itemEstoque.item}" ficará com saldo negativo.`);
-          // A linha abaixo foi removida para liberar a reserva:
-          // alert(`🚨 ESTOQUE INSUFICIENTE!\n\nMaterial: ${itemEstoque.item}...`); return;
-        }
-      }
-      // --------------------------------------------------
+      const hoje = new Date().toISOString().split('T')[0];
 
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
-        const valorItemTotal = selecionado.quantidade * itemEstoque.preco;
+        const valorItemTotal = (selecionado.quantidade * itemEstoque.preco);
 
-        // AGORA SALVA NA COLUNA "desconto" QUE VOCÊ CRIOU
+        // UNIFICAÇÃO: Independente da data, salvamos sempre na tabela 'reservas'
+        // Definimos o status como 'Em Aluguel' se for para hoje, ou 'Pendente' se for futuro.
+        const statusReserva = reservaGeral.data === hoje ? 'Em Aluguel' : 'Pendente';
+
         const { error: erroReserva } = await db.from('reservas').insert([{
           cliente_id: parseInt(reservaGeral.clienteId),
           item: selecionado.item,
           quantidade: selecionado.quantidade,
           data_evento: reservaGeral.data,
           data_devolucao: reservaGeral.dataDevolucao,
-          status: 'Pendente',
+          status: statusReserva,
           forma_pagamento: 'Não Informado',
           valor_total: valorItemTotal,
           taxa_entrega: freteAjustado,
           desconto: desconto, 
           codigo_item: itemEstoque.codigo_interno || 'S/C',
-          observacoes: reservaGeral.observacoes 
+          observacoes: reservaGeral.observacoes // SALVANDO A OBSERVAÇÃO AQUI
         }]);
 
         if (erroReserva) throw erroReserva;
 
-        await db.from('estoque').update({ 
-          disponivel: itemEstoque.disponivel - selecionado.quantidade,
-          reservado: itemEstoque.reservado + selecionado.quantidade 
-        }).eq('id', itemEstoque.id);
+        // Se for para hoje, já damos baixa no estoque disponível
+        if (reservaGeral.data === hoje) {
+            await db.from('estoque').update({ 
+                disponivel: itemEstoque.disponivel - selecionado.quantidade,
+                reservado: itemEstoque.reservado + selecionado.quantidade 
+            }).eq('id', itemEstoque.id);
+        }
 
+        // REGISTRA A ENTRADA NO CAIXA
         await db.from('movimentacao_caixa').insert([{
-            descricao: `Reserva Múltipla: ${selecionado.item}`,
+            descricao: `Reserva (${statusReserva}): ${selecionado.item}`,
             valor: valorItemTotal,
             tipo: 'Receita',
             cliente_id: parseInt(reservaGeral.clienteId),
@@ -176,9 +152,10 @@ END:VCALENDAR`;
         }]);
       }
 
+      // REGISTROS ADICIONAIS DE FINANCEIRO (FRETE E DESCONTO)
       if (freteAjustado > 0) {
         await db.from('movimentacao_caixa').insert([{
-          descricao: `Taxa de Entrega - Pedido Cliente ID: ${reservaGeral.clienteId}`,
+          descricao: `Taxa de Entrega - Cliente ID: ${reservaGeral.clienteId}`,
           valor: freteAjustado,
           tipo: 'Receita',
           cliente_id: parseInt(reservaGeral.clienteId),
@@ -188,7 +165,7 @@ END:VCALENDAR`;
 
       if (desconto > 0) {
         await db.from('movimentacao_caixa').insert([{
-          descricao: `Desconto Aplicado - Pedido Cliente ID: ${reservaGeral.clienteId}`,
+          descricao: `Desconto Aplicado - Cliente ID: ${reservaGeral.clienteId}`,
           valor: desconto,
           tipo: 'Despesa',
           cliente_id: parseInt(reservaGeral.clienteId),
@@ -196,15 +173,18 @@ END:VCALENDAR`;
         }]);
       }
 
-      if(window.confirm("🎉 Pedido Salvo! Deseja adicionar à agenda do computador?")) {
+      alert("🎉 Pedido finalizado com sucesso e unificado na Gestão!");
+
+      if(window.confirm("Deseja adicionar à agenda do computador?")) {
           gerarArquivoCalendario();
       }
       
+      // RESET DE ESTADOS
       setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
-      setFiltroCliente(''); // Reseta o filtro
+      setFiltroCliente('');
       await carregarDados();
       
     } catch (err: any) {
@@ -224,7 +204,6 @@ END:VCALENDAR`;
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             
-            {/* --- INPUT DE BUSCA ADICIONADO --- */}
             <input 
               type="text" 
               placeholder="🔍 Procurar cliente..." 
@@ -232,7 +211,6 @@ END:VCALENDAR`;
               value={filtroCliente}
               onChange={(e) => setFiltroCliente(e.target.value)}
             />
-            {/* --------------------------------- */}
 
             <select 
               required 
@@ -244,7 +222,7 @@ END:VCALENDAR`;
               {clientes
                 .filter(c => 
                   c.cliente.toLowerCase().includes(filtroCliente.toLowerCase()) || 
-                  c.id.toString().includes(filtroCliente) // LÓGICA DE BUSCA POR ID ADICIONADA
+                  c.id.toString().includes(filtroCliente)
                 )
                 .map(c => <option key={c.id} value={c.id}>ID: {c.id} - {c.cliente}</option>)
               }
@@ -339,7 +317,6 @@ END:VCALENDAR`;
         </div>
       </form>
 
-      {/* MODAL DE CONFIRMAÇÃO DE FRETE E DESCONTO */}
       {showFreteModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-[40px] p-8 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
@@ -388,14 +365,6 @@ END:VCALENDAR`;
                   <span>R$ {(calcularSubtotal() + freteAjustado - desconto).toFixed(2).replace('.', ',')}</span>
                 </div>
               </div>
-
-              <button 
-                type="button" 
-                onClick={gerarArquivoCalendario}
-                className="w-full p-3 mb-2 bg-blue-50 text-blue-600 rounded-xl font-black uppercase text-[10px] tracking-widest hover:bg-blue-100 transition-all flex items-center justify-center gap-2"
-              >
-                <i className="fa-solid fa-calendar-days"></i> Baixar Arquivo de Agenda
-              </button>
 
               <div className="flex gap-3 pt-2">
                 <button 
