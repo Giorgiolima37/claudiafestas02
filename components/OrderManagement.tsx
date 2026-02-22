@@ -2,10 +2,12 @@ import React, { useEffect, useState, useRef } from 'react';
 import { db } from '../services/supabase';
 import logoImg from '../logo.png';
 // --- IMPORTANTE: Importar o som de notificação ---
-import audioNotification from '../notificacao.mp3'; 
+// Certifique-se de que o caminho está correto. Se estiver na pasta public, use apenas o caminho relativo.
+// Se estiver em src, importe como o logo. Vou assumir que está em src ou assets.
+// Se estiver na public, pode usar: const audioUrl = '/notificacao.mp3';
+import audioNotification from '../notificacao.mp3'; // Ajuste o caminho conforme necessário
 
 const OrderManagement: React.FC = () => {
-  
   const [clientes, setClientes] = useState<any[]>([]);
   const [reservas, setReservas] = useState<any[]>([]);
   const [estoque, setEstoque] = useState<any[]>([]);
@@ -16,9 +18,6 @@ const OrderManagement: React.FC = () => {
   // Estados para pedidos online e controle de lista negra
   const [pedidosOnline, setPedidosOnline] = useState<any[]>([]);
   const [blacklist, setBlacklist] = useState<any[]>([]);
-  
-  // NOVO ESTADO: Para armazenar os dados da tabela reservas_futuras do banco
-  const [reservasFuturasBanco, setReservasFuturasBanco] = useState<any[]>([]);
 
   // Referência para armazenar a quantidade anterior de pedidos para comparação
   const prevPedidosLengthRef = useRef<number>(0);
@@ -31,50 +30,59 @@ const OrderManagement: React.FC = () => {
   const [dadosPedidoFixo, setDadosPedidoFixo] = useState<any>(null);
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
   const [novaQtdItem, setNovaQtdItem] = useState(1);
-  
-  // NOVO ESTADO: Armazena a data original para garantir que o update encontre o registro certo
-  const [dataEventoOriginal, setDataEventoOriginal] = useState('');
 
   const fetchData = async () => {
     try {
-      const [resClientes, resReservas, resEstoque, resPedidosOnline, resBlacklist, resReservasFuturas] = await Promise.all([
+      // Removendo setLoading(true) daqui para evitar piscar a tela no polling
+      // setLoading(true); 
+      const [resClientes, resReservas, resEstoque, resPedidosOnline, resBlacklist] = await Promise.all([
         db.from('cadastro').select('*'),
         db.from('reservas').select('*').order('data_evento', { ascending: false }),
         db.from('estoque').select('*').order('item'),
         db.from('pedidos_online').select('*').order('created_at', { ascending: false }),
-        db.from('blacklist').select('documento'),
-        db.from('reservas_futuras').select('*').order('data_evento', { ascending: true }) 
+        db.from('blacklist').select('documento')
       ]);
       setClientes(resClientes.data || []);
       setReservas(resReservas.data || []);
       setEstoque(resEstoque.data || []);
       setPedidosOnline(resPedidosOnline.data || []);
       setBlacklist(resBlacklist.data || []);
-      setReservasFuturasBanco(resReservasFuturas.data || []); 
     } catch (err: any) {
       console.error("Erro ao sincronizar dados:", err.message);
     } finally {
-      setLoading(false); 
+      setLoading(false); // Mantém apenas no final da carga inicial
     }
   };
 
+  // Carga inicial
   useEffect(() => {
-    setLoading(true); 
+    setLoading(true); // Loading visível apenas na primeira vez
     fetchData();
   }, []);
 
+  // --- LÓGICA DE SOM DE NOTIFICAÇÃO ---
   useEffect(() => {
+    // Se o número de pedidos aumentou, toca o som
     if (pedidosOnline.length > prevPedidosLengthRef.current) {
+        // Ignora a primeira carga (quando prev é 0 e atual > 0, mas loading acabou de terminar)
+        // Porém, se quiser tocar na entrada, remova a verificação de loading se necessário.
+        // Aqui vamos tocar sempre que aumentar.
         const audio = new Audio(audioNotification);
-        audio.play().catch(e => console.log("Erro ao tocar som:", e));
+        audio.play().catch(e => console.log("Erro ao tocar som (interação necessária):", e));
     }
+    // Atualiza a referência
     prevPedidosLengthRef.current = pedidosOnline.length;
   }, [pedidosOnline]);
 
+  // BLOCO DE ATUALIZAÇÃO AUTOMÁTICA ADICIONADO
   useEffect(() => {
+    // Configura o intervalo para rodar a cada 60.000 milissegundos (1 minuto)
     const intervalo = setInterval(() => {
-      fetchData(); 
+      console.log("Atualizando dados automaticamente...");
+      fetchData(); // Executa a função que busca novos pedidos e atualiza o estoque
     }, 60000);
+
+    // Limpa o intervalo quando o proprietário sai da tela para não gastar memória
     return () => clearInterval(intervalo);
   }, []);
 
@@ -86,22 +94,29 @@ const OrderManagement: React.FC = () => {
     );
   };
 
+  // FUNÇÃO ATUALIZADA: Agora ela deleta para ativar o TRIGGER SQL que você criou
   const handleAceitarPedido = async (pedido: any) => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
+
     try {
       setLoading(true);
+
+      // 1. Atualizar o estoque primeiro (importante para manter o controle)
       const linhasItens = pedido.itens_texto.split(', ');
+
       for (const linha of linhasItens) {
         const match = linha.match(/(\d+)x (.+)/);
         if (match) {
           const qtd = parseInt(match[1]);
           const nomeItem = match[2];
           const infoEstoque = estoque.find(e => e.item === nomeItem);
+
           if (infoEstoque) {
             if (infoEstoque.disponivel < qtd) {
               alert(`Estoque insuficiente para: ${nomeItem}`);
               throw new Error(`Estoque insuficiente: ${nomeItem}`);
             }
+
             await db.from('estoque').update({
               disponivel: infoEstoque.disponivel - qtd,
               reservado: (infoEstoque.reservado || 0) + qtd
@@ -109,8 +124,13 @@ const OrderManagement: React.FC = () => {
           }
         }
       }
+
+      // 2. DELETAR DO ONLINE: Isso dispara o gatilho processar_aceite_pedido() no Supabase
+      // Removida qualquer referência à coluna "origem" para evitar o erro anterior
       const { error } = await db.from('pedidos_online').delete().eq('id', pedido.id);
+
       if (error) throw error;
+
       alert("Pedido processado! O banco de dados gerou a reserva automaticamente.");
       fetchData();
     } catch (err: any) {
@@ -147,7 +167,6 @@ const OrderManagement: React.FC = () => {
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
     const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({ ...i, _originalQty: i.quantidade }));
     setPedidoEmEdicao(itensFormatados);
-    setDataEventoOriginal(pedidoAgrupado.itens[0].data_evento);
     setDadosPedidoFixo({
       cliente_id: pedidoAgrupado.cliente_id,
       data_evento: pedidoAgrupado.itens[0].data_evento,
@@ -194,13 +213,14 @@ const OrderManagement: React.FC = () => {
     if (!dadosPedidoFixo) return;
     setLoading(true);
     try {
+      // Ajuste para atualizar também a data_evento caso tenha sido alterada
       await db.from('reservas')
         .update({ 
-            data_devolucao: dadosPedidoFixo.data_devolucao,
-            data_evento: dadosPedidoFixo.data_evento 
+          data_devolucao: dadosPedidoFixo.data_devolucao,
+          data_evento: dadosPedidoFixo.data_evento 
         })
         .eq('cliente_id', dadosPedidoFixo.cliente_id)
-        .eq('data_evento', dataEventoOriginal);
+        .eq('data_evento', pedidoEmEdicao[0].data_evento);
 
       for (const item of pedidoEmEdicao) {
         const produtoEstoque = estoque.find(e => e.item === item.item);
@@ -226,7 +246,7 @@ const OrderManagement: React.FC = () => {
             cliente_id: dadosPedidoFixo.cliente_id,
             item: item.item,
             quantidade: item.quantidade,
-            data_evento: dadosPedidoFixo.data_evento, 
+            data_evento: dadosPedidoFixo.data_evento,
             data_devolucao: dadosPedidoFixo.data_devolucao,
             status: 'Pendente',
             forma_pagamento: 'Ajuste',
@@ -236,14 +256,14 @@ const OrderManagement: React.FC = () => {
           continue;
         }
         if (item.quantidade !== item._originalQty) {
-          const diderenca = item.quantidade - item._originalQty;
-          if (diderenca > 0 && diderenca > produtoEstoque.disponivel) {
+          const diferenca = item.quantidade - item._originalQty;
+          if (diferenca > 0 && produtoEstoque.disponivel < diferenca) {
             alert(`Estoque insuficiente para aumentar qtd de: ${item.item}`);
             throw new Error("Estoque insuficiente");
           }
           await db.from('estoque').update({
-            disponivel: produtoEstoque.disponivel - diderenca,
-            reservado: produtoEstoque.reservado + diderenca
+            disponivel: produtoEstoque.disponivel - diferenca,
+            reservado: produtoEstoque.reservado + diferenca
           }).eq('id', produtoEstoque.id);
           const precoUnitario = item.valor_total / item._originalQty;
           const novoTotal = precoUnitario * item.quantidade;
@@ -254,6 +274,8 @@ const OrderManagement: React.FC = () => {
         }
       }
       setModalAberto(false);
+      setEditandoData(false);
+      setEditandoDevolucao(false);
       fetchData();
     } catch (err: any) {
       console.error(err.message);
@@ -291,28 +313,28 @@ const OrderManagement: React.FC = () => {
           <style>
             @page { 
                 size: A4; 
-                margin: 0;
+                margin: 0; /* Removemos a margem do navegador para controlar via CSS */
             }
             body { 
                 font-family: Arial, Helvetica, sans-serif; 
                 margin: 0; 
                 padding: 0;
-                width: 210mm;
+                width: 210mm; /* FORÇA A LARGURA A4 */
                 min-height: 107mm;
                 display: flex;
                 justify-content: center;
                 box-sizing: border-box;
-                padding-top: 5mm;
+                padding-top: 5mm; /* Margem superior */
                 padding-bottom: 5mm;
             }
             .page-container {
-                width: 200mm;
+                width: 200mm; /* Largura fixa do conteúdo (210mm - margens) */
                 padding: 10px;
-                border: 2px solid black;
+                border: 2px solid black; /* Borda preta grossa em volta de tudo */
                 box-sizing: border-box;
                 display: flex;
                 flex-direction: column;
-                min-height: 105mm;
+                min-height: 105mm; /* Altura para ocupar a folha quase toda */
             }
             .header {
                 margin-bottom: 15px;
@@ -340,7 +362,7 @@ const OrderManagement: React.FC = () => {
             .company-name {
                 font-weight: 900;
                 font-size: 16px;
-                color: #1e40af;
+                color: #1e40af; /* COR AZUL RESTAURADA */
                 text-decoration: underline;
             }
             .contract-title {
@@ -357,7 +379,7 @@ const OrderManagement: React.FC = () => {
                 line-height: 1.3;
             }
             table { 
-                width: 100%;
+                width: 100%; /* Força a tabela a abrir até a borda */
                 border-collapse: collapse; 
                 margin-bottom: 15px; 
                 font-size: 11px;
@@ -389,7 +411,7 @@ const OrderManagement: React.FC = () => {
                 margin-top: 10px;
                 margin-bottom: 10px; 
                 font-size: 10px; 
-                min-height: 50px;
+                min-height: 50px; /* CAIXA GRANDE IGUAL A FOTO */
             }
             .signatures {
                 display: flex;
@@ -441,8 +463,8 @@ const OrderManagement: React.FC = () => {
               </div>
 
               <div style="font-weight: 900; font-size: 11px; margin-bottom: 2px; display: flex; justify-content: space-between;">
-                 <span>DESCRIÇÃO DO BEM</span>
-                 <span>Telefone do cliente: ${pedido.telefone || cliente.telefone || '_____________'}</span>
+                  <span>DESCRIÇÃO DO BEM</span>
+                  <span>Telefone do cliente: ${pedido.telefone || cliente.telefone || '_____________'}</span>
               </div>
 
               <table>
@@ -520,149 +542,11 @@ const OrderManagement: React.FC = () => {
     printWindow.document.close();
   };
 
-  const pedidosAgrupadosEFiltrados = () => {
-    const pendentes = reservas.filter(r => r.status?.toLowerCase() !== 'finalizado');
-    const grupos: { [key: string]: any } = {};
-    
-    // Processar reservas normais (pendentes)
-    pendentes.forEach(r => {
-      const cliente = clientes.find(c => c.id === r.cliente_id);
-      const nomeCliente = cliente ? cliente.cliente : 'Desconhecido';
-      const bateBusca = !busca || nomeCliente.toLowerCase().includes(busca.toLowerCase()) || String(r.cliente_id).includes(busca);
-      if (bateBusca && (!filtroUrgentes || verificarUrgencia(r.data_devolucao))) {
-        const chave = `${r.cliente_id}_${r.data_evento}`;
-        if (!grupos[chave]) {
-          grupos[chave] = {
-            nomeCliente,
-            telefone: cliente?.telefone,
-            dataDevolucao: r.data_devolucao,
-            cliente_id: r.cliente_id,
-            idPersonalizado: cliente?.['id-client'],
-            observacoes: r.observacoes || '',
-            statusEstoque: r.status_estoque,
-            origem: r.origem,
-            itens: []
-          };
-        }
-        grupos[chave].itens.push(r);
-      }
-    });
-
-    // UNIFICAR: Processar reservas_futuras do banco e adicionar à lista principal
-    reservasFuturasBanco.forEach(res => {
-      const cliente = clientes.find(c => c.id === res.cliente_id);
-      const nomeCliente = cliente ? cliente.cliente : 'ID: ' + res.cliente_id;
-      const bateBusca = !busca || nomeCliente.toLowerCase().includes(busca.toLowerCase()) || String(res.cliente_id).includes(busca);
-      
-      if (bateBusca && (!filtroUrgentes || verificarUrgencia(res.data_devolucao))) {
-        const chave = `${res.cliente_id}_${res.data_evento}`;
-        if (!grupos[chave]) {
-          grupos[chave] = {
-            nomeCliente,
-            telefone: cliente?.telefone,
-            dataDevolucao: res.data_devolucao,
-            cliente_id: res.cliente_id,
-            idPersonalizado: cliente?.['id-client'],
-            observacoes: 'Reserva Salva no Banco',
-            statusEstoque: 'pendente',
-            origem: 'banco',
-            isFutura: true, // Tag interna
-            idFutura: res.id, // ID para cancelamento
-            itens: []
-          };
-        }
-        
-        // Encontrar info do estoque para compor o item
-        const itemEstoque = estoque.find(e => e.id === res.item_id);
-        grupos[chave].itens.push({
-          id: res.id,
-          item: itemEstoque?.item || 'Item ' + res.item_id,
-          quantidade: res.quantidade,
-          data_evento: res.data_evento,
-          codigo_item: itemEstoque?.codigo_interno || 'S/C',
-          valor_total: (itemEstoque?.preco || 0) * res.quantidade
-        });
-      }
-    });
-
-    return Object.values(grupos).sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
-  };
-
-  const handleCancelarReservaFutura = async (id: string, nomeCliente: string) => {
-    if (!window.confirm(`Tem certeza que deseja CANCELAR e apagar permanentemente a reserva de ${nomeCliente}?`)) return;
-    try {
-      setLoading(true);
-      const { error } = await db.from('reservas_futuras').delete().eq('id', id);
-      if (error) throw error;
-      alert("Reserva futura cancelada com sucesso!");
-      fetchData();
-    } catch (err: any) {
-      alert("Erro ao cancelar reserva: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const totalUrgentes = Object.values(
-    reservas.filter(r => r.status?.toLowerCase() !== 'finalizado')
-      .reduce((acc: any, r) => {
-        if (verificarUrgencia(r.data_devolucao)) acc[`${r.cliente_id}_${r.data_evento}`] = true;
-        return acc;
-      }, {})
-  ).length;
-
-  const handleRecusarPedido = async (id: number) => {
-    if (!window.confirm("Deseja recusar e apagar este pedido online?")) return;
-    try {
-      await db.from('pedidos_online').delete().eq('id', id);
-      fetchData();
-    } catch (err: any) {
-      alert("Erro ao recusar: " + err.message);
-    }
-  };
-
-  const handleCancelarPedido = async (pedido: any) => {
-    // Se for uma reserva vinda da tabela 'reservas_futuras', chama o cancelamento específico
-    if (pedido.isFutura) {
-       return handleCancelarReservaFutura(pedido.idFutura, pedido.nomeCliente);
-    }
-
-    if (!window.confirm(`Deseja cancelar permanentemente o pedido de ${pedido.nomeCliente}? Todos os produtos retornarão ao estoque disponível.`)) return;
-    try {
-      setLoading(true);
-      for (const item of pedido.itens) {
-        const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
-        if (est) {
-          await db.from('estoque').update({
-            disponivel: est.disponivel + item.quantidade,
-            reservado: Math.max(0, est.reservado - item.quantidade)
-          }).eq('item', item.item);
-        }
-        await db.from('reservas').delete().eq('id', item.id);
-      }
-      alert("Pedido cancelado e produtos devolvidos ao estoque!");
-      fetchData(); 
-    } catch (err: any) {
-      alert("Erro ao cancelar pedido: " + err.message);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   const confirmarDevolucao = async (pedido: any) => {
-    // REMOVIDO ALERTA DE BLOQUEIO PARA RESERVA FUTURA
     if (!window.confirm(`Confirmar devolução física de ${pedido.nomeCliente}?`)) return;
     try {
-      setLoading(true);
       for (const item of pedido.itens) {
-        // Se for reserva_futura, deleta do banco. Se for reserva ativa, atualiza status para Finalizado.
-        if (pedido.isFutura) {
-           await db.from('reservas_futuras').delete().eq('id', item.id);
-        } else {
-           await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
-        }
-
-        // Devolve os itens ao estoque disponível
+        await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
         if (est) {
           await db.from('estoque').update({
@@ -672,12 +556,8 @@ const OrderManagement: React.FC = () => {
         }
       }
       fetchData();
-      alert("Material devolvido e estoque atualizado com sucesso!");
-    } catch (err: any) { 
-      alert("Erro ao processar devolução: " + err.message); 
-    } finally {
-      setLoading(false);
-    }
+      alert("Material devolvido com sucesso!");
+    } catch (err: any) { alert(err.message); }
   };
 
   const abrirWhatsApp = (pedido: any) => {
@@ -711,10 +591,56 @@ const OrderManagement: React.FC = () => {
     printWindow.document.close();
   };
 
+  const pedidosAgrupadosEFiltrados = () => {
+    const pendentes = reservas.filter(r => r.status?.toLowerCase() !== 'finalizado');
+    const grupos: { [key: string]: any } = {};
+    pendentes.forEach(r => {
+      const cliente = clientes.find(c => c.id === r.cliente_id);
+      const nomeCliente = cliente ? cliente.cliente : 'Desconhecido';
+      const bateBusca = !busca || nomeCliente.toLowerCase().includes(busca.toLowerCase()) || String(r.cliente_id).includes(busca);
+      if (bateBusca && (!filtroUrgentes || verificarUrgencia(r.data_devolucao))) {
+        const chave = `${r.cliente_id}_${r.data_evento}`;
+        if (!grupos[chave]) {
+          grupos[chave] = {
+            nomeCliente,
+            telefone: cliente?.telefone,
+            dataDevolucao: r.data_devolucao,
+            cliente_id: r.cliente_id,
+            idPersonalizado: cliente?.['id-client'],
+            observacoes: r.observacoes || '',
+            statusEstoque: r.status_estoque,
+            origem: r.origem,
+            itens: []
+          };
+        }
+        grupos[chave].itens.push(r);
+      }
+    });
+    return Object.values(grupos).sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
+  };
+
+  const totalUrgentes = Object.values(
+    reservas.filter(r => r.status?.toLowerCase() !== 'finalizado')
+      .reduce((acc: any, r) => {
+        if (verificarUrgencia(r.data_devolucao)) acc[`${r.cliente_id}_${r.data_evento}`] = true;
+        return acc;
+      }, {})
+  ).length;
+
+  const handleRecusarPedido = async (id: number) => {
+    if (!window.confirm("Deseja recusar e apagar este pedido online?")) return;
+    try {
+      await db.from('pedidos_online').delete().eq('id', id);
+      fetchData();
+    } catch (err: any) {
+      alert("Erro ao recusar: " + err.message);
+    }
+  };
+
   if (loading && !modalAberto) return <div className="p-20 text-center text-[#b24a2b] font-bold uppercase tracking-widest">Carregando Gestão...</div>;
 
   return (
-    <div className="max-w-[1400px] mx-auto pb-20 animate-in fade-in duration-700">
+    <div className="max-w-[1200px] mx-auto pb-20 animate-in fade-in duration-700">
       <header className="mb-12 text-center">
         <h1 className="text-4xl font-black text-gray-800 italic uppercase">Gestão de Pedidos</h1>
         <div className="flex flex-col items-center gap-4 mt-8">
@@ -728,7 +654,7 @@ const OrderManagement: React.FC = () => {
 
       <div className="flex flex-col lg:flex-row gap-8 items-start justify-center">
 
-        <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-8 w-full">
+        <div className="flex-1 flex flex-col items-center gap-8 w-full">
           {pedidosAgrupadosEFiltrados().map((pedido: any, idx) => {
             const atrasado = verificarAtraso(pedido.dataDevolucao);
             const urgente = verificarUrgencia(pedido.dataDevolucao);
@@ -736,24 +662,20 @@ const OrderManagement: React.FC = () => {
             const isOnline = pedido.origem === 'online';
 
             return (
-              <div key={idx} className={`w-full rounded-[45px] p-8 border-2 shadow-xl ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-50'}`}>
-                <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
+              <div key={idx} className={`w-full max-w-md rounded-[45px] p-8 border-2 shadow-xl ${atrasado ? 'bg-red-50 border-red-200' : urgente ? 'bg-amber-50 border-amber-200' : 'bg-white border-gray-50'}`}>
+                <div className="flex justify-between items-start mb-6">
                   <div className="flex flex-col gap-1">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {atrasado ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ EM BREVE</span> : <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
-                      {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Online</span>}
-                      {pedido.isFutura && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-gray-800 text-white shadow-sm border border-gray-600">Reserva Futura</span>}
+                    <div className="flex items-center gap-2">
+                      {atrasado ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ DEVOLUÇÃO EM BREVE</span> : <span className="text-[10px] font-black px-5 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
+                      {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Origem: Online</span>}
                     </div>
                     <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
                   </div>
-                  <div className="flex flex-wrap gap-2 justify-end">
-                    <button onClick={() => abrirWhatsApp(pedido)} className="w-9 h-9 bg-green-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-brands fa-whatsapp"></i></button>
-                    <button onClick={() => gerarRomaneio(pedido)} className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-list-check"></i></button>
-                    <button onClick={() => gerarContrato(pedido)} className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-solid fa-file-contract"></i></button>
-                    
-                    <button onClick={() => handleCancelarPedido(pedido)} className="w-9 h-9 bg-red-600 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform" title="Cancelar Pedido e Estornar Estoque"><i className="fa-solid fa-trash-can"></i></button>
-
-                    <button onClick={() => confirmarDevolucao(pedido)} className={`w-10 h-10 ${corBotaoConfirmar} text-white rounded-full flex items-center justify-center text-base shadow-md hover:scale-105 transition-transform`}>
+                  <div className="flex gap-2">
+                    <button onClick={() => abrirWhatsApp(pedido)} className="w-10 h-10 bg-green-500 text-white rounded-full flex items-center justify-center"><i className="fa-brands fa-whatsapp"></i></button>
+                    <button onClick={() => gerarRomaneio(pedido)} className="w-10 h-10 bg-purple-600 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-list-check"></i></button>
+                    <button onClick={() => gerarContrato(pedido)} className="w-10 h-10 bg-blue-500 text-white rounded-full flex items-center justify-center"><i className="fa-solid fa-file-contract"></i></button>
+                    <button onClick={() => confirmarDevolucao(pedido)} className={`w-12 h-12 ${corBotaoConfirmar} text-white rounded-full flex items-center justify-center shadow-md`} title={pedido.statusEstoque === 'processado' ? 'Estoque já atualizado pelo sistema' : 'Confirmar devolução manual'}>
                       <i className="fa-solid fa-check"></i>
                     </button>
                   </div>
@@ -786,70 +708,79 @@ const OrderManagement: React.FC = () => {
           })}
         </div>
 
-        <aside className="w-full lg:w-[350px] shrink-0 space-y-8 sticky top-4">
-          <div>
-            <div className="bg-[#a34b2f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
-              <i className="fa-solid fa-earth-americas text-white text-xl"></i>
-              <div className="text-center">
-                <h2 className="text-white font-black uppercase italic tracking-wider leading-none">Pedidos Online</h2>
-                <p className="text-white/60 text-[8px] font-bold uppercase mt-1">Solicitações via Web App</p>
-              </div>
+        <aside className="w-full lg:w-[350px] shrink-0 sticky top-4">
+          <div className="bg-[#a34b2f] rounded-t-[35px] p-6 flex items-center justify-center gap-3">
+            <i className="fa-solid fa-earth-americas text-white text-xl"></i>
+            <div className="text-center">
+              <h2 className="text-white font-black uppercase italic tracking-wider leading-none">Pedidos Online</h2>
+              <p className="text-white/60 text-[8px] font-bold uppercase mt-1">Solicitações via Web App</p>
             </div>
-            <div className="bg-white border-2 border-[#a34b2f]/20 rounded-b-[35px] p-8 shadow-xl min-h-[300px] flex flex-col items-center justify-start">
-              {pedidosOnline.length > 0 ? (
-                <div className="w-full space-y-4">
-                  {pedidosOnline.map((po) => {
-                    const estaBloqueado = verificarSeEstaNaListaNegra(po.cliente_whatsapp);
-                    const itensParaImprimir = po.itens_texto ? po.itens_texto.split(', ').map((str: string) => {
-                      const match = str.match(/(\d+)x (.+)/);
-                      return match ? { quantidade: parseInt(match[1]), item: match[2], valor_total: 0, data_evento: po.created_at } 
-                                   : { quantidade: 1, item: str, valor_total: 0, data_evento: po.created_at };
-                    }) : [];
-                    const clienteExistente = clientes.find(c => c.telefone === po.cliente_whatsapp) || {};
-                    const pedidoAdaptado = {
-                      id: po.id,
-                      nomeCliente: po.cliente_nome,
-                      cliente_id: clienteExistente.id || 0,
-                      telefone: po.cliente_whatsapp,
-                      dataDevolucao: po.created_at, 
-                      itens: itensParaImprimir,
-                      observacoes: 'Solicitação Online - Aguardando Aprovação',
-                      taxa_entrega: 0,
-                      desconto: 0
-                    };
-                    return (
-                      <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
-                        {estaBloqueado && (
-                          <div className="flex items-center justify-center gap-2 mb-3 bg-red-600 text-white py-1.5 rounded-xl animate-pulse">
-                            <i className="fa-solid fa-circle-exclamation"></i>
-                            <span className="font-black text-[10px] uppercase tracking-tighter">Atenção: Lista Negra</span>
-                          </div>
-                        )}
-                        <div className="flex justify-between items-start mb-2">
-                          <div>
-                            <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
-                          </div>
-                          <div className="flex gap-1 ml-2">
-                             <button onClick={() => abrirWhatsApp({ telefone: po.cliente_whatsapp })} className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm"><i className="fa-brands fa-whatsapp text-xs"></i></button>
-                             <button onClick={() => gerarRomaneio(pedidoAdaptado)} className="w-8 h-8 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-sm"><i className="fa-solid fa-list-check text-xs"></i></button>
-                          </div>
+          </div>
+          <div className="bg-white border-2 border-[#a34b2f]/20 rounded-b-[35px] p-8 shadow-xl min-h-[400px] flex flex-col items-center justify-start">
+            {pedidosOnline.length > 0 ? (
+              <div className="w-full space-y-4">
+                {pedidosOnline.map((po) => {
+                  const estaBloqueado = verificarSeEstaNaListaNegra(po.cliente_whatsapp);
+                  
+                  // ADAPTAÇÃO: Preparar dados para os botões de Lista e Contrato funcionarem com o pedido online
+                  const itensParaImprimir = po.itens_texto ? po.itens_texto.split(', ').map((str: string) => {
+                    const match = str.match(/(\d+)x (.+)/);
+                    return match ? { quantidade: parseInt(match[1]), item: match[2], valor_total: 0, data_evento: po.created_at } 
+                                 : { quantidade: 1, item: str, valor_total: 0, data_evento: po.created_at };
+                  }) : [];
+                  const clienteExistente = clientes.find(c => c.telefone === po.cliente_whatsapp) || {};
+                  const pedidoAdaptado = {
+                    id: po.id,
+                    nomeCliente: po.cliente_nome,
+                    cliente_id: clienteExistente.id || 0,
+                    telefone: po.cliente_whatsapp,
+                    dataDevolucao: po.created_at, 
+                    itens: itensParaImprimir,
+                    observacoes: 'Solicitação Online - Aguardando Aprovação',
+                    taxa_entrega: 0,
+                    desconto: 0
+                  };
+
+                  return (
+                    <div key={po.id} className={`bg-gray-50 border p-4 rounded-3xl transition-all ${estaBloqueado ? 'border-red-600 shadow-[0_0_15px_rgba(239,68,68,0.25)]' : 'border-gray-100'}`}>
+                      {estaBloqueado && (
+                        <div className="flex items-center justify-center gap-2 mb-3 bg-red-600 text-white py-1.5 rounded-xl animate-pulse">
+                          <i className="fa-solid fa-circle-exclamation"></i>
+                          <span className="font-black text-[10px] uppercase tracking-tighter">Atenção: Lista Negra</span>
                         </div>
-                        <div className="mt-3 bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
-                          <p className="text-[10px] font-bold text-gray-600 leading-tight">{po.itens_texto}</p>
+                      )}
+                      
+                      {/* LAYOUT AJUSTADO: Nome à esquerda, Botões à direita */}
+                      <div className="flex justify-between items-start mb-2">
+                        <div>
+                          <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
+                          <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
                         </div>
-                        <div className="flex gap-2 mt-4">
-                          <button onClick={() => handleAceitarPedido(po)} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase">Aceitar</button>
-                          <button onClick={() => handleRecusarPedido(po.id)} className="bg-white border-2 border-red-500 text-red-500 px-4 py-2 rounded-full text-[9px] font-black uppercase">Recusar</button>
+                        <div className="flex gap-1 ml-2">
+                           <button onClick={() => abrirWhatsApp({ telefone: po.cliente_whatsapp })} className="w-9 h-9 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="WhatsApp"><i className="fa-brands fa-whatsapp text-xs"></i></button>
+                           <button onClick={() => gerarRomaneio(pedidoAdaptado)} className="w-9 h-9 bg-purple-600 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="Lista de Conferência"><i className="fa-solid fa-list-check text-xs"></i></button>
+                           <button onClick={() => gerarContrato(pedidoAdaptado)} className="w-9 h-9 bg-blue-500 text-white rounded-full flex items-center justify-center shadow-sm hover:scale-110 transition-transform" title="Imprimir Contrato"><i className="fa-solid fa-file-contract text-xs"></i></button>
                         </div>
                       </div>
-                    );
-                  })}
-                </div>
-              ) : (
-                <div className="text-center mt-10 text-gray-300 uppercase font-black text-[9px]">Sem novos pedidos.</div>
-              )}
-            </div>
+
+                      <div className="mt-3 bg-white/50 p-3 rounded-xl border border-dashed border-gray-200">
+                        <span className="text-[8px] font-black text-[#b24a2b] uppercase tracking-tighter block mb-1">Itens Selecionados:</span>
+                        <p className="text-[10px] font-bold text-gray-600 leading-tight">{po.itens_texto}</p>
+                      </div>
+                      <div className="flex gap-2 mt-4">
+                        <button onClick={() => handleAceitarPedido(po)} className="flex-1 bg-green-500 text-white py-2 rounded-full text-[9px] font-black uppercase flex items-center justify-center hover:bg-green-600 transition-all">Aceitar pedido</button>
+                        <button onClick={() => handleRecusarPedido(po.id)} className="bg-white border-2 border-red-500 text-red-500 px-4 py-2 rounded-full text-[9px] font-black uppercase hover:bg-red-50 transition-all">Recusar</button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div className="flex flex-col items-center justify-center mt-20">
+                <div className="w-16 h-16 bg-gray-100 rounded-2xl flex items-center justify-center mb-4"><i className="fa-solid fa-box-open text-gray-300 text-2xl"></i></div>
+                <p className="text-[10px] font-black text-gray-300 uppercase text-center tracking-widest leading-relaxed">Nenhuma solicitação nova.</p>
+              </div>
+            )}
           </div>
         </aside>
       </div>
@@ -860,24 +791,36 @@ const OrderManagement: React.FC = () => {
             <div className="flex justify-between items-start mb-6">
               <div>
                 <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
-                <div className="flex items-center gap-2 mt-1">
-                    {editandoData ? (
-                        <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" value={dadosPedidoFixo?.data_evento?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_evento: e.target.value })} onBlur={() => setEditandoData(false)} autoFocus />
-                    ) : (
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
-                    )}
-                    <button onClick={() => setEditandoData(!editandoData)} className="text-gray-400 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
+                
+                {/* --- CAMPO DATA DO EVENTO COM LÁPIS ADICIONADO --- */}
+                <div className="flex items-center gap-2 mt-2">
+                  {editandoData ? (
+                    <input 
+                      type="date" 
+                      className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" 
+                      value={dadosPedidoFixo?.data_evento?.split('T')[0]} 
+                      onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_evento: e.target.value })} 
+                      onBlur={() => setEditandoData(false)} 
+                      autoFocus 
+                    />
+                  ) : (
+                    <p className="text-[10px] font-bold text-gray-400 uppercase">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
+                  )}
+                  <button onClick={() => setEditandoData(!editandoData)} className="text-gray-400 hover:text-gray-600 transition-colors">
+                    <i className="fa-solid fa-pencil text-[9px]"></i>
+                  </button>
                 </div>
+
                 <div className="flex items-center gap-2 mt-1">
                   {editandoDevolucao ? (
-                    <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" min={new Date().toISOString().split('T')[0]} value={dadosPedidoFixo?.data_devolucao?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_devolucao: e.target.value })} onBlur={() => setEditandoDevolucao(false)} autoFocus />
+                    <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" min={dadosPedidoFixo?.data_evento?.split('T')[0]} value={dadosPedidoFixo?.data_devolucao?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_devolucao: e.target.value })} onBlur={() => setEditandoDevolucao(false)} autoFocus />
                   ) : (
                     <p className="text-[10px] font-bold text-gray-400 uppercase">Devolução: {formatarDataBR(dadosPedidoFixo?.data_devolucao)}</p>
                   )}
                   <button onClick={() => setEditandoDevolucao(!editandoDevolucao)} className="text-gray-400 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
                 </div>
               </div>
-              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+              <button onClick={() => { setModalAberto(false); setEditandoData(false); setEditandoDevolucao(false); }} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
             </div>
             <div className="bg-gray-50 rounded-3xl p-6 mb-6">
               <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens no Pedido</h4>
@@ -889,7 +832,7 @@ const OrderManagement: React.FC = () => {
                       <div className="flex-1"><p className="text-xs font-black text-gray-700 uppercase">{item.item} {item._isNew && <span className="text-green-500 text-[8px] ml-2">(NOVO)</span>}</p></div>
                       <div className="flex items-center gap-4">
                         <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg"><span className="text-[8px] font-bold text-gray-400 uppercase">Qtd:</span><input type="number" className="w-12 bg-transparent text-center font-black text-sm outline-none" value={item.quantidade} min="1" onChange={(e) => handleAlterarQtdExistente(idx, parseInt(e.target.value))} /></div>
-                        <button onClick={() => handleRemoverItemLista(idx)} className="text-red-500 hover:text-red-700 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
+                        <button onClick={() => handleRemoverItemLista(idx)} className="text-red-400 hover:text-red-600 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
                       </div>
                     </div>
                   );
@@ -899,16 +842,13 @@ const OrderManagement: React.FC = () => {
             <div className="border-t border-dashed border-gray-200 pt-6 mb-8">
               <h4 className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest mb-4">+ Adicionar Novo Item</h4>
               <div className="flex gap-3">
-                <select className="flex-1 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-600" value={novoItemSelecionado} onChange={(e) => setNovoItemSelecionado(e.target.value)}>
-                  <option value="">Selecione um produto...</option>
-                  {estoque.map(e => (<option key={e.id} value={e.item}>{e.item} (Disp: {e.disponivel})</option>))}
-                </select>
+                <select className="flex-1 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-600" value={novoItemSelecionado} onChange={(e) => setNovoItemSelecionado(e.target.value)}><option value="">Selecione um produto...</option>{estoque.map(e => (<option key={e.id} value={e.item}>{e.item} (Disp: {e.disponivel})</option>))}</select>
                 <input type="number" min="1" placeholder="Qtd" className="w-20 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-center" value={novaQtdItem} onChange={(e) => setNovaQtdItem(parseInt(e.target.value))} />
                 <button onClick={handleAdicionarNovoItem} className="bg-green-500 hover:bg-green-600 text-white w-12 rounded-xl flex items-center justify-center transition-all shadow-lg"><i className="fa-solid fa-plus"></i></button>
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+              <button onClick={() => { setModalAberto(false); setEditandoData(false); setEditandoDevolucao(false); }} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
               <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">Salvar Alterações</button>
             </div>
           </div>

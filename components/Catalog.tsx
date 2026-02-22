@@ -31,8 +31,6 @@ const Catalog: React.FC = () => {
   const [regIdPersonalizado, setRegIdPersonalizado] = useState('');
   const [registering, setRegistering] = useState(false);
 
-  // --- AJUSTE AQUI: NOVOS ESTADOS PARA AS DATAS ---
-  const [dataReserva, setDataReserva] = useState(''); // Estado para a data da reserva
   const [dataDevolucao, setDataDevolucao] = useState('');
   const dataHoje = new Date().toISOString().split('T')[0];
 
@@ -200,8 +198,7 @@ const Catalog: React.FC = () => {
   const totalItens = Object.values(carrinho).reduce((a, b) => a + b, 0);
 
   const confirmarPedidoFinal = async () => {
-    // --- AJUSTE NA VALIDAÇÃO ---
-    if(!dataReserva || !dataDevolucao) return alert("Por favor, selecione as datas de reserva e devolução.");
+    if(!dataDevolucao) return alert("Por favor, selecione a data de devolução.");
 
     const itensTexto = resumoCarrinho
       .map(item => `${carrinho[item.item]}x ${item.item}`)
@@ -212,7 +209,6 @@ const Catalog: React.FC = () => {
             cliente_nome: nomeCliente,
             cliente_whatsapp: identificacaoCliente, 
             itens_texto: itensTexto,
-            data_reserva: dataReserva, // Enviando a nova data
             data_devolucao: dataDevolucao 
         }]);
 
@@ -220,7 +216,6 @@ const Catalog: React.FC = () => {
 
         setMostrarModalConfirma(false);
         setCarrinho({});
-        setDataReserva('');
         setDataDevolucao('');
         alert("Pedido enviado com sucesso!");
         
@@ -445,62 +440,24 @@ const Catalog: React.FC = () => {
         </div>
       )}
 
-      {/* --- MODAL AJUSTADO CONFORME SEU DESENHO --- */}
       {mostrarModalConfirma && (
         <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-4">
           <div className="absolute inset-0 bg-black/60 backdrop-blur-sm" onClick={() => setMostrarModalConfirma(false)}></div>
           <div className="relative bg-white w-full max-w-sm rounded-[32px] p-6 shadow-2xl text-center animate-in slide-in-from-bottom duration-300 mb-[env(safe-area-inset-bottom)]">
-            
-            {/* Ícone de Calendário Verde */}
-            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl">
-              <i className="fa-solid fa-calendar-day"></i>
-            </div>
-
-            {/* BLOCO NOVO: DATA DA RESERVA */}
-            <div className="mb-4">
-              <h2 className="text-lg font-black uppercase italic mb-1 tracking-tight">Data da Reserva</h2>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Selecione a data de retirada</p>
-              <input 
-                type="date" 
-                min={dataHoje} 
-                value={dataReserva} 
-                onChange={(e) => setDataReserva(e.target.value)}
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-base font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
-              />
-            </div>
-
-            {/* BLOCO ORIGINAL: DATA DE DEVOLUÇÃO */}
+            <div className="w-14 h-14 bg-green-100 text-green-600 rounded-full flex items-center justify-center mx-auto mb-4 text-xl"><i className="fa-solid fa-calendar-day"></i></div>
+            <h2 className="text-xl font-black uppercase italic mb-2 tracking-tight">Quando irá devolver?</h2>
             <div className="mb-6">
-              <h2 className="text-lg font-black uppercase italic mb-1 tracking-tight text-[#b24a2b]">Quando irá devolver?</h2>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Selecione a data prevista</p>
-              <input 
-                type="date" 
-                min={dataReserva || dataHoje} 
-                value={dataDevolucao} 
-                onChange={(e) => setDataDevolucao(e.target.value)}
-                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-base font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"
-              />
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Selecione a data prevista</label>
+              <input type="date" min={dataHoje} value={dataDevolucao} onChange={(e) => setDataDevolucao(e.target.value)}
+                className="w-full p-4 bg-gray-50 border-none rounded-2xl text-base font-black outline-none focus:ring-2 ring-green-100 transition-all text-center"/>
             </div>
-
-            {/* Botões de Ação */}
             <div className="flex flex-col gap-2">
-              <button 
-                onClick={confirmarPedidoFinal} 
-                disabled={!dataReserva || !dataDevolucao}
-                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all 
-                  ${(!dataReserva || !dataDevolucao) ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-md active:scale-95'}`}
-              >
+              <button onClick={confirmarPedidoFinal} disabled={!dataDevolucao}
+                className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all ${!dataDevolucao ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-md active:scale-95'}`}>
                 Sim, Finalizar!
               </button>
-              
-              <button 
-                onClick={() => {setMostrarModalConfirma(false); setDataReserva(''); setDataDevolucao('');}} 
-                className="w-full py-4 text-gray-400 font-black text-xs uppercase tracking-widest"
-              >
-                Cancelar
-              </button>
+              <button onClick={() => {setMostrarModalConfirma(false); setDataDevolucao('');}} className="w-full py-4 text-gray-400 font-black text-xs uppercase tracking-widest">Cancelar</button>
             </div>
-
           </div>
         </div>
       )}
