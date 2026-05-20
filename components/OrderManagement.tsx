@@ -421,7 +421,7 @@ const OrderManagement: React.FC = () => {
                     <div class="company-name">LOCAÇÃO DE ARTIGOS PARA FESTAS</div>
                     <div style="font-weight: 900; font-size: 12px;">Fone: 48 98412.3233</div>
                     <div style="font-size: 10px;">Rua Bernardino Prudêncio de Amorim, 667, Jardim Janaina, Biguaçu, SC</div>
-                    <div style="font-weight: 900; margin-top: 5px;">CLAUDIA FESTA</div>
+                    <div style="font-weight: 900; margin-top: 5px;">CLAUDIA FESTAS</div>
                     <div style="font-size: 9px; margin-top: 2px;">${new Date().toLocaleString('pt-BR')}</div>
                  </div>
                  <div class="logo-box">
