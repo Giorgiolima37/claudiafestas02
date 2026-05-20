@@ -90,8 +90,8 @@ const OrderManagement: React.FC = () => {
     if (!window.confirm(`Deseja aceitar o pedido de ${pedido.cliente_nome}?`)) return;
     try {
       setLoading(true);
-      const linhasItens = pedido.itens_texto.split(', ');
-      for (const linha of linhasItens) {
+      const linesItems = pedido.itens_texto.split(', ');
+      for (const linha of linesItems) {
         const match = linha.match(/(\d+)x (.+)/);
         if (match) {
           const qtd = parseInt(match[1]);
@@ -433,7 +433,7 @@ const OrderManagement: React.FC = () => {
 
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
-                locatário, <strong>${pedido.nomeCliente.toUpperCase()}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'}</strong>, 
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>, 
                 tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
@@ -650,7 +650,6 @@ const OrderManagement: React.FC = () => {
   };
 
   const confirmarDevolucao = async (pedido: any) => {
-    // REMOVIDO ALERTA DE BLOQUEIO PARA RESERVA FUTURA
     if (!window.confirm(`Confirmar devolução física de ${pedido.nomeCliente}?`)) return;
     try {
       setLoading(true);
@@ -813,7 +812,7 @@ const OrderManagement: React.FC = () => {
                       telefone: po.cliente_whatsapp,
                       dataDevolucao: po.created_at, 
                       itens: itensParaImprimir,
-                      observacoes: 'Solicitação Online - Aguardando Aprovação',
+                      observacoes: 'Solicitação Online - Aguardando Approvação',
                       taxa_entrega: 0,
                       desconto: 0
                     };
