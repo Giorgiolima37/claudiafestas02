@@ -4,19 +4,16 @@ import { db } from '../services/supabase';
 const InventoryDashboard: React.FC = () => {
   const [itens, setItens] = useState<any[]>([]);
   const [reservasAtivas, setReservasAtivas] = useState<any[]>([]);
-  const [reservasFuturasLista, setReservasFuturasLista] = useState<any[]>([]); // Novo estado
-  const [clientes, setClientes] = useState<any[]>([]); // Novo estado para nomes
+  const [clientes, setClientes] = useState<any[]>([]); 
   const [loading, setLoading] = useState(true);
   const [busca, setBusca] = useState(''); 
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
 
-  // Estados para Modal de Detalhes de Reservas Futuras
   const [isReservaModalOpen, setIsReservaModalOpen] = useState(false);
   const [itemSelecionadoReservas, setItemSelecionadoReservas] = useState<any>(null);
 
-  // Estados para edição rápida do ID (Cód. Interno) direto no card
   const [editandoIdRapido, setEditandoIdRapido] = useState<number | null>(null);
   const [novoIdValor, setNovoIdValor] = useState('');
 
@@ -24,10 +21,9 @@ const InventoryDashboard: React.FC = () => {
     try {
       setLoading(true);
       
-      const [resEstoque, resReservas, resFuturas, resClientes] = await Promise.all([
+      const [resEstoque, resReservas, resClientes] = await Promise.all([
         db.from('estoque').select('*').order('item'),
         db.from('reservas').select('*').neq('status', 'Finalizado'),
-        db.from('reservas_futuras').select('*'),
         db.from('cadastro').select('id, cliente')
       ]);
 
@@ -35,19 +31,18 @@ const InventoryDashboard: React.FC = () => {
       
       setItens(resEstoque.data || []);
       setReservasAtivas(resReservas.data || []);
-      setReservasFuturasLista(resFuturas.data || []);
       setClientes(resClientes.data || []);
 
     } catch (err: any) {
       console.error("Erro ao sincronizar estoque:", err.message);
     } finally {
-      setLoading(false);
+      loading && setLoading(false);
     }
   };
 
   useEffect(() => { fetchEstoque(); }, []);
 
-  // --- NOVA LÓGICA: CALCULAR ESTOQUE REAL (HOJE) E FUTURO ---
+  // --- LÓGICA CORRIGIDA: CONSIDERA AGENDAMENTOS FUTUROS E RETIRADAS EM DIA ---
   const calcularStatus = (item: any) => {
     const totalPatrimonio = (item.disponivel || 0) + (item.reservado || 0) + (item.alugado || 0);
 
@@ -56,23 +51,26 @@ const InventoryDashboard: React.FC = () => {
     const hojeTime = hoje.getTime();
 
     let alugadoHoje = 0;
+    let reservadoFuturo = 0;
 
-    // Reservas da tabela principal (Hoje/Ativas)
     reservasAtivas.filter(r => r.item === item.item).forEach(reserva => {
         const inicio = new Date(reserva.data_evento);
         const fim = new Date(reserva.data_devolucao);
         inicio.setHours(0, 0, 0, 0);
         fim.setHours(23, 59, 59, 999);
 
-        if (hojeTime >= inicio.getTime() && hojeTime <= fim.getTime()) {
+        const dataDevolucaoPassou = hojeTime > fim.getTime();
+
+        // 1. Se a reserva está acontecendo HOJE (ou está atrasada sem finalizar), entra em "Em Aluguel"
+        if ((hojeTime >= inicio.getTime() && hojeTime <= fim.getTime()) || dataDevolucaoPassou) {
             alugadoHoje += (reserva.quantidade || 0);
         } 
+        
+        // 2. Se a data de início do evento é MAIOR que hoje, entra em "Reservas Futuras"
+        if (inicio.getTime() > hojeTime) {
+            reservadoFuturo += (reserva.quantidade || 0);
+        }
     });
-
-    // Reservas da tabela Reservas Futuras (Apenas contagem)
-    const reservadoFuturo = reservasFuturasLista
-      .filter(rf => rf.item_id === item.id)
-      .reduce((acc, curr) => acc + (curr.quantidade || 0), 0);
 
     return {
         livreHoje: Math.max(0, totalPatrimonio - alugadoHoje),
@@ -82,12 +80,20 @@ const InventoryDashboard: React.FC = () => {
   };
 
   const abrirModalReservas = (item: any) => {
-    const detalhes = reservasFuturasLista
-      .filter(rf => rf.item_id === item.id)
-      .map(rf => ({
-        ...rf,
-        nomeCliente: clientes.find(c => c.id === rf.cliente_id)?.cliente || "Cliente não identificado"
-      }));
+    const hoje = new Date();
+    hoje.setHours(0, 0, 0, 0);
+
+    // Filtra na tabela de reservas ativas tudo que for para o futuro deste item específico
+    const detalhes = reservasAtivas
+      .filter(r => r.item === item.item && new Date(r.data_evento).getTime() > hoje.getTime())
+      .map(r => {
+        // Tenta encontrar o cliente pelo ID ou pelo Nome, dependendo de como está salvando na tabela reservas
+        const clienteEncontrado = clientes.find(c => c.id === Number(r.cliente) || c.cliente === r.cliente);
+        return {
+          ...r,
+          nomeCliente: clienteEncontrado ? clienteEncontrado.cliente : (r.cliente || "Cliente não identificado")
+        };
+      });
     
     setItemSelecionadoReservas({
       nome: item.item,
@@ -215,13 +221,13 @@ const InventoryDashboard: React.FC = () => {
             <div className="absolute top-8 left-10">
                 {editandoIdRapido === item.id ? (
                     <input 
-                        autoFocus
-                        type="text"
-                        value={novoIdValor}
-                        onChange={(e) => setNovoIdValor(e.target.value)}
-                        onBlur={() => salvarIdRapido(item.id)}
-                        onKeyDown={(e) => e.key === 'Enter' && salvarIdRapido(item.id)}
-                        className="w-24 bg-white border-2 border-[#b24a2b] px-3 py-1 rounded-full text-[10px] font-black text-[#b24a2b] outline-none shadow-sm"
+                      autoFocus
+                      type="text"
+                      value={novoIdValor}
+                      onChange={(e) => setNovoIdValor(e.target.value)}
+                      onBlur={() => salvarIdRapido(item.id)}
+                      onKeyDown={(e) => e.key === 'Enter' && salvarIdRapido(item.id)}
+                      className="w-24 bg-white border-2 border-[#b24a2b] px-3 py-1 rounded-full text-[10px] font-black text-[#b24a2b] outline-none shadow-sm"
                     />
                 ) : (
                     <div 
@@ -271,7 +277,6 @@ const InventoryDashboard: React.FC = () => {
                 <span className="text-3xl font-black text-indigo-600 leading-none">{status.alugadoHoje}</span>
               </div>
               
-              {/* CAMPO NOVO: RESERVAS FUTURAS COM CLIQUE */}
               <button 
                 onClick={() => abrirModalReservas(item)}
                 className="w-full flex justify-between items-center p-6 bg-orange-50/40 rounded-[30px] border border-orange-100/30 hover:bg-orange-100/60 transition-colors"
@@ -285,7 +290,6 @@ const InventoryDashboard: React.FC = () => {
         })}
       </div>
 
-      {/* JANELA DE RESERVAS FUTURAS */}
       {isReservaModalOpen && itemSelecionadoReservas && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-md flex items-center justify-center z-[60] p-4">
           <div className="bg-white rounded-[50px] p-10 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in duration-300">

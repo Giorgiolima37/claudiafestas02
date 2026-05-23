@@ -336,9 +336,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     const correspondeBusca = nomeCliente.includes(termoBusca) || idCliente.includes(termoBusca);
     return correspondeAba && correspondeBusca;
   }).sort((a, b) => {
-    const idA = a['id-client'] ? parseInt(a['id-client']) : Infinity;
-    const idB = b['id-client'] ? parseInt(b['id-client']) : Infinity;
-    return idA - idB;
+    const nomeA = (a.cliente || '').toLowerCase();
+    const nomeB = (b.cliente || '').toLowerCase();
+    return nomeA.localeCompare(nomeB);
   });
 
   const totalListaNegra = clientes.filter(c => c.lista_negra).length;
