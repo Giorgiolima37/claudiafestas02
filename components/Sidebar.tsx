@@ -332,15 +332,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
         )}
       </div>
 
-      {/* Rodapé - Admin */}
-      <div className="pt-6 border-t border-white/10">
-        <div className="flex items-center gap-3 px-4 py-2 opacity-60 hover:opacity-100 transition-opacity cursor-pointer">
-          <i className="fa-solid fa-circle-user text-2xl"></i>
-          <div className="flex flex-col text-left">
-            <span className="text-[10px] font-black uppercase tracking-widest leading-none">Admin</span>
-            <span className="text-[8px] font-bold">Painel de Controle</span>
-          </div>
-        </div>
+      {/* Rodapé - Suporte do Sistema */}
+      <div className="pt-4 border-t border-white/10 flex justify-center">
+        <a
+          href="https://wa.me/48991347343"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="w-full bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-full flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+        >
+          <i className="fa-brands fa-whatsapp text-lg"></i>
+          <span>Suporte do Sistema</span>
+        </a>
       </div>
     </div>
   );

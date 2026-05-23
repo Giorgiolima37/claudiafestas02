@@ -10,6 +10,7 @@ import InventoryHistory from './components/InventoryHistory';
 import OrderManagement from './components/OrderManagement'; 
 import Catalog from './components/Catalog'; 
 import { db } from './services/supabase';
+import logo2 from './logo-2.png';
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('LISTAGEM');
@@ -29,6 +30,8 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [isZooming, setIsZooming] = useState(false);
 
   const isCatalogRoute = window.location.pathname === '/catalogo';
 
@@ -147,9 +150,13 @@ const App: React.FC = () => {
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
     if (passwordInput === '123456') {
-      setIsAuthenticated(true);
       setError(false);
-      sessionStorage.setItem('claudia_auth', 'true');
+      setIsZooming(true);
+      setTimeout(() => {
+        setIsAuthenticated(true);
+        setIsZooming(false);
+        sessionStorage.setItem('claudia_auth', 'true');
+      }, 200);
     } else {
       setError(true);
       setPasswordInput('');
@@ -193,23 +200,32 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[#fdf8f6] p-4">
-        <div className="w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center animate-in zoom-in duration-500">
-          <div className="w-20 h-20 bg-[#B24D2D] rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg">
-              <i className="fa-solid fa-lock text-white text-3xl"></i>
+      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fdf8f6] p-4 overflow-hidden">
+        <div className={`w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center transition-all duration-300 ${isZooming ? 'opacity-0 scale-95 pointer-events-none' : 'animate-in zoom-in duration-500'}`}>
+          <div className={`w-56 h-56 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden rounded-full bg-white transition-all duration-200 ease-in-out ${isZooming ? 'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[5] opacity-0 shadow-none' : ''}`}>
+              <img src={logo2} alt="Logo" className="w-full h-full object-contain" />
           </div>
           <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
           <p className="text-gray-400 text-sm mb-8 font-bold uppercase tracking-widest">Claudia Festas</p>
           
           <form onSubmit={handleLogin} className="space-y-4">
-            <input 
-              type="password" 
-              placeholder="Digite a senha de admin"
-              className={`w-full p-5 bg-gray-50 border-2 rounded-2xl outline-none font-bold text-center transition-all ${error ? 'border-red-500 animate-shake' : 'border-gray-100 focus:border-[#B24D2D]'}`}
-              value={passwordInput}
-              onChange={(e) => setPasswordInput(e.target.value)}
-              autoFocus
-            />
+            <div className="relative w-full">
+              <input 
+                type={showPassword ? "text" : "password"} 
+                placeholder="Digite a senha de admin"
+                className={`w-full p-5 pr-14 bg-gray-50 border-2 rounded-2xl outline-none font-bold text-center transition-all ${error ? 'border-red-500 animate-shake' : 'border-gray-100 focus:border-[#B24D2D]'}`}
+                value={passwordInput}
+                onChange={(e) => setPasswordInput(e.target.value)}
+                autoFocus
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#B24D2D] transition-colors focus:outline-none"
+              >
+                <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
+              </button>
+            </div>
             {error && <p className="text-red-500 text-xs font-bold">Senha incorreta. Tente novamente.</p>}
             <button 
               type="submit"
@@ -219,6 +235,17 @@ const App: React.FC = () => {
             </button>
           </form>
         </div>
+        
+        <a 
+          href="https://wa.me/5548991347343"
+          target="_blank"
+          rel="noopener noreferrer"
+          className={`mt-6 flex items-center justify-center gap-3 px-6 py-3 bg-[#25D366] text-white rounded-full shadow-lg hover:bg-[#20ba56] hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold text-sm uppercase tracking-wide no-underline ${isZooming ? 'opacity-0 pointer-events-none' : ''}`}
+          title="Suporte via WhatsApp"
+        >
+          <i className="fa-brands fa-whatsapp text-2xl"></i>
+          <span>Suporte do Sistema</span>
+        </a>
       </div>
     );
   }
