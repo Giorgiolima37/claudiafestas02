@@ -109,7 +109,7 @@ const OrderManagement: React.FC = () => {
           }
         }
       }
-      const { error } = await db.from('pedidos_online').delete().eq('id', pedido.id);
+      const { error } = await db.from('pedidos_online').delete().eq('id', dummyId);
       if (error) throw error;
       alert("Pedido processado! O banco de dados gerou a reserva automaticamente.");
       fetchData();
@@ -434,7 +434,7 @@ const OrderManagement: React.FC = () => {
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
                 locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>, 
-                tem ajustado o presente contrato de locação dos equipamentos e utensílios (denominados diante
+                tem ajustado the presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
                 Os bens a que se refere o presente contrato, todos de propriedade da LOCADORA, são:
@@ -633,9 +633,13 @@ const OrderManagement: React.FC = () => {
       for (const item of pedido.itens) {
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
         if (est) {
+          // SE O PEDIDO ESTAVA ATIVO HOJE (STATUS EM ALUGUEL), RETIRA DE ALUGADO. SE ESTAVA FUTURO, RETIRA DE RESERVADO.
+          const deOndeRetirar = item.status?.toLowerCase() === 'em aluguel' ? 'alugado' : 'reservado';
+          const valorAtualDeOndeRetirar = est[deOndeRetirar] || 0;
+
           await db.from('estoque').update({
             disponivel: est.disponivel + item.quantidade,
-            reservado: Math.max(0, est.reservado - item.quantidade)
+            [deOndeRetirar]: Math.max(0, valorAtualDeOndeRetirar - item.quantidade)
           }).eq('item', item.item);
         }
         await db.from('reservas').delete().eq('id', item.id);
@@ -661,12 +665,16 @@ const OrderManagement: React.FC = () => {
            await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
         }
 
-        // Devolve os itens ao estoque disponível
+        // Devolve os itens ao estoque disponível buscando a origem correta do desconto
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
         if (est) {
+          // SE O ITEM ESTAVA EM ALUGUEL HOJE, DA BAIXA NA COLUNA ALUGADO. CASO CONTRÁRIO, DA BAIXA NA RESERVADO.
+          const deOndeRetirar = item.status?.toLowerCase() === 'em aluguel' ? 'alugado' : 'reservado';
+          const valorAtualDeOndeRetirar = est[deOndeRetirar] || 0;
+
           await db.from('estoque').update({
             disponivel: est.disponivel + item.quantidade,
-            reservado: Math.max(0, est.reservado - item.quantidade)
+            [deOndeRetirar]: Math.max(0, valorAtualDeOndeRetirar - item.quantidade)
           }).eq('item', item.item);
         }
       }

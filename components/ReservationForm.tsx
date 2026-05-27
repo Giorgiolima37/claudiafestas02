@@ -30,7 +30,7 @@ const ReservationForm: React.FC = () => {
       .order('cliente', { ascending: true });
 
     const resEstoque = await db.from('estoque')
-      .select('id, item, disponivel, reservado, preco, codigo_interno')
+      .select('id, item, disponivel, reservado, preco, codigo_interno, alugado')
       .order('item', { ascending: true });
     
     if (resClientes.data) setClientes(resClientes.data);
@@ -110,7 +110,12 @@ const ReservationForm: React.FC = () => {
       const hoje = new Date().toISOString().split('T')[0];
 
       for (const selecionado of itensSelecionados) {
-        const itemEstoque = estoque.find(i => i.item === selecionado.item)!;
+        const itemEstoque = estoque.find(i => i.item === selecionado.item);
+        
+        if (!itemEstoque) {
+          throw new Error(`O material "${selecionado.item}" não foi encontrado no banco de dados de estoque.`);
+        }
+
         const valorItemTotal = (selecionado.quantidade * itemEstoque.preco);
 
         // UNIFICAÇÃO: Independente da data, salvamos sempre na tabela 'reservas'
@@ -126,20 +131,31 @@ const ReservationForm: React.FC = () => {
           status: statusReserva,
           forma_pagamento: 'Não Informado',
           valor_total: valorItemTotal,
-          taxa_entrega: freteAjustado,
-          desconto: desconto, 
+          taxa_entrega: Number(freteAjustado) || 0,
+          desconto: Number(desconto) || 0, 
           codigo_item: itemEstoque.codigo_interno || 'S/C',
           observacoes: reservaGeral.observacoes // SALVANDO A OBSERVAÇÃO AQUI
         }]);
 
         if (erroReserva) throw erroReserva;
 
-        // Se for para hoje, já damos baixa no estoque disponível
+        // --- ATUALIZAÇÃO INTELIGENTE DO ESTOQUE ---
         if (reservaGeral.data === hoje) {
-            await db.from('estoque').update({ 
-                disponivel: itemEstoque.disponivel - selecionado.quantidade,
-                reservado: itemEstoque.reservado + selecionado.quantidade 
-            }).eq('id', itemEstoque.id);
+          // REGRA 1: Se o evento é HOJE, movimenta a coluna ALUGADO diretamente
+          const { error: erroEstoque } = await db.from('estoque').update({ 
+            disponivel: Number(itemEstoque.disponivel) - Number(selecionado.quantidade),
+            alugado: Number(itemEstoque.alugado || 0) + Number(selecionado.quantidade)
+          }).eq('id', itemEstoque.id);
+
+          if (erroEstoque) throw erroEstoque;
+        } else if (reservaGeral.data > hoje) {
+          // REGRA 2: Se o evento é para uma DATA MAIS À FRENTE (FUTURA), movimenta a coluna RESERVADO
+          const { error: erroEstoque } = await db.from('estoque').update({ 
+            disponivel: Number(itemEstoque.disponivel) - Number(selecionado.quantidade),
+            reservado: Number(itemEstoque.reservado || 0) + Number(selecionado.quantidade) 
+          }).eq('id', itemEstoque.id);
+
+          if (erroEstoque) throw erroEstoque;
         }
 
         // REGISTRA A ENTRADA NO CAIXA
@@ -156,7 +172,7 @@ const ReservationForm: React.FC = () => {
       if (freteAjustado > 0) {
         await db.from('movimentacao_caixa').insert([{
           descricao: `Taxa de Entrega - Cliente ID: ${reservaGeral.clienteId}`,
-          valor: freteAjustado,
+          valor: Number(freteAjustado),
           tipo: 'Receita',
           cliente_id: parseInt(reservaGeral.clienteId),
           data: new Date().toISOString()
@@ -166,7 +182,7 @@ const ReservationForm: React.FC = () => {
       if (desconto > 0) {
         await db.from('movimentacao_caixa').insert([{
           descricao: `Desconto Aplicado - Cliente ID: ${reservaGeral.clienteId}`,
-          valor: desconto,
+          valor: Number(desconto),
           tipo: 'Despesa',
           cliente_id: parseInt(reservaGeral.clienteId),
           data: new Date().toISOString()

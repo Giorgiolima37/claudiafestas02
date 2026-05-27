@@ -40,6 +40,21 @@ const App: React.FC = () => {
     if (sessionAuth === 'true') {
       setIsAuthenticated(true);
     }
+
+    // --- TESTE DE SINCRONIZAÇÃO DO SUPABASE ---
+    async function verificarConexaoSupabase() {
+      try {
+        const { data, error } = await db.from('cadastro').select('id').limit(1);
+        if (error) {
+          console.error("❌ Erro de sincronização com o Supabase:", error.message);
+        } else {
+          console.log("✅ Supabase sincronizado com sucesso! Conexão activa.");
+        }
+      } catch (err: any) {
+        console.error("❌ Erro inesperado ao testar o Supabase:", err.message);
+      }
+    }
+    verificarConexaoSupabase();
   }, []);
 
   const fetchCalendarEvents = async () => {
@@ -67,7 +82,7 @@ const App: React.FC = () => {
       const futuras = (resFuturas.data || []).map((rf: any) => ({
         data: rf.data_evento?.split('T')[0],
         devolucao: rf.data_devolucao?.split('T')[0], // Mapeia a devolução
-          cliente: clientesMap[rf.cliente_id] || 'ID: ' + rf.cliente_id,
+        cliente: clientesMap[rf.cliente_id] || 'ID: ' + rf.cliente_id,
         tipo: 'Reserva Futura'
       }));
 
@@ -184,6 +199,7 @@ const App: React.FC = () => {
       case 'PEDIDOS': 
         return <OrderManagement />;
       case 'ESTOQUE': 
+      case 'INVENTARIO': // Fallback preventivo caso mude no types.ts
         return <InventoryDashboard />;
       case 'HISTORICO': 
         return <InventoryHistory clientId={selectedClientId} onBack={() => navigateTo('LISTAGEM')} />;
@@ -369,7 +385,7 @@ const App: React.FC = () => {
             
             <div className="w-full max-h-[160px] overflow-y-auto pr-1">
               <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-2">
-                📦 Retiradas em {selectedDate ? selectedDate.split('-').reverse().join('/') : ''}:
+                Box Retiradas em {selectedDate ? selectedDate.split('-').reverse().join('/') : ''}:
               </h4>
               
               {clientesDoDia.length > 0 ? (

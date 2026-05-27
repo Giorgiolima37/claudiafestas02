@@ -56,14 +56,14 @@ const Catalog: React.FC = () => {
     if (isLoggedIn) fetchCatalog(); 
   }, [isLoggedIn]);
 
-  // --- LÓGICA PARA SUGERIR O PRÓXIMO ID (AUTO) ---
+  // --- LÓGICA PARA SUGERIR O PRÓXIMO ID (CORRIGIDA) ---
   useEffect(() => {
     if (showRegisterForm) {
         const fetchNextId = async () => {
-            const { data } = await db.from('cadastro').select('id-client');
+            const { data } = await db.from('cadastro').select('id');
             if (data && data.length > 0) {
                 const ids = data
-                    .map(d => parseInt(d['id-client']))
+                    .map(d => parseInt(d.id))
                     .filter(n => !isNaN(n));
                 const maxId = ids.length > 0 ? Math.max(...ids) : 99;
                 setRegIdPersonalizado(String(maxId + 1));
@@ -151,7 +151,7 @@ const Catalog: React.FC = () => {
             endereco: regEndereco.toUpperCase(),
             bairro: regBairro.toUpperCase(),
             municipio: regMunicipio.toUpperCase(),
-            'id-client': regIdPersonalizado, 
+            id: regIdPersonalizado, 
             lista_negra: false
         }]);
 
