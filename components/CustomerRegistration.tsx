@@ -127,25 +127,26 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
         }
       }
 
-      // Prepara os dados para salvar
-      const dadosParaSalvar = { 
-        cliente: formData.nome,
-        telefone: formData.tel,
-        'identificação': formData.doc,
-        endereco: formData.end,
-        bairro: formData.bairro,
-        municipio: formData.municipio, 
-        'id-client': formData.idClient,
-        'nome_fantasia': isCNPJ ? formData.nomeFantasia : null 
-      };
-
-      const { error } = await db.from("cadastro").insert([dadosParaSalvar]);
+      // Executa a função SQL remota passando os parâmetros exatos
+      const { error } = await db.rpc('cadastrar_novo_cliente', {
+        p_id: formData.idClient,
+        p_cliente: formData.nome,
+        p_telefone: formData.tel,
+        p_identificacao: formData.doc,
+        p_endereco: formData.end,
+        p_bairro: formData.bairro,
+        p_municipio: formData.municipio,
+        p_nome_fantasia: isCNPJ ? formData.nomeFantasia : null
+      });
 
       if (error) throw error;
       
       setModalType('success');
       setModalMessage("Cliente cadastrado com sucesso!");
       setShowModal(true);
+      
+      // Limpa os campos do formulário para o próximo cadastro
+      setFormData({ nome: '', nomeFantasia: '', tel: '', doc: '', end: '', bairro: '', municipio: '', idClient: '' });
       onSaved();
       
     } catch (err: any) {
@@ -181,7 +182,7 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
       
       <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
         
-        {/* LINHA 1: Nome e Telefone (Voltamos para 2 colunas) */}
+        {/* LINHA 1: Nome e Telefone */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <FormInput 
              label={isCNPJ ? "RAZÃO SOCIAL" : "NOME DO CLIENTE"} 
@@ -213,7 +214,7 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
           <FormInput label="ENDEREÇO COMPLETO" id="end" value={formData.end} onChange={handleChange} required />
         </div>
 
-        {/* LINHA 3 (CONDICIONAL): Nome Fantasia aparece AQUI, logo abaixo do CNPJ */}
+        {/* LINHA 3 (CONDICIONAL): Nome Fantasia */}
         {isCNPJ && (
              <div className="animate-in fade-in slide-in-from-top-2 duration-300">
                 <FormInput 
