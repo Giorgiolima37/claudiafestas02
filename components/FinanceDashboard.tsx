@@ -71,6 +71,26 @@ const FinanceDashboard: React.FC = () => {
   };
 
   const { entradas, saidas, saldo } = calcularResumo();
+  const anoAtual = new Date().getFullYear();
+  const mesesGrafico = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
+  const alugueisMensais = mesesGrafico.map((mes, index) => {
+    const total = movimentacoes
+      .filter(m => {
+        const dataM = new Date(m.data);
+        const descricao = String(m.descricao || '').toLowerCase();
+        return (
+          m.tipo === 'Receita' &&
+          dataM.getFullYear() === anoAtual &&
+          dataM.getMonth() === index &&
+          descricao.includes('reserva')
+        );
+      })
+      .reduce((acc, m) => acc + Number(m.valor || 0), 0);
+
+    return { mes, total };
+  });
+  const maiorAluguelMensal = Math.max(...alugueisMensais.map(item => item.total), 1);
+  const totalAlugueisAno = alugueisMensais.reduce((acc, item) => acc + item.total, 0);
 
   if (loading) return <div className="p-20 text-center font-light text-gray-400 tracking-widest uppercase animate-pulse">Carregando Finanças...</div>;
 
@@ -139,6 +159,43 @@ const FinanceDashboard: React.FC = () => {
         <div className={`p-8 rounded-[32px] shadow-lg ${saldo >= 0 ? 'bg-[#b24a2b]' : 'bg-gray-800'}`}>
           <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block mb-4">Saldo Atual</span>
           <p className="text-3xl font-bold text-white">R$ {saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
+        </div>
+      </div>
+
+      <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-6 md:p-8 mb-12">
+        <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
+          <div>
+            <h2 className="text-xl font-black text-gray-800 uppercase italic tracking-tight">Aluguéis Mensais</h2>
+            <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] mt-2">Receitas de reservas em {anoAtual}</p>
+          </div>
+          <div className="text-left md:text-right">
+            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Total no ano</span>
+            <strong className="text-2xl font-black text-[#b24a2b]">
+              R$ {totalAlugueisAno.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
+            </strong>
+          </div>
+        </div>
+
+        <div className="h-72 flex items-end gap-3 md:gap-5 border-l border-b border-gray-100 pl-4 pb-4 overflow-x-auto">
+          {alugueisMensais.map((item) => {
+            const altura = Math.max(8, (item.total / maiorAluguelMensal) * 100);
+
+            return (
+              <div key={item.mes} className="min-w-[54px] flex-1 h-full flex flex-col items-center justify-end gap-3">
+                <span className="text-[10px] font-black text-gray-400 whitespace-nowrap">
+                  {item.total > 0 ? `R$ ${item.total.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : '-'}
+                </span>
+                <div className="w-full max-w-[42px] h-[200px] flex items-end">
+                  <div
+                    className="w-full rounded-t-xl bg-[#b24a2b] shadow-md shadow-orange-900/10 transition-all hover:bg-[#943a20]"
+                    style={{ height: `${altura}%` }}
+                    title={`${item.mes}: R$ ${item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
+                  ></div>
+                </div>
+                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.mes}</span>
+              </div>
+            );
+          })}
         </div>
       </div>
 

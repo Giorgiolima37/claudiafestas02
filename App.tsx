@@ -13,7 +13,7 @@ import { db } from './services/supabase';
 import logo2 from './logo-2.png';
 
 const App: React.FC = () => {
-  const [currentScreen, setCurrentScreen] = useState<Screen>('LISTAGEM');
+  const [currentScreen, setCurrentScreen] = useState<Screen>('PEDIDOS');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   
