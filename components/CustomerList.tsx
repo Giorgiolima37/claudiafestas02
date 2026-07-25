@@ -85,18 +85,71 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     if (!confirmacao) return;
 
     try {
+        setLoading(true);
+        const clienteId = Number(cliente.id);
+
+        const { data: reservasDoCliente, error: erroReservasCliente } = await db
+            .from('reservas')
+            .select('id, item, quantidade, status')
+            .eq('cliente_id', clienteId);
+
+        if (erroReservasCliente) throw erroReservasCliente;
+
+        for (const reserva of reservasDoCliente || []) {
+            if (reserva.status === 'Finalizado') continue;
+
+            const produtoEstoque = estoque.find(e => e.item === reserva.item);
+            if (!produtoEstoque) continue;
+
+            const quantidade = Number(reserva.quantidade || 0);
+            const { error: erroEstoque } = await db
+                .from('estoque')
+                .update({
+                    disponivel: Number(produtoEstoque.disponivel || 0) + quantidade,
+                    reservado: Math.max(0, Number(produtoEstoque.reservado || 0) - quantidade)
+                })
+                .eq('id', produtoEstoque.id);
+
+            if (erroEstoque) throw erroEstoque;
+        }
+
+        const { error: erroMovimentacao } = await db
+            .from('movimentacao_caixa')
+            .delete()
+            .eq('cliente_id', clienteId);
+
+        if (erroMovimentacao) throw erroMovimentacao;
+
+        const { error: erroReservasFuturas } = await db
+            .from('reservas_futuras')
+            .delete()
+            .eq('cliente_id', clienteId);
+
+        if (erroReservasFuturas) throw erroReservasFuturas;
+
+        const { error: erroReservas } = await db
+            .from('reservas')
+            .delete()
+            .eq('cliente_id', clienteId);
+
+        if (erroReservas) throw erroReservas;
+
         const { error } = await db
             .from('cadastro')
             .delete()
-            .eq('id', cliente.id);
+            .eq('id', clienteId);
 
         if (error) throw error;
 
         alert("Cliente excluído com sucesso.");
         setClientes(prev => prev.filter(c => c.id !== cliente.id));
+        setReservas(prev => prev.filter(r => r.cliente_id !== clienteId));
+        setClienteDetalhado(null);
         
     } catch (err: any) {
         alert("Erro ao excluir cliente: " + err.message);
+    } finally {
+        setLoading(false);
     }
   };
 
