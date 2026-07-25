@@ -28,7 +28,38 @@ const DEFAULT_CITIES = [
   { name: 'Criciúma, SC', lat: -28.6775, lon: -49.3701 }
 ];
 
+interface SidebarTheme {
+  month: number;
+  name: string;
+  label: string;
+  primary: string;
+  secondary: string;
+  accent: string;
+  text: string;
+}
+
+const SIDEBAR_THEMES: SidebarTheme[] = [
+  { month: 1, name: 'Janeiro Branco', label: 'Saude mental', primary: '#f8fafc', secondary: '#e2e8f0', accent: '#0f172a', text: '#0f172a' },
+  { month: 2, name: 'Fevereiro Roxo', label: 'Conscientizacao', primary: '#7c3aed', secondary: '#a855f7', accent: '#f5d0fe', text: '#ffffff' },
+  { month: 3, name: 'Marco Lilas', label: 'Saude da mulher', primary: '#9333ea', secondary: '#c084fc', accent: '#f3e8ff', text: '#ffffff' },
+  { month: 4, name: 'Abril Azul', label: 'Inclusao e autismo', primary: '#2563eb', secondary: '#38bdf8', accent: '#dbeafe', text: '#ffffff' },
+  { month: 5, name: 'Maio Amarelo', label: 'Atencao no transito', primary: '#ca8a04', secondary: '#facc15', accent: '#fef3c7', text: '#ffffff' },
+  { month: 6, name: 'Junho Vermelho', label: 'Doacao de sangue', primary: '#b91c1c', secondary: '#ef4444', accent: '#fee2e2', text: '#ffffff' },
+  { month: 7, name: 'Julho Amarelo', label: 'Hepatites virais', primary: '#b45309', secondary: '#f59e0b', accent: '#fef3c7', text: '#ffffff' },
+  { month: 8, name: 'Agosto Dourado', label: 'Amamentacao', primary: '#a16207', secondary: '#eab308', accent: '#fef9c3', text: '#ffffff' },
+  { month: 9, name: 'Setembro Amarelo', label: 'Valorizacao da vida', primary: '#b45309', secondary: '#fbbf24', accent: '#fef3c7', text: '#ffffff' },
+  { month: 10, name: 'Outubro Rosa', label: 'Prevencao', primary: '#be185d', secondary: '#f472b6', accent: '#fce7f3', text: '#ffffff' },
+  { month: 11, name: 'Novembro Azul', label: 'Saude do homem', primary: '#1d4ed8', secondary: '#60a5fa', accent: '#dbeafe', text: '#ffffff' },
+  { month: 12, name: 'Dezembro Vermelho', label: 'Conscientizacao', primary: '#b91c1c', secondary: '#f97316', accent: '#ffedd5', text: '#ffffff' }
+];
+
+const getSidebarTheme = () => {
+  const currentMonth = new Date().getMonth() + 1;
+  return SIDEBAR_THEMES.find(theme => theme.month === currentMonth) || SIDEBAR_THEMES[0];
+};
+
 const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
+  const currentTheme = getSidebarTheme();
   const menuItems: Array<{ id: Screen | 'NFSE-BIGUACU'; label: string; icon: string; href?: string }> = [
     { id: 'LISTAGEM', label: 'Clientes', icon: 'fa-users' },
     { id: 'RESERVA', label: 'Reservas', icon: 'fa-calendar-check' },
@@ -140,10 +171,26 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
   };
 
   return (
-    <div className="w-full h-full bg-[#B24D2D] text-white flex flex-col p-6 shadow-2xl overflow-y-auto">
+    <div
+      className="w-full h-full flex flex-col p-6 shadow-2xl overflow-y-auto transition-colors duration-700"
+      style={{
+        background: `linear-gradient(180deg, ${currentTheme.primary} 0%, ${currentTheme.secondary} 100%)`,
+        color: currentTheme.text
+      }}
+    >
       {/* Cabeçalho / Logo */}
       <div className="mb-10 mt-4 text-center">
         <h2 className="text-2xl font-black italic tracking-tighter uppercase">Claudia</h2>
+        <button
+          type="button"
+          onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${currentTheme.name} significado`)}`, '_blank', 'noopener,noreferrer')}
+          className="mt-4 mx-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm transition-transform hover:scale-105 active:scale-95"
+          style={{ backgroundColor: currentTheme.accent, color: currentTheme.primary }}
+          title={`Pesquisar significado de ${currentTheme.name}`}
+        >
+          <i className="fa-solid fa-ribbon"></i>
+          <span>{currentTheme.name}</span>
+        </button>
         <p className="text-[10px] font-bold opacity-60 tracking-[0.3em] uppercase">Festas & Locações</p>
       </div>
 
@@ -162,9 +209,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
             }}
             className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all duration-300 ${
               activeScreen === item.id 
-                ? 'bg-white text-[#B24D2D] shadow-lg scale-105' 
+                ? 'bg-white shadow-lg scale-105' 
                 : 'hover:bg-white/10 text-white/80'
             }`}
+            style={activeScreen === item.id ? { color: currentTheme.primary } : undefined}
           >
             <i className={`fa-solid ${item.icon} text-lg w-6 text-center`}></i>
             <span className="text-sm tracking-wide uppercase">{item.label}</span>
@@ -173,7 +221,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
       </nav>
 
       {/* Widget de Previsão do Tempo */}
-      <div className="mt-6 mb-6 bg-white/95 text-gray-800 rounded-xl p-4 shadow-xl border border-white/20 max-w-[240px] mx-auto w-full backdrop-blur-sm min-h-[145px] flex flex-col justify-center relative">
+      <div
+        className="mt-6 mb-6 bg-white/95 text-gray-800 rounded-xl p-4 shadow-xl border max-w-[240px] mx-auto w-full backdrop-blur-sm min-h-[145px] flex flex-col justify-center relative"
+        style={{ borderColor: currentTheme.accent }}
+      >
         
         {/* Setas de navegação superiores */}
         <div className="absolute top-3 left-4 right-4 flex justify-between z-10">

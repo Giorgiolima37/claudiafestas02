@@ -726,7 +726,7 @@ const OrderManagement: React.FC = () => {
         <h1 className="text-4xl font-black text-gray-800 italic uppercase">Gestão de Pedidos</h1>
         <div className="flex flex-col items-center gap-4 mt-8">
           <input type="text" placeholder="PROCURAR POR NOME OU ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full max-w-md px-6 py-4 bg-white border-2 border-gray-100 rounded-full text-xs text-center font-bold outline-none focus:border-[#b24a2b] shadow-sm transition-all" />
-          <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-amber-50 border-amber-500 text-white shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'}`}>
+          <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-white border-amber-500 text-amber-600 shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'}`}>
             {filtroUrgentes ? '✕ Mostrar todos' : `⏳ Ver devoluções em 24h`}
             {totalUrgentes > 0 && !filtroUrgentes && <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[9px] animate-pulse">{totalUrgentes}</span>}
           </button>
@@ -747,7 +747,7 @@ const OrderManagement: React.FC = () => {
                 <div className="flex flex-wrap justify-between items-start gap-4 mb-6">
                   <div className="flex flex-col gap-1">
                     <div className="flex flex-wrap items-center gap-2">
-                      {atrasado ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-red-500 text-white">⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ EM BREVE</span> : <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
+                      {atrasado ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-red-500 text-white animate-pulse" style={{ animationDuration: '1s' }}>⚠️ ATRASADO</span> : urgente ? <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-amber-500 text-white">⏳ EM BREVE</span> : <span className="text-[10px] font-black px-4 py-2 rounded-full uppercase bg-orange-600 text-white">NO PRAZO</span>}
                       {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Online</span>}
                       {pedido.isFutura && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-gray-800 text-white shadow-sm border border-gray-600">Reserva Futura</span>}
                     </div>
