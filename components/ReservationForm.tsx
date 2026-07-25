@@ -26,7 +26,7 @@ const ReservationForm: React.FC = () => {
   const carregarDados = async () => {
     // ORDENANDO CLIENTES ALFABETICAMENTE
     const resClientes = await db.from('cadastro')
-      .select('id, cliente')
+      .select('*')
       .order('cliente', { ascending: true });
 
     const resEstoque = await db.from('estoque')
@@ -238,9 +238,10 @@ const ReservationForm: React.FC = () => {
               {clientes
                 .filter(c => 
                   c.cliente.toLowerCase().includes(filtroCliente.toLowerCase()) || 
-                  c.id.toString().includes(filtroCliente)
+                  c.id.toString().includes(filtroCliente) ||
+                  String(c['id-client'] || '').includes(filtroCliente)
                 )
-                .map(c => <option key={c.id} value={c.id}>ID: {c.id} - {c.cliente}</option>)
+                .map(c => <option key={c.id} value={c.id}>ID: {c['id-client'] || c.id} - {c.cliente}</option>)
               }
             </select>
           </div>

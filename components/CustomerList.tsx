@@ -34,6 +34,25 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   const [clienteParaBloqueio, setClienteParaBloqueio] = useState<any>(null);
   const [motivoTexto, setMotivoTexto] = useState('');
 
+  const getIdClienteNumerico = (cliente: any) => {
+    const id = Number.parseInt(String(cliente['id-client'] || cliente.id || ''), 10);
+    return Number.isFinite(id) ? id : Number.MAX_SAFE_INTEGER;
+  };
+
+  const ordenarClientesPorIdNumerico = (lista: any[]) => {
+    return [...lista].sort((a, b) => {
+      const ordemId = getIdClienteNumerico(a) - getIdClienteNumerico(b);
+      if (ordemId !== 0) return ordemId;
+
+      const nomeA = String(a.cliente || '');
+      const nomeB = String(b.cliente || '');
+      return nomeA.localeCompare(nomeB, 'pt-BR', {
+        sensitivity: 'base',
+        numeric: true
+      });
+    });
+  };
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -46,7 +65,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
       if (resClientes.error) throw resClientes.error;
       if (resReservas.error) throw resReservas.error;
 
-      setClientes(resClientes.data || []);
+      setClientes(ordenarClientesPorIdNumerico(resClientes.data || []));
       setReservas(resReservas.data || []);
       setEstoque(resEstoque.data || []);
     } catch (err: any) {
@@ -182,7 +201,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         
         const novoCliente = { ...clienteDetalhado, ...dadosClienteEdicao };
         setClienteDetalhado(novoCliente);
-        setClientes(prev => prev.map(c => c.id === novoCliente.id ? novoCliente : c));
+        setClientes(prev => ordenarClientesPorIdNumerico(prev.map(c => c.id === novoCliente.id ? novoCliente : c)));
 
     } catch (err: any) {
         alert("Erro ao atualizar cliente: " + err.message);
@@ -328,18 +347,14 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
     }
   };
 
-  const clientesExibidos = clientes.filter(c => {
+  const clientesExibidos = ordenarClientesPorIdNumerico(clientes.filter(c => {
     const correspondeAba = abaAtiva === 'normais' ? !c.lista_negra : c.lista_negra;
     const termoBusca = busca.toLowerCase();
     const nomeCliente = (c.cliente || '').toLowerCase();
     const idCliente = String(c['id-client'] || '').toLowerCase();
     const correspondeBusca = nomeCliente.includes(termoBusca) || idCliente.includes(termoBusca);
     return correspondeAba && correspondeBusca;
-  }).sort((a, b) => {
-    const nomeA = (a.cliente || '').toLowerCase();
-    const nomeB = (b.cliente || '').toLowerCase();
-    return nomeA.localeCompare(nomeB);
-  });
+  }));
 
   const totalListaNegra = clientes.filter(c => c.lista_negra).length;
 

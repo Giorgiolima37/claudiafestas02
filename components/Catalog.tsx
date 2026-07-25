@@ -60,10 +60,10 @@ const Catalog: React.FC = () => {
   useEffect(() => {
     if (showRegisterForm) {
         const fetchNextId = async () => {
-            const { data } = await db.from('cadastro').select('id');
+            const { data } = await db.from('cadastro').select('*');
             if (data && data.length > 0) {
                 const ids = data
-                    .map(d => parseInt(d.id))
+                    .map(d => parseInt(String(d['id-client'] || d.id || ''), 10))
                     .filter(n => !isNaN(n));
                 const maxId = ids.length > 0 ? Math.max(...ids) : 99;
                 setRegIdPersonalizado(String(maxId + 1));
@@ -151,7 +151,7 @@ const Catalog: React.FC = () => {
             endereco: regEndereco.toUpperCase(),
             bairro: regBairro.toUpperCase(),
             municipio: regMunicipio.toUpperCase(),
-            id: regIdPersonalizado, 
+            'id-client': regIdPersonalizado, 
             lista_negra: false
         }]);
 

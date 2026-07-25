@@ -29,13 +29,18 @@ const DEFAULT_CITIES = [
 ];
 
 const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
-  const menuItems = [
+  const menuItems: Array<{ id: Screen | 'NFSE-BIGUACU'; label: string; icon: string; href?: string }> = [
     { id: 'LISTAGEM', label: 'Clientes', icon: 'fa-users' },
     { id: 'RESERVA', label: 'Reservas', icon: 'fa-calendar-check' },
     { id: 'PEDIDOS', label: 'Pedidos', icon: 'fa-rectangle-list' },
     { id: 'ESTOQUE', label: 'Estoque', icon: 'fa-boxes-stacked' },
     { id: 'CAIXA', label: 'Caixa', icon: 'fa-file-invoice-dollar' },
-    { id: 'NFSe-Biguaçu', label: 'NFSe-Biguaçu', icon: 'fa-file-shield' }
+    {
+      id: 'NFSE-BIGUACU',
+      label: 'NFSe-Biguaçu',
+      icon: 'fa-file-shield',
+      href: 'https://nfse-bigua.atende.net/autoatendimento/servicos/nfse?redirected=1'
+    }
   ];
 
   const [weather, setWeather] = useState<WeatherData | null>(null);
@@ -147,7 +152,14 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
         {menuItems.map((item) => (
           <button
             key={item.id}
-            onClick={() => onNavigate(item.id as Screen)}
+            onClick={() => {
+              if (item.href) {
+                window.location.href = item.href;
+                return;
+              }
+
+              onNavigate(item.id);
+            }}
             className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all duration-300 ${
               activeScreen === item.id 
                 ? 'bg-white text-[#B24D2D] shadow-lg scale-105' 
