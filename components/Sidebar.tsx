@@ -154,7 +154,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
             key={item.id}
             onClick={() => {
               if (item.href) {
-                window.location.href = item.href;
+                window.open(item.href, '_blank', 'noopener,noreferrer');
                 return;
               }
 
