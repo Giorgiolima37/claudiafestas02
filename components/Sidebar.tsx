@@ -90,6 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
     { id: 'LISTAGEM', label: 'Clientes', icon: 'fa-users' },
     { id: 'RESERVA', label: 'Reservas', icon: 'fa-calendar-check' },
     { id: 'PEDIDOS', label: 'Pedidos', icon: 'fa-rectangle-list' },
+    { id: 'ORCAMENTO', label: 'Orçamento', icon: 'fa-file-signature' },
     { id: 'ESTOQUE', label: 'Estoque', icon: 'fa-boxes-stacked' },
     { id: 'CAIXA', label: 'Caixa', icon: 'fa-file-invoice-dollar' },
     {
@@ -209,7 +210,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
         color: '#ffffff'
       }}
     >
-      <div className="fixed right-10 top-7 z-[80]">
+      <div className="fixed right-10 top-7 z-[80] flex items-center gap-3">
+        <a
+          href="https://wa.me/48991347343"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+          title="Suporte via WhatsApp"
+        >
+          <i className="fa-brands fa-whatsapp text-lg"></i>
+          <span>Suporte do Sistema</span>
+        </a>
         <button
           type="button"
           onClick={() => setIsToneControlOpen(!isToneControlOpen)}
@@ -221,7 +232,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
 
         {isToneControlOpen && (
           <div
-            className="absolute right-0 mt-2 w-44 rounded-2xl bg-white p-3 text-gray-700 border"
+            className="absolute right-0 top-full mt-2 w-44 rounded-2xl bg-white p-3 text-gray-700 border"
             style={{
               borderColor: `rgba(178, 77, 45, ${controlBorderOpacity})`,
               boxShadow: `0 18px 36px rgba(0,0,0,${controlBorderOpacity})`
@@ -490,18 +501,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
         )}
       </div>
 
-      {/* Rodapé - Suporte do Sistema */}
-      <div className="pt-4 border-t border-white/10 flex justify-center">
-        <a
-          href="https://wa.me/48991347343"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="w-full bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-4 rounded-full flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
-        >
-          <i className="fa-brands fa-whatsapp text-lg"></i>
-          <span>Suporte do Sistema</span>
-        </a>
-      </div>
     </div>
   );
 };

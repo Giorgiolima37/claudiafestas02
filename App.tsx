@@ -9,6 +9,7 @@ import FinanceDashboard from './components/FinanceDashboard';
 import InventoryHistory from './components/InventoryHistory';
 import OrderManagement from './components/OrderManagement'; 
 import Catalog from './components/Catalog'; 
+import BudgetDashboard from './components/BudgetDashboard';
 import { db } from './services/supabase';
 import logo2 from './logo-2.png';
 
@@ -199,6 +200,8 @@ const App: React.FC = () => {
         return <ReservationForm onFinished={() => navigateTo('PEDIDOS')} />;
       case 'PEDIDOS': 
         return <OrderManagement />;
+      case 'ORCAMENTO':
+        return <BudgetDashboard />;
       case 'ESTOQUE': 
       case 'INVENTARIO': // Fallback preventivo caso mude no types.ts
         return <InventoryDashboard />;
