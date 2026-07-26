@@ -22,6 +22,10 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
     return idsNumericos.length > 0 ? Math.max(...idsNumericos) + 1 : 1;
   };
 
+  const clienteUsaId = (cliente: any, idParaVerificar: string) => {
+    return String(cliente['id-client'] || '') === idParaVerificar || String(cliente.id || '') === idParaVerificar;
+  };
+
   // --- BUSCAR O PRÓXIMO ID AUTOMATICAMENTE ---
   useEffect(() => {
     const fetchNextId = async () => {
@@ -110,31 +114,35 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
       }
 
       // --- PROTEÇÃO 2: ID PERSONALIZADO ---
+      let idFinal = Number.parseInt(formData.idClient.trim(), 10);
       if (formData.idClient && formData.idClient.trim() !== '') {
         const idParaVerificar = formData.idClient.trim();
-        const { data: duplicados, error: erroBusca } = await db
+        const { data: clientesExistentes, error: erroBusca } = await db
           .from('cadastro')
-          .select('id')
-          .or(`id-client.eq.${idParaVerificar},id.eq.${idParaVerificar}`);
+          .select('*');
 
-        if (erroBusca && erroBusca.code !== 'PGRST100') throw erroBusca;
+        if (erroBusca) throw erroBusca;
 
-        if (duplicados && duplicados.length > 0) {
+        if (clientesExistentes?.some((cliente) => clienteUsaId(cliente, idParaVerificar))) {
           setModalType('error');
           setModalMessage(`O ID "${idParaVerificar}" já está em uso! O sistema tentará sugerir outro.`);
           
-          const { data } = await db.from('cadastro').select('*');
-          const novoSugestao = calcularProximoIdCliente(data || []);
+          const novoSugestao = calcularProximoIdCliente(clientesExistentes || []);
           setFormData(prev => ({ ...prev, idClient: novoSugestao.toString() }));
           
           setShowModal(true);
           setLoading(false);
           return; 
         }
+      } else {
+        const { data, error } = await db.from('cadastro').select('*');
+        if (error) throw error;
+        idFinal = calcularProximoIdCliente(data || []);
       }
 
       // Prepara os dados para salvar
       const dadosParaSalvar = { 
+        id: idFinal,
         cliente: formData.nome,
         telefone: formData.tel,
         'identificação': formData.doc,

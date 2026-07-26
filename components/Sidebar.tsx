@@ -59,6 +59,18 @@ const SIDEBAR_THEMES: SidebarTheme[] = [
 ];
 
 const SIDEBAR_BRAND_COLOR = '#B24D2D';
+const PAGE_TONE_STORAGE_KEY = 'claudia_page_tone';
+const PAGE_BACKGROUND_COLOR = '#fdf8f6';
+
+const adjustHexColor = (hex: string, amount: number) => {
+  const value = hex.replace('#', '');
+  const numeric = parseInt(value, 16);
+  const red = Math.max(0, Math.min(255, (numeric >> 16) + amount));
+  const green = Math.max(0, Math.min(255, ((numeric >> 8) & 0x00ff) + amount));
+  const blue = Math.max(0, Math.min(255, (numeric & 0x0000ff) + amount));
+
+  return `#${((red << 16) | (green << 8) | blue).toString(16).padStart(6, '0')}`;
+};
 
 export const getSidebarTheme = () => {
   const currentMonth = new Date().getMonth() + 1;
@@ -67,6 +79,13 @@ export const getSidebarTheme = () => {
 
 const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
   const currentTheme = getSidebarTheme();
+  const [sidebarTone, setSidebarTone] = useState<number>(() => {
+    const storedTone = window.localStorage.getItem(PAGE_TONE_STORAGE_KEY);
+    return storedTone ? Number(storedTone) : 0;
+  });
+  const [isToneControlOpen, setIsToneControlOpen] = useState(false);
+  const pageBackgroundColor = adjustHexColor(PAGE_BACKGROUND_COLOR, sidebarTone);
+  const controlBorderOpacity = Math.min(0.35, 0.08 + Math.abs(sidebarTone) / 130);
   const menuItems: Array<{ id: Screen | 'NFSE-BIGUACU'; label: string; icon: string; href?: string }> = [
     { id: 'LISTAGEM', label: 'Clientes', icon: 'fa-users' },
     { id: 'RESERVA', label: 'Reservas', icon: 'fa-calendar-check' },
@@ -91,6 +110,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
   // Estados para o campo de busca
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
+
+  useEffect(() => {
+    window.localStorage.setItem(PAGE_TONE_STORAGE_KEY, String(sidebarTone));
+    document.documentElement.style.setProperty('--claudia-page-bg', pageBackgroundColor);
+  }, [sidebarTone]);
 
   // Busca o clima baseado na latitude e longitude atuais (incluindo o parâmetro is_day)
   useEffect(() => {
@@ -179,12 +203,57 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
 
   return (
     <div
-      className="w-full h-full flex flex-col p-6 shadow-2xl overflow-y-auto transition-colors duration-700"
+      className="relative w-full h-full flex flex-col p-6 shadow-2xl overflow-y-auto transition-colors duration-700"
       style={{
         background: SIDEBAR_BRAND_COLOR,
         color: '#ffffff'
       }}
     >
+      <div className="fixed right-10 top-7 z-[80]">
+        <button
+          type="button"
+          onClick={() => setIsToneControlOpen(!isToneControlOpen)}
+          className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+          title="Ajustar cor da barra lateral"
+        >
+          <i className="fa-solid fa-sliders text-sm"></i>
+        </button>
+
+        {isToneControlOpen && (
+          <div
+            className="absolute right-0 mt-2 w-44 rounded-2xl bg-white p-3 text-gray-700 border"
+            style={{
+              borderColor: `rgba(178, 77, 45, ${controlBorderOpacity})`,
+              boxShadow: `0 18px 36px rgba(0,0,0,${controlBorderOpacity})`
+            }}
+          >
+            <div className="mb-2 flex items-center justify-between text-[10px] font-black uppercase tracking-wider">
+              <span>Cor</span>
+              <button
+                type="button"
+                onClick={() => setSidebarTone(0)}
+                className="text-[#B24D2D] hover:underline"
+              >
+                Padrão
+              </button>
+            </div>
+            <input
+              type="range"
+              min="-35"
+              max="15"
+              value={sidebarTone}
+              onChange={(event) => setSidebarTone(Number(event.target.value))}
+              className="w-full accent-[#B24D2D]"
+              aria-label="Clarear ou escurecer a barra lateral"
+            />
+            <div className="mt-1 flex justify-between text-[9px] font-bold uppercase text-gray-400">
+              <span>Escura</span>
+              <span>Clara</span>
+            </div>
+          </div>
+        )}
+      </div>
+
       {/* Cabeçalho / Logo */}
       <div className="mb-0 mt-4 text-center">
         <div className="flex items-center justify-center gap-3 mb-5">

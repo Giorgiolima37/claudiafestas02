@@ -217,7 +217,10 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div className="min-h-screen flex flex-col items-center justify-center bg-[#fdf8f6] p-4 overflow-hidden">
+      <div
+        className="min-h-screen flex flex-col items-center justify-center bg-[#fdf8f6] p-4 overflow-hidden"
+        style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
+      >
         <div className={`w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center transition-all duration-300 ${isZooming ? 'opacity-0 scale-95 pointer-events-none' : 'animate-in zoom-in duration-500'}`}>
           <div className={`w-56 h-56 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden rounded-full bg-white transition-all duration-200 ease-in-out ${isZooming ? 'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[5] opacity-0 shadow-none' : ''}`}>
               <img src={logo2} alt="Logo" className="w-full h-full object-contain scale-150" />
@@ -278,7 +281,10 @@ const App: React.FC = () => {
   }
 
   return (
-    <div className="flex flex-col md:flex-row min-h-screen h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 overflow-hidden">
+    <div
+      className="flex flex-col md:flex-row min-h-screen h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 overflow-hidden"
+      style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
+    >
       
       <div className="md:hidden flex items-center justify-between p-4 bg-[#B24D2D] text-white shadow-md z-[60]">
         <span className="font-bold tracking-tight">Claudia Festas</span>
@@ -291,7 +297,10 @@ const App: React.FC = () => {
         <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} />
       </div>
 
-      <main className="flex-1 flex flex-col h-full overflow-y-auto bg-[#fdf8f6]">
+      <main
+        className="flex-1 flex flex-col h-full overflow-y-auto bg-[#fdf8f6]"
+        style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
+      >
         <div className="p-4 md:p-10 flex flex-col items-center">
           
           <div className="flex gap-3 mb-6 md:mb-8 w-full max-w-6xl">
