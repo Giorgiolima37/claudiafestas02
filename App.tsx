@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Screen } from './types';
-import Sidebar from './components/Sidebar';
+import Sidebar, { getSidebarTheme } from './components/Sidebar';
 import CustomerRegistration from './components/CustomerRegistration';
 import CustomerList from './components/CustomerList';
 import ReservationForm from './components/ReservationForm';
@@ -32,6 +32,7 @@ const App: React.FC = () => {
   const [error, setError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isZooming, setIsZooming] = useState(false);
+  const currentTheme = getSidebarTheme();
 
   const isCatalogRoute = window.location.pathname === '/catalogo';
 
@@ -219,10 +220,20 @@ const App: React.FC = () => {
       <div className="min-h-screen flex flex-col items-center justify-center bg-[#fdf8f6] p-4 overflow-hidden">
         <div className={`w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center transition-all duration-300 ${isZooming ? 'opacity-0 scale-95 pointer-events-none' : 'animate-in zoom-in duration-500'}`}>
           <div className={`w-56 h-56 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden rounded-full bg-white transition-all duration-200 ease-in-out ${isZooming ? 'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[5] opacity-0 shadow-none' : ''}`}>
-              <img src={logo2} alt="Logo" className="w-full h-full object-contain" />
+              <img src={logo2} alt="Logo" className="w-full h-full object-contain scale-150" />
           </div>
           <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
-          <p className="text-gray-400 text-sm mb-8 font-bold uppercase tracking-widest">Claudia Festas</p>
+          <p className="text-gray-400 text-sm mb-4 font-bold uppercase tracking-widest">Claudia Festas</p>
+          <button
+            type="button"
+            onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${currentTheme.name} significado`)}`, '_blank', 'noopener,noreferrer')}
+            className="mb-8 mx-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm transition-transform hover:scale-105 active:scale-95"
+            style={{ backgroundColor: currentTheme.badgeBackground, color: currentTheme.badgeText }}
+            title={`Pesquisar significado de ${currentTheme.name}`}
+          >
+            <i className="fa-solid fa-ribbon"></i>
+            <span>{currentTheme.name}</span>
+          </button>
           
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="relative w-full">
@@ -276,7 +287,7 @@ const App: React.FC = () => {
         </button>
       </div>
 
-      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-64 h-full shadow-2xl`}>
+      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-[284px] h-full shadow-2xl`}>
         <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} />
       </div>
 

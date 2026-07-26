@@ -1,5 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { Screen } from '../types';
+import logo2 from '../logo-2.png';
+import instaLogo from '../insta.webp';
+import googleLogo from '../google.webp';
 
 interface SidebarProps {
   activeScreen: Screen;
@@ -28,7 +31,7 @@ const DEFAULT_CITIES = [
   { name: 'Criciúma, SC', lat: -28.6775, lon: -49.3701 }
 ];
 
-interface SidebarTheme {
+export interface SidebarTheme {
   month: number;
   name: string;
   label: string;
@@ -36,24 +39,28 @@ interface SidebarTheme {
   secondary: string;
   accent: string;
   text: string;
+  badgeBackground: string;
+  badgeText: string;
 }
 
 const SIDEBAR_THEMES: SidebarTheme[] = [
-  { month: 1, name: 'Janeiro Branco', label: 'Saude mental', primary: '#f8fafc', secondary: '#e2e8f0', accent: '#0f172a', text: '#0f172a' },
-  { month: 2, name: 'Fevereiro Roxo', label: 'Conscientizacao', primary: '#7c3aed', secondary: '#a855f7', accent: '#f5d0fe', text: '#ffffff' },
-  { month: 3, name: 'Marco Lilas', label: 'Saude da mulher', primary: '#9333ea', secondary: '#c084fc', accent: '#f3e8ff', text: '#ffffff' },
-  { month: 4, name: 'Abril Azul', label: 'Inclusao e autismo', primary: '#2563eb', secondary: '#38bdf8', accent: '#dbeafe', text: '#ffffff' },
-  { month: 5, name: 'Maio Amarelo', label: 'Atencao no transito', primary: '#ca8a04', secondary: '#facc15', accent: '#fef3c7', text: '#ffffff' },
-  { month: 6, name: 'Junho Vermelho', label: 'Doacao de sangue', primary: '#b91c1c', secondary: '#ef4444', accent: '#fee2e2', text: '#ffffff' },
-  { month: 7, name: 'Julho Amarelo', label: 'Hepatites virais', primary: '#b45309', secondary: '#f59e0b', accent: '#fef3c7', text: '#ffffff' },
-  { month: 8, name: 'Agosto Dourado', label: 'Amamentacao', primary: '#a16207', secondary: '#eab308', accent: '#fef9c3', text: '#ffffff' },
-  { month: 9, name: 'Setembro Amarelo', label: 'Valorizacao da vida', primary: '#b45309', secondary: '#fbbf24', accent: '#fef3c7', text: '#ffffff' },
-  { month: 10, name: 'Outubro Rosa', label: 'Prevencao', primary: '#be185d', secondary: '#f472b6', accent: '#fce7f3', text: '#ffffff' },
-  { month: 11, name: 'Novembro Azul', label: 'Saude do homem', primary: '#1d4ed8', secondary: '#60a5fa', accent: '#dbeafe', text: '#ffffff' },
-  { month: 12, name: 'Dezembro Vermelho', label: 'Conscientizacao', primary: '#b91c1c', secondary: '#f97316', accent: '#ffedd5', text: '#ffffff' }
+  { month: 1, name: 'Janeiro Branco', label: 'Saude mental', primary: '#f8fafc', secondary: '#e2e8f0', accent: '#0f172a', text: '#0f172a', badgeBackground: '#ffffff', badgeText: '#111827' },
+  { month: 2, name: 'Fevereiro Roxo', label: 'Conscientizacao', primary: '#7c3aed', secondary: '#a855f7', accent: '#f5d0fe', text: '#ffffff', badgeBackground: '#7c3aed', badgeText: '#ffffff' },
+  { month: 3, name: 'Marco Lilas', label: 'Saude da mulher', primary: '#9333ea', secondary: '#c084fc', accent: '#f3e8ff', text: '#ffffff', badgeBackground: '#c084fc', badgeText: '#111827' },
+  { month: 4, name: 'Abril Azul', label: 'Inclusao e autismo', primary: '#2563eb', secondary: '#38bdf8', accent: '#dbeafe', text: '#ffffff', badgeBackground: '#2563eb', badgeText: '#ffffff' },
+  { month: 5, name: 'Maio Amarelo', label: 'Atencao no transito', primary: '#ca8a04', secondary: '#facc15', accent: '#fef3c7', text: '#ffffff', badgeBackground: '#facc15', badgeText: '#111827' },
+  { month: 6, name: 'Junho Vermelho', label: 'Doacao de sangue', primary: '#b91c1c', secondary: '#ef4444', accent: '#fee2e2', text: '#ffffff', badgeBackground: '#ef4444', badgeText: '#ffffff' },
+  { month: 7, name: 'Julho Amarelo', label: 'Hepatites virais', primary: '#B24D2D', secondary: '#B24D2D', accent: '#fff7ed', text: '#ffffff', badgeBackground: '#facc15', badgeText: '#111827' },
+  { month: 8, name: 'Agosto Dourado', label: 'Amamentacao', primary: '#a16207', secondary: '#eab308', accent: '#fef9c3', text: '#ffffff', badgeBackground: '#eab308', badgeText: '#111827' },
+  { month: 9, name: 'Setembro Amarelo', label: 'Valorizacao da vida', primary: '#b45309', secondary: '#fbbf24', accent: '#fef3c7', text: '#ffffff', badgeBackground: '#fbbf24', badgeText: '#111827' },
+  { month: 10, name: 'Outubro Rosa', label: 'Prevencao', primary: '#be185d', secondary: '#f472b6', accent: '#fce7f3', text: '#ffffff', badgeBackground: '#f472b6', badgeText: '#111827' },
+  { month: 11, name: 'Novembro Azul', label: 'Saude do homem', primary: '#1d4ed8', secondary: '#60a5fa', accent: '#dbeafe', text: '#ffffff', badgeBackground: '#1d4ed8', badgeText: '#ffffff' },
+  { month: 12, name: 'Dezembro Vermelho', label: 'Conscientizacao', primary: '#b91c1c', secondary: '#f97316', accent: '#ffedd5', text: '#ffffff', badgeBackground: '#ef4444', badgeText: '#ffffff' }
 ];
 
-const getSidebarTheme = () => {
+const SIDEBAR_BRAND_COLOR = '#B24D2D';
+
+export const getSidebarTheme = () => {
   const currentMonth = new Date().getMonth() + 1;
   return SIDEBAR_THEMES.find(theme => theme.month === currentMonth) || SIDEBAR_THEMES[0];
 };
@@ -174,24 +181,43 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
     <div
       className="w-full h-full flex flex-col p-6 shadow-2xl overflow-y-auto transition-colors duration-700"
       style={{
-        background: `linear-gradient(180deg, ${currentTheme.primary} 0%, ${currentTheme.secondary} 100%)`,
-        color: currentTheme.text
+        background: SIDEBAR_BRAND_COLOR,
+        color: '#ffffff'
       }}
     >
       {/* Cabeçalho / Logo */}
-      <div className="mb-10 mt-4 text-center">
-        <h2 className="text-2xl font-black italic tracking-tighter uppercase">Claudia</h2>
-        <button
-          type="button"
-          onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${currentTheme.name} significado`)}`, '_blank', 'noopener,noreferrer')}
-          className="mt-4 mx-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm transition-transform hover:scale-105 active:scale-95"
-          style={{ backgroundColor: currentTheme.accent, color: currentTheme.primary }}
-          title={`Pesquisar significado de ${currentTheme.name}`}
-        >
-          <i className="fa-solid fa-ribbon"></i>
-          <span>{currentTheme.name}</span>
-        </button>
-        <p className="text-[10px] font-bold opacity-60 tracking-[0.3em] uppercase">Festas & Locações</p>
+      <div className="mb-0 mt-4 text-center">
+        <div className="flex items-center justify-center gap-3 mb-5">
+          <a
+            href="https://www.instagram.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir Instagram"
+            className="rounded-xl transition-transform hover:scale-110 active:scale-95"
+          >
+            <img
+              src={instaLogo}
+              alt="Instagram"
+              className="w-10 h-10 object-contain rounded-xl"
+            />
+          </a>
+          <div className="w-32 h-32 flex items-center justify-center overflow-hidden rounded-full bg-white">
+          <img src={logo2} alt="Logo Claudia Festas" className="w-full h-full object-contain scale-[1.6]" />
+          </div>
+          <a
+            href="https://www.google.com.br/"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir Google"
+            className="rounded-xl transition-transform hover:scale-110 active:scale-95"
+          >
+            <img
+              src={googleLogo}
+              alt="Google"
+              className="w-10 h-10 object-contain rounded-xl"
+            />
+          </a>
+        </div>
       </div>
 
       {/* Menu de Navegação */}
@@ -212,7 +238,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
                 ? 'bg-white shadow-lg scale-105' 
                 : 'hover:bg-white/10 text-white/80'
             }`}
-            style={activeScreen === item.id ? { color: currentTheme.primary } : undefined}
+            style={activeScreen === item.id ? { color: SIDEBAR_BRAND_COLOR } : undefined}
           >
             <i className={`fa-solid ${item.icon} text-lg w-6 text-center`}></i>
             <span className="text-sm tracking-wide uppercase">{item.label}</span>
@@ -222,7 +248,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
 
       {/* Widget de Previsão do Tempo */}
       <div
-        className="mt-6 mb-6 bg-white/95 text-gray-800 rounded-xl p-4 shadow-xl border max-w-[240px] mx-auto w-full backdrop-blur-sm min-h-[145px] flex flex-col justify-center relative"
+        className="mt-6 mb-6 bg-white/95 text-gray-800 rounded-xl p-4 shadow-xl border max-w-[240px] mx-auto w-full backdrop-blur-sm min-h-[190px] flex flex-col justify-center relative"
         style={{ borderColor: currentTheme.accent }}
       >
         
@@ -303,7 +329,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
             </div>
 
             {/* Detalhes do Clima + Animação ao Lado */}
-            <div className="flex items-center justify-between text-[11px] text-gray-500 font-sans pl-1">
+            <div className="flex items-start justify-between gap-2 text-[11px] text-gray-500 font-sans pl-1">
               <div className="space-y-0.5">
                 <div>Chuva: <span className="text-gray-800 font-semibold">{weather.isRain ? 'Sim' : '0%'}</span></div>
                 <div>Umidade: <span className="text-gray-800 font-semibold">{weather.humidity}%</span></div>
@@ -311,7 +337,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
               </div>
 
               {/* Área gráfica da casinha */}
-              <div className={`flex flex-col items-center justify-end h-14 w-16 relative overflow-hidden rounded-xl border border-gray-100 mr-1 p-1 bg-gradient-to-b ${
+              <div className={`flex flex-col items-center justify-end h-14 w-16 shrink-0 relative overflow-hidden rounded-xl border border-gray-100 p-1 bg-gradient-to-b ${
                 weather.isDay ? 'from-sky-50 to-gray-50' : 'from-slate-900 to-slate-800 border-slate-700'
               }`}>
                 {/* Estilos CSS das animações injetados de forma limpa */}
