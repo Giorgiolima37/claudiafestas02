@@ -11,11 +11,9 @@ interface BudgetItem {
   valor: number;
   adiantamento: number;
   saldoRestante: number;
-  produtos: Array<{ item: string; quantidade: number; preco: number; codigo: string }>;
+  produtos: Array<{ item: string; quantidade: number; preco: number; codigo: string; estoqueId?: string }>;
   criadoEm: string;
 }
-
-const STORAGE_KEY = 'claudia_orcamentos';
 
 const BudgetDashboard: React.FC = () => {
   const [orcamentos, setOrcamentos] = useState<BudgetItem[]>([]);
@@ -25,6 +23,7 @@ const BudgetDashboard: React.FC = () => {
   const [buscaCliente, setBuscaCliente] = useState('');
   const [buscaProduto, setBuscaProduto] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
+  const [salvando, setSalvando] = useState(false);
   const [novoOrcamento, setNovoOrcamento] = useState({
     cliente: '',
     reserva: '',
@@ -35,25 +34,37 @@ const BudgetDashboard: React.FC = () => {
   const [produtosSelecionados, setProdutosSelecionados] = useState([{ item: '', quantidade: 1 }]);
 
   useEffect(() => {
-    const salvos = window.localStorage.getItem(STORAGE_KEY);
-    if (salvos) setOrcamentos(JSON.parse(salvos));
-
     const carregarDados = async () => {
-      const [resClientes, resEstoque] = await Promise.all([
+      const [resClientes, resEstoque, resOrcamentos] = await Promise.all([
         db.from('cadastro').select('id, cliente, id-client').order('cliente', { ascending: true }),
-        db.from('estoque').select('id, item, disponivel, preco, codigo_interno').order('item', { ascending: true })
+        db.from('estoque').select('id, item, disponivel, preco, codigo_interno').order('item', { ascending: true }),
+        db.from('orcamentos').select('*, orcamento_itens(*)').order('created_at', { ascending: false })
       ]);
 
       setClientes(resClientes.data || []);
       setEstoque(resEstoque.data || []);
+      setOrcamentos((resOrcamentos.data || []).map((orcamento: any) => ({
+        id: String(orcamento.id),
+        cliente: orcamento.cliente_nome,
+        reserva: orcamento.data_reserva,
+        retirada: orcamento.data_retirada,
+        observacoes: orcamento.observacoes || '',
+        valor: Number(orcamento.valor_total || 0),
+        adiantamento: Number(orcamento.adiantamento || 0),
+        saldoRestante: Number(orcamento.saldo_restante || 0),
+        criadoEm: orcamento.created_at,
+        produtos: (orcamento.orcamento_itens || []).map((produto: any) => ({
+          item: produto.item,
+          quantidade: Number(produto.quantidade || 0),
+          preco: Number(produto.valor_unitario || 0),
+          codigo: produto.codigo_item || 'S/C',
+          estoqueId: produto.estoque_id || undefined
+        }))
+      })));
     };
 
     carregarDados();
   }, []);
-
-  useEffect(() => {
-    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(orcamentos));
-  }, [orcamentos]);
 
   const orcamentosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
@@ -68,6 +79,8 @@ const BudgetDashboard: React.FC = () => {
     style: 'currency',
     currency: 'BRL'
   });
+
+  const formatarNumeroMoeda = (valor: number) => Number(valor || 0).toFixed(2).replace('.', ',');
 
   const clientesFiltrados = useMemo(() => {
     const termo = buscaCliente.trim().toLowerCase();
@@ -112,8 +125,34 @@ const BudgetDashboard: React.FC = () => {
     setProdutosSelecionados((prev) => prev.filter((_, idx) => idx !== index));
   };
 
-  const salvarOrcamento = (e: React.FormEvent) => {
+  const salvarOrcamento = async (e: React.FormEvent) => {
     e.preventDefault();
+
+    const clienteSelecionado = clientes.find((cliente) => cliente.cliente === novoOrcamento.cliente);
+    const produtos = produtosSelecionados
+      .filter((produto) => produto.item)
+      .map((produtoSelecionado) => {
+        const produto = estoque.find((item) => item.item === produtoSelecionado.item);
+        return {
+          item: produtoSelecionado.item,
+          quantidade: Number(produtoSelecionado.quantidade || 0),
+          preco: Number(produto?.preco || 0),
+          codigo: produto?.codigo_interno || 'S/C',
+          estoqueId: produto?.id
+        };
+      });
+
+    if (!clienteSelecionado) {
+      alert('Selecione um cliente antes de salvar.');
+      return;
+    }
+
+    if (produtos.length === 0) {
+      alert('Selecione pelo menos um produto antes de salvar.');
+      return;
+    }
+
+    setSalvando(true);
 
     const item: BudgetItem = {
       id: crypto.randomUUID(),
@@ -124,30 +163,72 @@ const BudgetDashboard: React.FC = () => {
       valor: calcularTotalProdutos(),
       adiantamento: calcularAdiantamento(),
       saldoRestante: calcularSaldoRestante(),
-      produtos: produtosSelecionados
-        .filter((produto) => produto.item)
-        .map((produtoSelecionado) => {
-          const produto = estoque.find((item) => item.item === produtoSelecionado.item);
-          return {
-            item: produtoSelecionado.item,
-            quantidade: Number(produtoSelecionado.quantidade || 0),
-            preco: Number(produto?.preco || 0),
-            codigo: produto?.codigo_interno || 'S/C'
-          };
-        }),
+      produtos,
       criadoEm: new Date().toISOString()
     };
 
-    setOrcamentos((prev) => [item, ...prev]);
-    setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
-    setProdutosSelecionados([{ item: '', quantidade: 1 }]);
-    setBuscaCliente('');
-    setBuscaProduto('');
-    setModalAberto(false);
+    try {
+      const { data: orcamentoSalvo, error: erroOrcamento } = await db
+        .from('orcamentos')
+        .insert([{
+          cliente_id: clienteSelecionado.id,
+          cliente_nome: item.cliente,
+          data_reserva: item.reserva,
+          data_retirada: item.retirada,
+          valor_total: item.valor,
+          adiantamento: item.adiantamento,
+          saldo_restante: item.saldoRestante,
+          observacoes: item.observacoes
+        }])
+        .select('*')
+        .single();
+
+      if (erroOrcamento) throw erroOrcamento;
+
+      const itensParaSalvar = produtos.map((produto) => ({
+        orcamento_id: orcamentoSalvo.id,
+        estoque_id: produto.estoqueId || null,
+        item: produto.item,
+        codigo_item: produto.codigo,
+        quantidade: produto.quantidade,
+        valor_unitario: produto.preco,
+        valor_total: produto.quantidade * produto.preco
+      }));
+
+      const { error: erroItens } = await db
+        .from('orcamento_itens')
+        .insert(itensParaSalvar);
+
+      if (erroItens) throw erroItens;
+
+      const itemSalvo: BudgetItem = {
+        ...item,
+        id: String(orcamentoSalvo.id),
+        criadoEm: orcamentoSalvo.created_at
+      };
+
+      setOrcamentos((prev) => [itemSalvo, ...prev]);
+      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
+      setProdutosSelecionados([{ item: '', quantidade: 1 }]);
+      setBuscaCliente('');
+      setBuscaProduto('');
+      setModalAberto(false);
+      alert('Orçamento salvo no Supabase com sucesso!');
+    } catch (err: any) {
+      console.error('Erro ao salvar orçamento:', err);
+      alert(`Erro ao salvar orçamento: ${err.message || 'verifique o console.'}`);
+    } finally {
+      setSalvando(false);
+    }
   };
 
-  const removerOrcamento = (id: string) => {
+  const removerOrcamento = async (id: string) => {
     if (!window.confirm('Deseja remover este orçamento?')) return;
+    const { error } = await db.from('orcamentos').delete().eq('id', id);
+    if (error) {
+      alert(`Erro ao remover orçamento: ${error.message}`);
+      return;
+    }
     setOrcamentos((prev) => prev.filter((orcamento) => orcamento.id !== id));
   };
 
@@ -181,6 +262,15 @@ const BudgetDashboard: React.FC = () => {
             .align-left { text-align: left; }
             .totals td { font-weight: 900; }
             .blue { color: #1d4ed8; }
+            .money {
+              display: grid;
+              grid-template-columns: 28px 1fr;
+              gap: 2px;
+              align-items: center;
+              width: 100%;
+            }
+            .currency { text-align: left; white-space: nowrap; }
+            .amount { text-align: right; }
             .obs { border: 1px solid #000; min-height: 60px; padding: 8px; font-size: 11px; margin-top: 12px; }
             .dates { margin-top: 18px; font-size: 12px; font-weight: 900; }
             .signatures { display: flex; justify-content: space-between; margin-top: 48px; }
@@ -207,21 +297,21 @@ const BudgetDashboard: React.FC = () => {
               ${cliente?.telefone ? `<br><strong>Telefone do cliente:</strong> ${cliente.telefone}` : ''}
             </div>
             <table>
-              <thead><tr><th style="width:45px;">QTD</th><th>DESCRIÇÃO</th><th style="width:85px;">VALOR U.</th><th style="width:85px;">TOTAL</th></tr></thead>
+              <thead><tr><th style="width:45px;">QTD</th><th>DESCRIÇÃO</th><th style="width:85px;">VALOR</th><th style="width:85px;">TOTAL</th></tr></thead>
               <tbody>
                 ${orcamento.produtos.map((produto) => `
                   <tr>
                     <td>${produto.quantidade}</td>
                     <td class="align-left">${produto.item.toUpperCase()} ${produto.codigo ? `[${produto.codigo}]` : ''}</td>
-                    <td>${formatarMoeda(produto.preco)}</td>
-                    <td>${formatarMoeda(produto.quantidade * produto.preco)}</td>
+                    <td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(produto.preco)}</span></span></td>
+                    <td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(produto.quantidade * produto.preco)}</span></span></td>
                   </tr>
                 `).join('')}
                 ${orcamento.adiantamento > 0 ? `
-                  <tr class="totals blue"><td colspan="3" style="text-align:right;">ADIANTAMENTO</td><td>- ${formatarMoeda(orcamento.adiantamento)}</td></tr>
-                  <tr class="totals blue"><td colspan="3" style="text-align:right;">SALDO RESTANTE</td><td>${formatarMoeda(orcamento.saldoRestante)}</td></tr>
+                  <tr class="totals blue"><td colspan="3" style="text-align:right;">ADIANTAMENTO</td><td><span class="money"><span class="currency">- R$</span><span class="amount">${formatarNumeroMoeda(orcamento.adiantamento)}</span></span></td></tr>
+                  <tr class="totals blue"><td colspan="3" style="text-align:right;">SALDO RESTANTE</td><td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.saldoRestante)}</span></span></td></tr>
                 ` : ''}
-                <tr class="totals"><td colspan="3" style="text-align:right;">VALOR TOTAL</td><td style="background:#eee;">${formatarMoeda(orcamento.valor)}</td></tr>
+                <tr class="totals"><td colspan="3" style="text-align:right;">VALOR TOTAL</td><td style="background:#eee;"><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.valor)}</span></span></td></tr>
               </tbody>
             </table>
             <div class="obs"><strong>OBS:</strong> ${orcamento.observacoes || ''}</div>
@@ -487,9 +577,10 @@ const BudgetDashboard: React.FC = () => {
               </button>
               <button
                 type="submit"
-                className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]"
+                disabled={salvando}
+                className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                Salvar
+                {salvando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </form>

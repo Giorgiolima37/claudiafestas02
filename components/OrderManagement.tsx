@@ -166,6 +166,29 @@ const OrderManagement: React.FC = () => {
     };
   };
 
+  const extrairComplementoDasObservacoes = (observacoes: string) => {
+    const texto = observacoes || '';
+    const matchComplemento = texto.match(/COMPLEMENTO:\s*(.+)/i);
+    const textoLimpo = texto
+      .replace(/\n?COMPLEMENTO:\s*.+/i, '')
+      .trim();
+
+    return {
+      complemento: matchComplemento ? matchComplemento[1].trim() : '',
+      observacoesBase: textoLimpo
+    };
+  };
+
+  const ordenarItensPedido = (itens: any[] = []) => {
+    return [...itens].sort((a, b) => {
+      const dataA = a.created_at ? new Date(a.created_at).getTime() : 0;
+      const dataB = b.created_at ? new Date(b.created_at).getTime() : 0;
+
+      if (dataA !== dataB) return dataA - dataB;
+      return Number(a.id || 0) - Number(b.id || 0);
+    });
+  };
+
   const calcularSubtotalEdicao = () => {
     return pedidoEmEdicao.reduce((acc, item) => {
       if (item._deleted) return acc;
@@ -190,7 +213,7 @@ const OrderManagement: React.FC = () => {
   };
 
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
-    const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({ ...i, _originalQty: i.quantidade }));
+    const itensFormatados = ordenarItensPedido(pedidoAgrupado.itens).map((i: any) => ({ ...i, _originalQty: i.quantidade }));
     const financeiro = extrairFinanceiroDasObservacoes(pedidoAgrupado.observacoes || pedidoAgrupado.itens[0]?.observacoes || '');
     setPedidoEmEdicao(itensFormatados);
     setAdiantamentoEdicao(financeiro.adiantamento);
@@ -317,15 +340,18 @@ const OrderManagement: React.FC = () => {
 
   const gerarContrato = (pedido: any) => {
     const cliente = clientes.find(c => c.id === pedido.cliente_id) || {};
-    const subtotalItens = pedido.itens.reduce((acc: number, cur: any) => acc + (cur.valor_total || 0), 0);
-    const taxaEntrega = pedido.itens[0].taxa_entrega || 0;
-    const desconto = pedido.itens[0].desconto || 0;
+    const itensOrdenados = ordenarItensPedido(pedido.itens);
+    const subtotalItens = itensOrdenados.reduce((acc: number, cur: any) => acc + (cur.valor_total || 0), 0);
+    const taxaEntrega = itensOrdenados[0].taxa_entrega || 0;
+    const desconto = itensOrdenados[0].desconto || 0;
     const totalGeral = subtotalItens + taxaEntrega - desconto;
     const financeiroObservacoes = extrairFinanceiroDasObservacoes(pedido.observacoes || '');
     const adiantamento = financeiroObservacoes.adiantamento;
     const saldoRestante = Math.max(0, totalGeral - adiantamento);
-    const observacoesContrato = financeiroObservacoes.observacoesBase;
-    const dEnt = formatarDataBR(pedido.itens[0].data_evento);
+    const complementoObservacoes = extrairComplementoDasObservacoes(financeiroObservacoes.observacoesBase);
+    const observacoesContrato = complementoObservacoes.observacoesBase;
+    const complementoEndereco = complementoObservacoes.complemento;
+    const dEnt = formatarDataBR(itensOrdenados[0].data_evento);
     const dRec = formatarDataBR(pedido.dataDevolucao);
     
     const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -335,7 +361,7 @@ const OrderManagement: React.FC = () => {
       d.setMinutes(d.getMinutes() + d.getTimezoneOffset());
       return diasSemana[d.getDay()];
     };
-    const diaSemanaEnt = getDiaSemana(pedido.itens[0].data_evento);
+    const diaSemanaEnt = getDiaSemana(itensOrdenados[0].data_evento);
     const diaSemanaRec = getDiaSemana(pedido.dataDevolucao);
 
     const printWindow = window.open('', '_blank');
@@ -468,6 +494,20 @@ const OrderManagement: React.FC = () => {
                 margin-bottom: 15px;
                 font-size: 11px;
             }
+            .money {
+                display: grid;
+                grid-template-columns: 28px 1fr;
+                gap: 2px;
+                align-items: center;
+                width: 100%;
+            }
+            .currency {
+                text-align: left;
+                white-space: nowrap;
+            }
+            .amount {
+                text-align: right;
+            }
           </style>
         </head>
         <body>
@@ -490,7 +530,7 @@ const OrderManagement: React.FC = () => {
 
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
-                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}</strong>, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>, 
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}${complementoEndereco ? ` - ${complementoEndereco.toUpperCase()}` : ''}</strong>, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>, 
                 tem ajustado the presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
@@ -507,50 +547,50 @@ const OrderManagement: React.FC = () => {
                   <tr>
                     <th style="width: 40px;">QTD</th>
                     <th>DESCRIÇÃO</th>
-                    <th style="width: 80px;">VALOR U.</th>
+                    <th style="width: 80px;">VALOR</th>
                     <th style="width: 80px;">TOTAL</th>
                   </tr>
                 </thead>
                 <tbody>
-                  ${pedido.itens.map((i: any) => `
+                  ${itensOrdenados.map((i: any) => `
                     <tr>
                       <td>${i.quantidade}</td>
                       <td class="align-left">${i.item.toUpperCase()}</td>
-                      <td>R$ ${(i.valor_total / i.quantidade).toFixed(2).replace('.', ',')}</td>
-                      <td>R$ ${i.valor_total.toFixed(2).replace('.', ',')}</td>
+                      <td><span class="money"><span class="currency">R$</span><span class="amount">${(i.valor_total / i.quantidade).toFixed(2).replace('.', ',')}</span></span></td>
+                      <td><span class="money"><span class="currency">R$</span><span class="amount">${i.valor_total.toFixed(2).replace('.', ',')}</span></span></td>
                     </tr>
                   `).join('')}
                   
                   <tr>
                     <td>1</td>
                     <td class="align-left">TAXA DE ENTREGA</td>
-                    <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
-                    <td>R$ ${taxaEntrega.toFixed(2).replace('.', ',')}</td>
+                    <td><span class="money"><span class="currency">R$</span><span class="amount">${taxaEntrega.toFixed(2).replace('.', ',')}</span></span></td>
+                    <td><span class="money"><span class="currency">R$</span><span class="amount">${taxaEntrega.toFixed(2).replace('.', ',')}</span></span></td>
                   </tr>
 
                   ${desconto > 0 ? `
                   <tr>
                      <td>1</td>
                      <td class="align-left" style="color:red;">DESCONTO PROMOCIONAL</td>
-                     <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
-                     <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
+                     <td style="color:red;"><span class="money"><span class="currency">- R$</span><span class="amount">${desconto.toFixed(2).replace('.', ',')}</span></span></td>
+                     <td style="color:red;"><span class="money"><span class="currency">- R$</span><span class="amount">${desconto.toFixed(2).replace('.', ',')}</span></span></td>
                   </tr>` : ''}
 
                   ${adiantamento > 0 ? `
                   <tr>
                      <td>1</td>
                      <td class="align-left" style="color:#1d4ed8;">ADIANTAMENTO</td>
-                     <td style="color:#1d4ed8;">- R$ ${adiantamento.toFixed(2).replace('.', ',')}</td>
-                     <td style="color:#1d4ed8;">- R$ ${adiantamento.toFixed(2).replace('.', ',')}</td>
+                     <td style="color:#1d4ed8;"><span class="money"><span class="currency">- R$</span><span class="amount">${adiantamento.toFixed(2).replace('.', ',')}</span></span></td>
+                     <td style="color:#1d4ed8;"><span class="money"><span class="currency">- R$</span><span class="amount">${adiantamento.toFixed(2).replace('.', ',')}</span></span></td>
                   </tr>
                   <tr>
                      <td colspan="3" style="text-align: right; font-weight: 900; color:#1d4ed8; border-right: none;">SALDO RESTANTE R$</td>
-                     <td style="font-weight: 900; color:#1d4ed8;">R$ ${saldoRestante.toFixed(2).replace('.', ',')}</td>
+                     <td style="font-weight: 900; color:#1d4ed8;"><span class="money"><span class="currency">R$</span><span class="amount">${saldoRestante.toFixed(2).replace('.', ',')}</span></span></td>
                   </tr>` : ''}
 
                   <tr>
-                    <td colspan="3" style="text-align: right; font-weight: 900; border-right: none;">TOTAL GERAL R$</td>
-                    <td style="font-weight: 900; background-color: #eee;">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
+                    <td colspan="3" style="text-align: right; font-weight: 900; border-right: none;">TOTAL GERAL</td>
+                    <td style="font-weight: 900; background-color: #eee;"><span class="money"><span class="currency">R$</span><span class="amount">${totalGeral.toFixed(2).replace('.', ',')}</span></span></td>
                   </tr>
                 </tbody>
               </table>
@@ -654,7 +694,9 @@ const OrderManagement: React.FC = () => {
       }
     });
 
-    return Object.values(grupos).sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
+    return Object.values(grupos)
+      .map((grupo: any) => ({ ...grupo, itens: ordenarItensPedido(grupo.itens) }))
+      .sort((a: any, b: any) => new Date(a.dataDevolucao).getTime() - new Date(b.dataDevolucao).getTime());
   };
 
   const handleCancelarReservaFutura = async (id: string, nomeCliente: string) => {
@@ -763,6 +805,7 @@ const OrderManagement: React.FC = () => {
   };
 
   const gerarRomaneio = (pedido: any) => {
+    const itensOrdenados = ordenarItensPedido(pedido.itens);
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
     printWindow.document.write(`
@@ -775,7 +818,7 @@ const OrderManagement: React.FC = () => {
           <table>
             <thead><tr><th>CÓDIGO</th><th>ITEM</th><th>QTD</th></tr></thead>
             <tbody>
-              ${pedido.itens.map((i: any) => `
+              ${itensOrdenados.map((i: any) => `
                 <tr><td>${i.codigo_item || '--'}</td><td>${i.item.toUpperCase()}</td><td>${i.quantidade}</td></tr>
               `).join('')}
             </tbody>

@@ -21,6 +21,7 @@ const ReservationForm: React.FC = () => {
     clienteId: '',
     data: '',
     dataDevolucao: '',
+    complemento: '',
     observacoes: '' 
   });
 
@@ -92,7 +93,8 @@ const ReservationForm: React.FC = () => {
     const formatData = (dataStr: string) => dataStr.replace(/-/g, '');
     
     const titulo = `ENTREGA: ${cliente}`;
-    const descricao = `Itens Alugados:\\n${itensDescricao}\\n\\nObs: ${reservaGeral.observacoes}`;
+    const complementoDescricao = reservaGeral.complemento ? `\\nComplemento: ${reservaGeral.complemento}` : '';
+    const descricao = `Itens Alugados:\\n${itensDescricao}${complementoDescricao}\\n\\nObs: ${reservaGeral.observacoes}`;
     const inicio = formatData(reservaGeral.data);
     const fim = formatData(reservaGeral.dataDevolucao);
 
@@ -113,9 +115,12 @@ const ReservationForm: React.FC = () => {
 
     try {
       const hoje = new Date().toISOString().split('T')[0];
-      const observacoesComAdiantamento = adiantamento > 0
-        ? `${reservaGeral.observacoes ? `${reservaGeral.observacoes}\n` : ''}ADIANTAMENTO: R$ ${formatarMoeda(adiantamento)} | SALDO RESTANTE: R$ ${formatarMoeda(calcularSaldoRestante())}`
+      const observacoesComComplemento = reservaGeral.complemento
+        ? `${reservaGeral.observacoes ? `${reservaGeral.observacoes}\n` : ''}COMPLEMENTO: ${reservaGeral.complemento}`
         : reservaGeral.observacoes;
+      const observacoesComAdiantamento = adiantamento > 0
+        ? `${observacoesComComplemento ? `${observacoesComComplemento}\n` : ''}ADIANTAMENTO: R$ ${formatarMoeda(adiantamento)} | SALDO RESTANTE: R$ ${formatarMoeda(calcularSaldoRestante())}`
+        : observacoesComComplemento;
 
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
@@ -204,7 +209,7 @@ const ReservationForm: React.FC = () => {
       }
       
       // RESET DE ESTADOS
-      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', observacoes: '' });
+      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', complemento: '', observacoes: '' });
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
@@ -269,6 +274,19 @@ const ReservationForm: React.FC = () => {
             {reservaGeral.dataDevolucao && (
                 <span className="text-[10px] font-bold text-[#b24a2b] ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataDevolucao)}</span>
             )}
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-6">
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Complemento do EndereÃ§o</label>
+            <input
+              type="text"
+              placeholder="Ex: casa 1, creche, auditoria, salÃ£o 4..."
+              className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all"
+              value={reservaGeral.complemento}
+              onChange={(e) => setReservaGeral({...reservaGeral, complemento: e.target.value})}
+            />
           </div>
         </div>
 
