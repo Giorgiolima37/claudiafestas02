@@ -13,6 +13,7 @@ const ReservationForm: React.FC = () => {
   const [showFreteModal, setShowFreteModal] = useState(false);
   const [freteAjustado, setFreteAjustado] = useState(0);
   const [desconto, setDesconto] = useState(0); 
+  const [adiantamento, setAdiantamento] = useState(0);
 
   const [itensSelecionados, setItensSelecionados] = useState([{ item: '', quantidade: 1 }]);
   
@@ -72,6 +73,10 @@ const ReservationForm: React.FC = () => {
     }, 0);
   };
 
+  const calcularTotalGeral = () => calcularSubtotal() + freteAjustado - desconto;
+  const calcularSaldoRestante = () => Math.max(0, calcularTotalGeral() - adiantamento);
+  const formatarMoeda = (valor: number) => valor.toFixed(2).replace('.', ',');
+
   const handleAbrirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
     if (!reservaGeral.clienteId || !reservaGeral.data || !reservaGeral.dataDevolucao) {
@@ -108,6 +113,9 @@ const ReservationForm: React.FC = () => {
 
     try {
       const hoje = new Date().toISOString().split('T')[0];
+      const observacoesComAdiantamento = adiantamento > 0
+        ? `${reservaGeral.observacoes ? `${reservaGeral.observacoes}\n` : ''}ADIANTAMENTO: R$ ${formatarMoeda(adiantamento)} | SALDO RESTANTE: R$ ${formatarMoeda(calcularSaldoRestante())}`
+        : reservaGeral.observacoes;
 
       for (const selecionado of itensSelecionados) {
         const itemEstoque = estoque.find(i => i.item === selecionado.item);
@@ -134,7 +142,7 @@ const ReservationForm: React.FC = () => {
           taxa_entrega: Number(freteAjustado) || 0,
           desconto: Number(desconto) || 0, 
           codigo_item: itemEstoque.codigo_interno || 'S/C',
-          observacoes: reservaGeral.observacoes // SALVANDO A OBSERVAÇÃO AQUI
+          observacoes: observacoesComAdiantamento // SALVANDO A OBSERVAÇÃO AQUI
         }]);
 
         if (erroReserva) throw erroReserva;
@@ -200,6 +208,7 @@ const ReservationForm: React.FC = () => {
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
+      setAdiantamento(0);
       setFiltroCliente('');
       await carregarDados();
       
@@ -336,7 +345,7 @@ const ReservationForm: React.FC = () => {
 
       {showFreteModal && (
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-[40px] p-8 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
+          <div className="bg-white rounded-[40px] p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
             <div className="text-center mb-6">
               <h2 className="text-xl font-black text-gray-800 uppercase italic">Confirmar Frete</h2>
               <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Ajuste valores antes de finalizar</p>
@@ -366,20 +375,37 @@ const ReservationForm: React.FC = () => {
                 />
               </div>
 
+              <div className="flex flex-col items-center">
+                <label className="text-[9px] font-black text-blue-600 uppercase mb-2">Adiantamento (R$)</label>
+                <input 
+                  type="number" 
+                  step="0.01"
+                  className="w-full p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl text-center font-black text-2xl text-blue-600 outline-none"
+                  value={adiantamento}
+                  onChange={(e) => setAdiantamento(parseFloat(e.target.value) || 0)}
+                />
+              </div>
+
               <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
                 <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-2">
                   <span>Subtotal Itens:</span>
-                  <span>R$ {calcularSubtotal().toFixed(2).replace('.', ',')}</span>
+                  <span>R$ {formatarMoeda(calcularSubtotal())}</span>
                 </div>
                 {desconto > 0 && (
                     <div className="flex justify-between text-[10px] font-bold text-green-600 uppercase mb-2">
                       <span>Desconto:</span>
-                      <span>- R$ {desconto.toFixed(2).replace('.', ',')}</span>
+                      <span>- R$ {formatarMoeda(desconto)}</span>
+                    </div>
+                )}
+                {adiantamento > 0 && (
+                    <div className="flex justify-between text-[10px] font-bold text-blue-600 uppercase mb-2">
+                      <span>Adiantamento:</span>
+                      <span>- R$ {formatarMoeda(adiantamento)}</span>
                     </div>
                 )}
                 <div className="flex justify-between text-lg font-black text-gray-800 uppercase border-t border-gray-200 pt-2">
                   <span>Total Geral:</span>
-                  <span>R$ {(calcularSubtotal() + freteAjustado - desconto).toFixed(2).replace('.', ',')}</span>
+                  <span>R$ {formatarMoeda(calcularSaldoRestante())}</span>
                 </div>
               </div>
 

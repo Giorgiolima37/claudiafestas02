@@ -31,6 +31,8 @@ const OrderManagement: React.FC = () => {
   const [dadosPedidoFixo, setDadosPedidoFixo] = useState<any>(null);
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
   const [novaQtdItem, setNovaQtdItem] = useState(1);
+  const [adiantamentoEdicao, setAdiantamentoEdicao] = useState(0);
+  const [observacoesBaseEdicao, setObservacoesBaseEdicao] = useState('');
   
   // NOVO ESTADO: Armazena a data original para garantir que o update encontre o registro certo
   const [dataEventoOriginal, setDataEventoOriginal] = useState('');
@@ -144,9 +146,55 @@ const OrderManagement: React.FC = () => {
     return dH > 0 && dH <= 24;
   };
 
+  const formatarMoeda = (valor: number) => Number(valor || 0).toFixed(2).replace('.', ',');
+
+  const parseValorBR = (texto: string) => {
+    const normalizado = texto.replace(/\./g, '').replace(',', '.').replace(/[^\d.-]/g, '');
+    return Number.parseFloat(normalizado) || 0;
+  };
+
+  const extrairFinanceiroDasObservacoes = (observacoes: string) => {
+    const texto = observacoes || '';
+    const matchAdiantamento = texto.match(/ADIANTAMENTO:\s*R\$\s*([\d.,]+)/i);
+    const textoLimpo = texto
+      .replace(/\n?ADIANTAMENTO:\s*R\$\s*[\d.,]+\s*\|\s*SALDO RESTANTE:\s*R\$\s*[\d.,]+/i, '')
+      .trim();
+
+    return {
+      adiantamento: matchAdiantamento ? parseValorBR(matchAdiantamento[1]) : 0,
+      observacoesBase: textoLimpo
+    };
+  };
+
+  const calcularSubtotalEdicao = () => {
+    return pedidoEmEdicao.reduce((acc, item) => {
+      if (item._deleted) return acc;
+      const precoUnitario = item._basePrice || (Number(item.valor_total || 0) / Number(item._originalQty || item.quantidade || 1));
+      return acc + (precoUnitario * Number(item.quantidade || 0));
+    }, 0);
+  };
+
+  const calcularTotalEdicao = () => {
+    const frete = Number(pedidoEmEdicao.find(item => !item._deleted)?.taxa_entrega || 0);
+    const desconto = Number(pedidoEmEdicao.find(item => !item._deleted)?.desconto || 0);
+    return calcularSubtotalEdicao() + frete - desconto;
+  };
+
+  const calcularSaldoEdicao = () => Math.max(0, calcularTotalEdicao() - adiantamentoEdicao);
+
+  const montarObservacoesComFinanceiro = () => {
+    const saldo = calcularSaldoEdicao();
+    return adiantamentoEdicao > 0
+      ? `${observacoesBaseEdicao ? `${observacoesBaseEdicao}\n` : ''}ADIANTAMENTO: R$ ${formatarMoeda(adiantamentoEdicao)} | SALDO RESTANTE: R$ ${formatarMoeda(saldo)}`
+      : observacoesBaseEdicao;
+  };
+
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
     const itensFormatados = pedidoAgrupado.itens.map((i: any) => ({ ...i, _originalQty: i.quantidade }));
+    const financeiro = extrairFinanceiroDasObservacoes(pedidoAgrupado.observacoes || pedidoAgrupado.itens[0]?.observacoes || '');
     setPedidoEmEdicao(itensFormatados);
+    setAdiantamentoEdicao(financeiro.adiantamento);
+    setObservacoesBaseEdicao(financeiro.observacoesBase);
     setDataEventoOriginal(pedidoAgrupado.itens[0].data_evento);
     setDadosPedidoFixo({
       cliente_id: pedidoAgrupado.cliente_id,
@@ -194,10 +242,12 @@ const OrderManagement: React.FC = () => {
     if (!dadosPedidoFixo) return;
     setLoading(true);
     try {
+      const observacoesAtualizadas = montarObservacoesComFinanceiro();
       await db.from('reservas')
         .update({ 
             data_devolucao: dadosPedidoFixo.data_devolucao,
-            data_evento: dadosPedidoFixo.data_evento 
+            data_evento: dadosPedidoFixo.data_evento,
+            observacoes: observacoesAtualizadas
         })
         .eq('cliente_id', dadosPedidoFixo.cliente_id)
         .eq('data_evento', dataEventoOriginal);
@@ -231,7 +281,10 @@ const OrderManagement: React.FC = () => {
             status: 'Pendente',
             forma_pagamento: 'Ajuste',
             valor_total: item.valor_total,
-            codigo_item: item.codigo_item
+            taxa_entrega: Number(pedidoEmEdicao.find(i => !i._deleted)?.taxa_entrega || 0),
+            desconto: Number(pedidoEmEdicao.find(i => !i._deleted)?.desconto || 0),
+            codigo_item: item.codigo_item,
+            observacoes: observacoesAtualizadas
           }]);
           continue;
         }
@@ -268,6 +321,10 @@ const OrderManagement: React.FC = () => {
     const taxaEntrega = pedido.itens[0].taxa_entrega || 0;
     const desconto = pedido.itens[0].desconto || 0;
     const totalGeral = subtotalItens + taxaEntrega - desconto;
+    const financeiroObservacoes = extrairFinanceiroDasObservacoes(pedido.observacoes || '');
+    const adiantamento = financeiroObservacoes.adiantamento;
+    const saldoRestante = Math.max(0, totalGeral - adiantamento);
+    const observacoesContrato = financeiroObservacoes.observacoesBase;
     const dEnt = formatarDataBR(pedido.itens[0].data_evento);
     const dRec = formatarDataBR(pedido.dataDevolucao);
     
@@ -479,6 +536,18 @@ const OrderManagement: React.FC = () => {
                      <td style="color:red;">- R$ ${desconto.toFixed(2).replace('.', ',')}</td>
                   </tr>` : ''}
 
+                  ${adiantamento > 0 ? `
+                  <tr>
+                     <td>1</td>
+                     <td class="align-left" style="color:#1d4ed8;">ADIANTAMENTO</td>
+                     <td style="color:#1d4ed8;">- R$ ${adiantamento.toFixed(2).replace('.', ',')}</td>
+                     <td style="color:#1d4ed8;">- R$ ${adiantamento.toFixed(2).replace('.', ',')}</td>
+                  </tr>
+                  <tr>
+                     <td colspan="3" style="text-align: right; font-weight: 900; color:#1d4ed8; border-right: none;">SALDO RESTANTE R$</td>
+                     <td style="font-weight: 900; color:#1d4ed8;">R$ ${saldoRestante.toFixed(2).replace('.', ',')}</td>
+                  </tr>` : ''}
+
                   <tr>
                     <td colspan="3" style="text-align: right; font-weight: 900; border-right: none;">TOTAL GERAL R$</td>
                     <td style="font-weight: 900; background-color: #eee;">R$ ${totalGeral.toFixed(2).replace('.', ',')}</td>
@@ -499,7 +568,7 @@ const OrderManagement: React.FC = () => {
               </div>
 
               <div class="obs-container">
-                <strong>OBS:</strong> ${pedido.observacoes || ''}
+                <strong>OBS:</strong> ${observacoesContrato || ''}
               </div>
 
               <div class="dates-info">
@@ -912,6 +981,40 @@ const OrderManagement: React.FC = () => {
                 </select>
                 <input type="number" min="1" placeholder="Qtd" className="w-20 p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-center" value={novaQtdItem} onChange={(e) => setNovaQtdItem(parseInt(e.target.value))} />
                 <button onClick={handleAdicionarNovoItem} className="bg-green-500 hover:bg-green-600 text-white w-12 rounded-xl flex items-center justify-center transition-all shadow-lg"><i className="fa-solid fa-plus"></i></button>
+              </div>
+            </div>
+            <div className="bg-gray-50 rounded-3xl p-6 mb-8 border border-gray-100">
+              <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-4">Ajuste de Pagamento</h4>
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-blue-600 uppercase mb-2 block">Adiantamento (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full p-4 bg-blue-50 border-2 border-blue-200 rounded-2xl text-center font-black text-xl text-blue-600 outline-none"
+                    value={adiantamentoEdicao}
+                    onChange={(e) => setAdiantamentoEdicao(parseFloat(e.target.value) || 0)}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-[#b24a2b] uppercase mb-2 block">Saldo Restante (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full p-4 bg-orange-50 border-2 border-orange-200 rounded-2xl text-center font-black text-xl text-[#b24a2b] outline-none"
+                    value={calcularSaldoEdicao()}
+                    onChange={(e) => {
+                      const novoSaldo = parseFloat(e.target.value) || 0;
+                      setAdiantamentoEdicao(Math.max(0, calcularTotalEdicao() - novoSaldo));
+                    }}
+                  />
+                </div>
+              </div>
+              <div className="mt-4 flex justify-between border-t border-gray-200 pt-3 text-xs font-black uppercase text-gray-700">
+                <span>Total do Pedido:</span>
+                <span>R$ {formatarMoeda(calcularTotalEdicao())}</span>
               </div>
             </div>
             <div className="flex gap-3">
