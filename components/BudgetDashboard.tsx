@@ -24,6 +24,16 @@ const BudgetDashboard: React.FC = () => {
   const [buscaProduto, setBuscaProduto] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [salvando, setSalvando] = useState(false);
+  const [buscandoCep, setBuscandoCep] = useState(false);
+  const [clienteAvulsoAtivo, setClienteAvulsoAtivo] = useState(false);
+  const [clienteAvulso, setClienteAvulso] = useState({
+    nome: '',
+    telefone: '',
+    documento: '',
+    cep: '',
+    endereco: '',
+    complemento: ''
+  });
   const [novoOrcamento, setNovoOrcamento] = useState({
     cliente: '',
     reserva: '',
@@ -82,6 +92,88 @@ const BudgetDashboard: React.FC = () => {
 
   const formatarNumeroMoeda = (valor: number) => Number(valor || 0).toFixed(2).replace('.', ',');
 
+  const formatarNomeProprio = (valor: string) => {
+    return valor
+      .toLowerCase()
+      .replace(/(^|\s)([a-zà-ú])/g, (match) => match.toUpperCase());
+  };
+
+  const formatarCpfCnpj = (valor: string) => {
+    const numeros = valor.replace(/\D/g, '').slice(0, 14);
+
+    if (numeros.length <= 11) {
+      return numeros
+        .replace(/^(\d{3})(\d)/, '$1.$2')
+        .replace(/^(\d{3})\.(\d{3})(\d)/, '$1.$2.$3')
+        .replace(/^(\d{3})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3-$4');
+    }
+
+    return numeros
+      .replace(/^(\d{2})(\d)/, '$1.$2')
+      .replace(/^(\d{2})\.(\d{3})(\d)/, '$1.$2.$3')
+      .replace(/^(\d{2})\.(\d{3})\.(\d{3})(\d)/, '$1.$2.$3/$4')
+      .replace(/^(\d{2})\.(\d{3})\.(\d{3})\/(\d{4})(\d)/, '$1.$2.$3/$4-$5');
+  };
+
+  const formatarCep = (valor: string) => {
+    return valor.replace(/\D/g, '').slice(0, 8).replace(/^(\d{5})(\d)/, '$1-$2');
+  };
+
+  const formatarTelefone = (valor: string) => {
+    const numeros = valor.replace(/\D/g, '').slice(0, 11);
+
+    if (numeros.length <= 10) {
+      return numeros
+        .replace(/^(\d{2})(\d)/, '($1) $2')
+        .replace(/(\d{4})(\d)/, '$1-$2');
+    }
+
+    return numeros
+      .replace(/^(\d{2})(\d)/, '($1) $2')
+      .replace(/(\d{5})(\d)/, '$1-$2');
+  };
+
+  const buscarEnderecoPorCep = async (cepFormatado: string) => {
+    const cep = cepFormatado.replace(/\D/g, '');
+    if (cep.length !== 8) return;
+
+    try {
+      setBuscandoCep(true);
+      const response = await fetch(`https://viacep.com.br/ws/${cep}/json/`);
+      const data = await response.json();
+
+      if (data.erro) {
+        alert('CEP nao encontrado.');
+        return;
+      }
+
+      const endereco = [
+        data.logradouro,
+        data.bairro,
+        data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : ''
+      ].filter(Boolean).join(', ');
+
+      setClienteAvulso((prev) => ({
+        ...prev,
+        endereco: formatarNomeProprio(endereco)
+      }));
+    } catch (err) {
+      console.error('Erro ao buscar CEP:', err);
+      alert('Nao foi possivel buscar o endereco pelo CEP.');
+    } finally {
+      setBuscandoCep(false);
+    }
+  };
+
+  const alterarCepClienteAvulso = (valor: string) => {
+    const cepFormatado = formatarCep(valor);
+    setClienteAvulso((prev) => ({ ...prev, cep: cepFormatado }));
+
+    if (cepFormatado.replace(/\D/g, '').length === 8) {
+      buscarEnderecoPorCep(cepFormatado);
+    }
+  };
+
   const clientesFiltrados = useMemo(() => {
     const termo = buscaCliente.trim().toLowerCase();
     if (!termo) return clientes;
@@ -129,6 +221,18 @@ const BudgetDashboard: React.FC = () => {
     e.preventDefault();
 
     const clienteSelecionado = clientes.find((cliente) => cliente.cliente === novoOrcamento.cliente);
+    const clienteAvulsoNome = clienteAvulso.nome.trim();
+    const clienteNome = clienteAvulsoAtivo ? clienteAvulsoNome : novoOrcamento.cliente;
+    const dadosClienteAvulso = [
+      clienteAvulso.telefone.trim() ? `Telefone: ${clienteAvulso.telefone.trim()}` : '',
+      clienteAvulso.documento.trim() ? `Documento: ${clienteAvulso.documento.trim()}` : '',
+      clienteAvulso.cep.trim() ? `CEP: ${clienteAvulso.cep.trim()}` : '',
+      clienteAvulso.endereco.trim() ? `Endereco: ${clienteAvulso.endereco.trim()}` : '',
+      clienteAvulso.complemento.trim() ? `Complemento: ${clienteAvulso.complemento.trim()}` : ''
+    ].filter(Boolean);
+    const observacoesComClienteAvulso = clienteAvulsoAtivo && dadosClienteAvulso.length > 0
+      ? `DADOS DO CLIENTE AVULSO:\n${dadosClienteAvulso.join('\n')}${novoOrcamento.observacoes ? `\n\n${novoOrcamento.observacoes}` : ''}`
+      : novoOrcamento.observacoes;
     const produtos = produtosSelecionados
       .filter((produto) => produto.item)
       .map((produtoSelecionado) => {
@@ -142,7 +246,12 @@ const BudgetDashboard: React.FC = () => {
         };
       });
 
-    if (!clienteSelecionado) {
+    if (clienteAvulsoAtivo && !clienteAvulsoNome) {
+      alert('Informe o nome do cliente avulso antes de salvar.');
+      return;
+    }
+
+    if (!clienteAvulsoAtivo && !clienteSelecionado) {
       alert('Selecione um cliente antes de salvar.');
       return;
     }
@@ -156,10 +265,10 @@ const BudgetDashboard: React.FC = () => {
 
     const item: BudgetItem = {
       id: crypto.randomUUID(),
-      cliente: novoOrcamento.cliente,
+      cliente: clienteNome,
       reserva: novoOrcamento.reserva,
       retirada: novoOrcamento.retirada,
-      observacoes: novoOrcamento.observacoes,
+      observacoes: observacoesComClienteAvulso,
       valor: calcularTotalProdutos(),
       adiantamento: calcularAdiantamento(),
       saldoRestante: calcularSaldoRestante(),
@@ -171,7 +280,7 @@ const BudgetDashboard: React.FC = () => {
       const { data: orcamentoSalvo, error: erroOrcamento } = await db
         .from('orcamentos')
         .insert([{
-          cliente_id: clienteSelecionado.id,
+          cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
           cliente_nome: item.cliente,
           data_reserva: item.reserva,
           data_retirada: item.retirada,
@@ -209,6 +318,8 @@ const BudgetDashboard: React.FC = () => {
 
       setOrcamentos((prev) => [itemSalvo, ...prev]);
       setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
+      setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
+      setClienteAvulsoAtivo(false);
       setProdutosSelecionados([{ item: '', quantidade: 1 }]);
       setBuscaCliente('');
       setBuscaProduto('');
@@ -237,8 +348,22 @@ const BudgetDashboard: React.FC = () => {
     return data.split('-').reverse().join('/');
   };
 
+  const separarDadosClienteAvulso = (observacoes: string) => {
+    const marcador = 'DADOS DO CLIENTE AVULSO:';
+    if (!observacoes?.startsWith(marcador)) {
+      return { dadosCliente: '', observacoesLimpas: observacoes || '' };
+    }
+
+    const [blocoDados, ...restante] = observacoes.replace(marcador, '').split('\n\n');
+    return {
+      dadosCliente: blocoDados.replace(/\n/g, ' ').trim(),
+      observacoesLimpas: restante.join('\n\n').trim()
+    };
+  };
+
   const gerarDocumentoOrcamento = (orcamento: BudgetItem) => {
     const cliente = clientes.find((item) => item.cliente === orcamento.cliente) || {};
+    const { dadosCliente, observacoesLimpas } = separarDadosClienteAvulso(orcamento.observacoes);
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -295,6 +420,7 @@ const BudgetDashboard: React.FC = () => {
               ${cliente?.['id-client'] ? ` - ID: <strong>${cliente['id-client']}</strong>` : ''},
               referente aos artigos para festas listados abaixo.
               ${cliente?.telefone ? `<br><strong>Telefone do cliente:</strong> ${cliente.telefone}` : ''}
+              ${dadosCliente ? `<br><strong>Dados do cliente:</strong> ${dadosCliente}` : ''}
             </div>
             <table>
               <thead><tr><th style="width:45px;">QTD</th><th>DESCRIÇÃO</th><th style="width:85px;">VALOR</th><th style="width:85px;">TOTAL</th></tr></thead>
@@ -314,7 +440,7 @@ const BudgetDashboard: React.FC = () => {
                 <tr class="totals"><td colspan="3" style="text-align:right;">VALOR TOTAL</td><td style="background:#eee;"><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.valor)}</span></span></td></tr>
               </tbody>
             </table>
-            <div class="obs"><strong>OBS:</strong> ${orcamento.observacoes || ''}</div>
+            <div class="obs"><strong>OBS:</strong> ${observacoesLimpas || ''}</div>
             <div class="dates">RESERVA: ${formatarDataBR(orcamento.reserva)}<br>RETIRADA: ${formatarDataBR(orcamento.retirada)}</div>
             <div class="signatures"><div class="sig">CLIENTE</div><div class="sig">CLAUDIA FESTAS</div></div>
           </div>
@@ -428,26 +554,98 @@ const BudgetDashboard: React.FC = () => {
             </div>
 
             <div className="space-y-4">
-              <input
-                type="text"
-                placeholder="Pesquisar cliente por nome ou ID..."
-                value={buscaCliente}
-                onChange={(e) => setBuscaCliente(e.target.value)}
-                className="w-full p-3 bg-white border-2 border-gray-100 rounded-2xl outline-none font-bold text-xs text-gray-600 focus:border-[#b24a2b]"
-              />
-              <select
-                required
-                value={novoOrcamento.cliente}
-                onChange={(e) => setNovoOrcamento({ ...novoOrcamento, cliente: e.target.value })}
-                className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-700 focus:border-[#b24a2b]"
-              >
-                <option value="">Selecione o cliente...</option>
-                {clientesFiltrados.map((cliente) => (
-                  <option key={cliente.id} value={cliente.cliente}>
-                    ID: {cliente['id-client'] || cliente.id} - {cliente.cliente}
-                  </option>
-                ))}
-              </select>
+              <div className="flex justify-end">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setClienteAvulsoAtivo(!clienteAvulsoAtivo);
+                    setNovoOrcamento({ ...novoOrcamento, cliente: '' });
+                    setBuscaCliente('');
+                  }}
+                  className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-[10px] font-black uppercase tracking-widest transition-all active:scale-95 ${
+                    clienteAvulsoAtivo
+                      ? 'bg-[#b24a2b] text-white shadow-md'
+                      : 'bg-orange-50 text-[#b24a2b] hover:bg-orange-100'
+                  }`}
+                >
+                  <i className="fa-solid fa-user-pen"></i>
+                  {clienteAvulsoAtivo ? 'Usar cliente cadastrado' : 'Cliente avulso'}
+                </button>
+              </div>
+
+              {clienteAvulsoAtivo ? (
+                <div className="rounded-2xl bg-orange-50/70 p-4 border border-orange-100">
+                  <p className="mb-3 text-[10px] font-black uppercase tracking-widest text-[#b24a2b]">Dados do cliente para este orçamento</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                    <input
+                      type="text"
+                      required
+                      placeholder="Nome do cliente"
+                      value={clienteAvulso.nome}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, nome: formatarNomeProprio(e.target.value) })}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Telefone"
+                      value={clienteAvulso.telefone}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, telefone: formatarTelefone(e.target.value) })}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="CPF ou CNPJ"
+                      value={clienteAvulso.documento}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, documento: formatarCpfCnpj(e.target.value) })}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    <input
+                      type="text"
+                      placeholder={buscandoCep ? 'Buscando CEP...' : 'CEP'}
+                      value={clienteAvulso.cep}
+                      onChange={(e) => alterarCepClienteAvulso(e.target.value)}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Endereço"
+                      value={clienteAvulso.endereco}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, endereco: formatarNomeProprio(e.target.value) })}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    <input
+                      type="text"
+                      placeholder="Complemento: casa 1, salão 1..."
+                      value={clienteAvulso.complemento}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, complemento: formatarNomeProprio(e.target.value) })}
+                      className="w-full md:col-span-2 p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                  </div>
+                </div>
+              ) : (
+                <>
+                  <input
+                    type="text"
+                    placeholder="Pesquisar cliente por nome ou ID..."
+                    value={buscaCliente}
+                    onChange={(e) => setBuscaCliente(e.target.value)}
+                    className="w-full p-3 bg-white border-2 border-gray-100 rounded-2xl outline-none font-bold text-xs text-gray-600 focus:border-[#b24a2b]"
+                  />
+                  <select
+                    required={!clienteAvulsoAtivo}
+                    value={novoOrcamento.cliente}
+                    onChange={(e) => setNovoOrcamento({ ...novoOrcamento, cliente: e.target.value })}
+                    className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-700 focus:border-[#b24a2b]"
+                  >
+                    <option value="">Selecione o cliente...</option>
+                    {clientesFiltrados.map((cliente) => (
+                      <option key={cliente.id} value={cliente.cliente}>
+                        ID: {cliente['id-client'] || cliente.id} - {cliente.cliente}
+                      </option>
+                    ))}
+                  </select>
+                </>
+              )}
 
               <input
                 type="text"

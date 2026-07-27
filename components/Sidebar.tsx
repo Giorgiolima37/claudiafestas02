@@ -314,6 +314,11 @@ const Sidebar: React.FC<SidebarProps> = ({
                         <div>
                           <p className="text-[10px] font-black uppercase leading-tight">{user.device}</p>
                           <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
+                          {user.city && (
+                            <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">
+                              <i className="fa-solid fa-location-dot mr-1 text-[8px]"></i>{user.city}
+                            </p>
+                          )}
                         </div>
                       </div>
                       <div className="flex items-center gap-2">
