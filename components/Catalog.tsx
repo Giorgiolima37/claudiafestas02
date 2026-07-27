@@ -240,7 +240,7 @@ const Catalog: React.FC = () => {
              <h1 className="text-3xl font-black uppercase italic tracking-tighter mb-1 leading-none mt-2">
                 Claudia <span className="text-[#b24a2b]">Festas</span>
              </h1>
-             <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest">Agilize o seu pedido</p>
+             <p className="text-gray-600 text-[10px] font-bold uppercase tracking-widest">Agilize o seu pedido</p>
           </div>
 
           {showRegisterForm ? (
@@ -250,12 +250,12 @@ const Catalog: React.FC = () => {
                 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Nome Completo</label>
+                        <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-1 block">Nome Completo</label>
                         <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regNome} onChange={e => setRegNome(e.target.value)} required placeholder="Ex: GABRIEL LIMA" />
                     </div>
                     <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Telefone</label>
+                        <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-1 block">Telefone</label>
                         <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regTelefone} onChange={e => setRegTelefone(aplicarMascaraTelefone(e.target.value))} required placeholder="(99) 99999-9999" />
                     </div>
@@ -263,31 +263,31 @@ const Catalog: React.FC = () => {
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">CPF ou CNPJ</label>
+                        <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-1 block">CPF ou CNPJ</label>
                         <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regDocumento} onChange={e => setRegDocumento(aplicarMascaraDocumento(e.target.value))} required placeholder="000.000.000-00" />
                     </div>
                     <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">ID Personalizado (Auto)</label>
+                        <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-1 block">ID Personalizado (Auto)</label>
                         <input type="text" className="w-full px-5 py-4 bg-gray-100 text-gray-500 rounded-2xl font-bold uppercase outline-none text-sm cursor-not-allowed" 
                             value={regIdPersonalizado} readOnly />
                     </div>
                 </div>
 
                 <div>
-                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Endereço Completo</label>
+                    <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-1 block">Endereço Completo</label>
                     <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                         value={regEndereco} onChange={e => setRegEndereco(e.target.value)} required placeholder="RUA, NÚMERO..." />
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Bairro</label>
+                        <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-1 block">Bairro</label>
                         <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regBairro} onChange={e => setRegBairro(e.target.value)} required />
                     </div>
                     <div>
-                        <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-2 mb-1 block">Município</label>
+                        <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-2 mb-1 block">Município</label>
                         <input type="text" className="w-full px-5 py-4 bg-gray-50 rounded-2xl font-bold uppercase outline-none focus:ring-2 ring-[#b24a2b]/20 transition-all text-sm" 
                             value={regMunicipio} onChange={e => setRegMunicipio(e.target.value)} required />
                     </div>
@@ -347,7 +347,7 @@ const Catalog: React.FC = () => {
                 className={`w-full py-5 rounded-2xl font-black text-[10px] uppercase tracking-widest transition-all mt-1 active:scale-95 touch-manipulation border-2
                     ${usuarioNaoEncontrado 
                         ? 'bg-red-500 border-red-500 text-white animate-pulse shadow-lg' // ESTILO QUANDO NÃO ENCONTRA
-                        : 'bg-white border-gray-100 text-gray-400 hover:border-[#b24a2b] hover:text-[#b24a2b]' // ESTILO NORMAL
+                        : 'bg-white border-gray-100 text-gray-600 hover:border-[#b24a2b] hover:text-[#b24a2b]' // ESTILO NORMAL
                     }`}
                 >
                 {usuarioNaoEncontrado ? 'SEM CADASTRO? FAÇA SEU CADASTRO' : 'Não tenho cadastro'}
@@ -395,7 +395,7 @@ const Catalog: React.FC = () => {
                     <div key={item.item} className="bg-gray-50 px-3 py-1.5 rounded-full flex items-center gap-2 border border-gray-100 shrink-0">
                         <span className="text-[10px] font-black text-[#b24a2b]">{carrinho[item.item]}x</span>
                         <span className="text-[9px] font-bold uppercase truncate max-w-[100px]">{item.item}</span>
-                        <button onClick={() => alterarQuantidade(item.item, -999, 0)} className="text-gray-300 hover:text-red-500 p-1"><i className="fa-solid fa-xmark text-[10px]"></i></button>
+                        <button onClick={() => alterarQuantidade(item.item, -999, 0)} className="text-gray-600 hover:text-red-500 p-1"><i className="fa-solid fa-xmark text-[10px]"></i></button>
                     </div>
                 ))}
             </div>
@@ -411,17 +411,17 @@ const Catalog: React.FC = () => {
             <div key={idx} className="bg-white rounded-[24px] p-5 border border-gray-50 shadow-sm flex flex-col justify-between text-center relative overflow-hidden">
               <div>
                 <div className="flex justify-between items-center mb-3">
-                    <span className="text-[9px] font-black text-gray-300 uppercase tracking-widest">#{prod.codigo_interno}</span>
+                    <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest">#{prod.codigo_interno}</span>
                     <div className={`w-2 h-2 rounded-full ${isEsgotado ? 'bg-red-500' : 'bg-green-500 shadow-[0_0_8px_rgba(34,197,94,0.4)] animate-pulse'}`}></div>
                 </div>
                 <h3 className="font-black text-lg uppercase leading-tight mb-1 truncate">{prod.item}</h3>
-                <p className={`text-[10px] font-bold uppercase tracking-wider mb-4 ${isEsgotado ? 'text-red-500' : 'text-gray-400'}`}>{isEsgotado ? 'Esgotado' : `${prod.disponivel} em estoque`}</p>
+                <p className={`text-[10px] font-bold uppercase tracking-wider mb-4 ${isEsgotado ? 'text-red-500' : 'text-gray-600'}`}>{isEsgotado ? 'Esgotado' : `${prod.disponivel} em estoque`}</p>
                 <div className="mb-4"><span className="text-2xl font-black text-gray-900">R$ {prod.preco?.toFixed(2)}</span></div>
               </div>
               
               {qtde === 0 ? (
                 <button onClick={() => alterarQuantidade(prod.item, 1, prod.disponivel)} disabled={isEsgotado} 
-                  className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 touch-manipulation ${isEsgotado ? 'bg-gray-100 text-gray-400' : 'bg-gray-900 text-white shadow-lg'}`}>
+                  className={`w-full py-4 rounded-xl font-black text-[11px] uppercase tracking-widest transition-all active:scale-95 touch-manipulation ${isEsgotado ? 'bg-gray-100 text-gray-600' : 'bg-gray-900 text-white shadow-lg'}`}>
                   Adicionar
                 </button>
               ) : (
@@ -459,7 +459,7 @@ const Catalog: React.FC = () => {
             {/* BLOCO NOVO: DATA DA RESERVA */}
             <div className="mb-4">
               <h2 className="text-lg font-black uppercase italic mb-1 tracking-tight">Data da Reserva</h2>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Selecione a data de retirada</p>
+              <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest block mb-2">Selecione a data de retirada</p>
               <input 
                 type="date" 
                 min={dataHoje} 
@@ -472,7 +472,7 @@ const Catalog: React.FC = () => {
             {/* BLOCO ORIGINAL: DATA DE DEVOLUÇÃO */}
             <div className="mb-6">
               <h2 className="text-lg font-black uppercase italic mb-1 tracking-tight text-[#b24a2b]">Quando irá devolver?</h2>
-              <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-2">Selecione a data prevista</p>
+              <p className="text-[9px] font-black text-gray-600 uppercase tracking-widest block mb-2">Selecione a data prevista</p>
               <input 
                 type="date" 
                 min={dataReserva || dataHoje} 
@@ -488,14 +488,14 @@ const Catalog: React.FC = () => {
                 onClick={confirmarPedidoFinal} 
                 disabled={!dataReserva || !dataDevolucao}
                 className={`w-full py-4 rounded-xl font-black text-xs uppercase tracking-widest transition-all 
-                  ${(!dataReserva || !dataDevolucao) ? 'bg-gray-100 text-gray-300' : 'bg-[#25D366] text-white shadow-md active:scale-95'}`}
+                  ${(!dataReserva || !dataDevolucao) ? 'bg-gray-100 text-gray-600' : 'bg-[#25D366] text-white shadow-md active:scale-95'}`}
               >
                 Sim, Finalizar!
               </button>
               
               <button 
                 onClick={() => {setMostrarModalConfirma(false); setDataReserva(''); setDataDevolucao('');}} 
-                className="w-full py-4 text-gray-400 font-black text-xs uppercase tracking-widest"
+                className="w-full py-4 text-gray-600 font-black text-xs uppercase tracking-widest"
               >
                 Cancelar
               </button>

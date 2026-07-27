@@ -191,7 +191,7 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
   return (
     <div className="w-full relative">
       <h1 className="text-center text-[#b24a2b] text-3xl md:text-4xl font-bold mb-1">Claudia Festas</h1>
-      <div className="text-center text-gray-400 text-[10px] font-bold uppercase tracking-[4px] mb-8">Registro de Cliente</div>
+      <div className="text-center text-gray-600 text-[10px] font-bold uppercase tracking-[4px] mb-8">Registro de Cliente</div>
       
       <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
         
@@ -249,7 +249,7 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
         <div className="grid grid-cols-1 md:grid-cols-1 gap-4 md:gap-6">
              <div className="relative">
                 <FormInput label="ID PERSONALIZADO (AUTOMÁTICO)" id="idClient" value={formData.idClient} onChange={handleChange} />
-                <span className="text-[8px] text-gray-400 font-bold absolute right-2 top-0">*Sugerido</span>
+                <span className="text-[8px] text-gray-600 font-bold absolute right-2 top-0">*Sugerido</span>
              </div>
         </div>
         
@@ -304,7 +304,7 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
 
 const FormInput: React.FC<{ label: string; id: string; value: string; onChange: (e: React.ChangeEvent<HTMLInputElement>) => void; required?: boolean; maxLength?: number }> = ({ label, id, value, onChange, required, maxLength }) => (
   <div className="flex flex-col group w-full">
-    <label htmlFor={id} className="text-[10px] font-bold text-gray-400 ml-2 mb-1 uppercase tracking-widest group-focus-within:text-[#b24a2b]">
+    <label htmlFor={id} className="text-[10px] font-bold text-gray-600 ml-2 mb-1 uppercase tracking-widest group-focus-within:text-[#b24a2b]">
       {label}
     </label>
     <input 

@@ -163,7 +163,7 @@ const InventoryDashboard: React.FC = () => {
         
         <div className="flex items-center gap-4 w-full md:w-auto">
           <div className="relative flex-1 md:w-80">
-            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-400"></i>
+            <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"></i>
             <input 
               type="text"
               placeholder="PESQUISAR MATERIAL OU ID..."
@@ -206,7 +206,7 @@ const InventoryDashboard: React.FC = () => {
                             setEditandoIdRapido(item.id);
                             setNovoIdValor(item.codigo_interno || '');
                         }}
-                        className="bg-gray-50 px-4 py-1.5 rounded-full text-[9px] font-black text-gray-400 border border-gray-100 cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest"
+                        className="bg-gray-50 px-4 py-1.5 rounded-full text-[9px] font-black text-gray-600 border border-gray-100 cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest"
                     >
                         CÓD: {item.codigo_interno || 'DEFINIR'}
                     </div>
@@ -215,7 +215,7 @@ const InventoryDashboard: React.FC = () => {
 
             <button 
               onClick={() => handleOpenEditModal(item)}
-              className="absolute top-6 right-8 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 p-2.5 rounded-full hover:bg-[#b24a2b] hover:text-white text-gray-400 shadow-sm"
+              className="absolute top-6 right-8 opacity-0 group-hover:opacity-100 transition-opacity bg-gray-100 p-2.5 rounded-full hover:bg-[#b24a2b] hover:text-white text-gray-600 shadow-sm"
             >
               <i className="fa-solid fa-pen text-xs"></i>
             </button>
@@ -281,7 +281,7 @@ const InventoryDashboard: React.FC = () => {
                   <div key={idx} className="bg-gray-50 p-5 rounded-3xl border border-gray-100 flex justify-between items-center">
                     <div>
                       <p className="text-xs font-black text-gray-800 uppercase">{res.nomeCliente}</p>
-                      <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
+                      <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">
                         Evento: {new Date(res.data_evento).toLocaleDateString('pt-BR')}
                       </p>
                     </div>
@@ -293,7 +293,7 @@ const InventoryDashboard: React.FC = () => {
                   </div>
                 ))
               ) : (
-                <div className="text-center py-10 text-gray-400 font-bold uppercase text-[10px]">Nenhuma reserva futura para este item.</div>
+                <div className="text-center py-10 text-gray-600 font-bold uppercase text-[10px]">Nenhuma reserva futura para este item.</div>
               )}
             </div>
 
@@ -314,7 +314,7 @@ const InventoryDashboard: React.FC = () => {
             
             <form onSubmit={handleSaveEdit} className="space-y-6">
               <div>
-                <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Código Interno</label>
+                <label className="block text-[10px] font-black uppercase text-gray-600 mb-2 ml-4">Código Interno</label>
                 <input 
                   type="text" 
                   value={editingItem.codigo_interno || ''}
@@ -324,7 +324,7 @@ const InventoryDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Nome do Material</label>
+                <label className="block text-[10px] font-black uppercase text-gray-600 mb-2 ml-4">Nome do Material</label>
                 <input 
                   type="text" 
                   value={editingItem.item}
@@ -335,7 +335,7 @@ const InventoryDashboard: React.FC = () => {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Disponível</label>
+                  <label className="block text-[10px] font-black uppercase text-gray-600 mb-2 ml-4">Disponível</label>
                   <input 
                     type="number" 
                     value={editingItem.disponivel}
@@ -344,7 +344,7 @@ const InventoryDashboard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Em Aluguel</label>
+                  <label className="block text-[10px] font-black uppercase text-gray-600 mb-2 ml-4">Em Aluguel</label>
                   <input 
                     type="number" 
                     value={editingItem.alugado || 0}
@@ -355,7 +355,7 @@ const InventoryDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Reservado Futuro</label>
+                <label className="block text-[10px] font-black uppercase text-gray-600 mb-2 ml-4">Reservado Futuro</label>
                 <input 
                   type="number" 
                   value={editingItem.reservado || 0}
@@ -365,7 +365,7 @@ const InventoryDashboard: React.FC = () => {
               </div>
 
               <div>
-                <label className="block text-[10px] font-black uppercase text-gray-400 mb-2 ml-4">Preço Unit.</label>
+                <label className="block text-[10px] font-black uppercase text-gray-600 mb-2 ml-4">Preço Unit.</label>
                 <input 
                   type="number" 
                   value={editingItem.preco}
@@ -375,7 +375,7 @@ const InventoryDashboard: React.FC = () => {
               </div>
 
               <div className="flex gap-4 pt-6">
-                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 bg-gray-100 text-gray-400 py-5 rounded-3xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all">Sair</button>
+                <button type="button" onClick={() => setIsEditModalOpen(false)} className="flex-1 bg-gray-100 text-gray-600 py-5 rounded-3xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all">Sair</button>
                 <button type="submit" className="flex-1 bg-[#b24a2b] text-white py-5 rounded-3xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:shadow-[#b24a2b]/30 transition-all">Gravar Dados</button>
               </div>
             </form>

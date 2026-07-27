@@ -5,6 +5,10 @@ const FinanceDashboard: React.FC = () => {
   const [movimentacoes, setMovimentacoes] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [filtro, setFiltro] = useState<'dia' | 'mes' | 'total'>('mes');
+  const [mesSelecionado, setMesSelecionado] = useState(() => {
+    const hoje = new Date();
+    return `${hoje.getFullYear()}-${String(hoje.getMonth() + 1).padStart(2, '0')}`;
+  });
 
   // Estados para o novo campo de gastos
   const [descGasto, setDescGasto] = useState('');
@@ -28,6 +32,27 @@ const FinanceDashboard: React.FC = () => {
   };
 
   useEffect(() => { fetchFinanceiro(); }, []);
+
+  const alterarMesSelecionado = (direcao: number) => {
+    const [ano, mes] = mesSelecionado.split('-').map(Number);
+    const novaData = new Date(ano, mes - 1 + direcao, 1);
+    setMesSelecionado(`${novaData.getFullYear()}-${String(novaData.getMonth() + 1).padStart(2, '0')}`);
+    setFiltro('mes');
+  };
+
+  const movimentacoesFiltradas = movimentacoes.filter(m => {
+    const dataM = new Date(m.data);
+    const agora = new Date();
+
+    if (filtro === 'dia') return dataM.toDateString() === agora.toDateString();
+
+    if (filtro === 'mes') {
+      const [ano, mes] = mesSelecionado.split('-').map(Number);
+      return dataM.getFullYear() === ano && dataM.getMonth() === mes - 1;
+    }
+
+    return true;
+  });
 
   const salvarGasto = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -56,21 +81,18 @@ const FinanceDashboard: React.FC = () => {
   };
 
   const calcularResumo = () => {
-    const agora = new Date();
-    const filtrados = movimentacoes.filter(m => {
-      const dataM = new Date(m.data);
-      if (filtro === 'dia') return dataM.toDateString() === agora.toDateString();
-      if (filtro === 'mes') return dataM.getMonth() === agora.getMonth() && dataM.getFullYear() === agora.getFullYear();
-      return true;
-    });
-
-    const entradas = filtrados.filter(m => m.tipo === 'Receita').reduce((acc, m) => acc + m.valor, 0);
-    const saidas = filtrados.filter(m => m.tipo === 'Despesa').reduce((acc, m) => acc + m.valor, 0);
+    const entradas = movimentacoesFiltradas.filter(m => m.tipo === 'Receita').reduce((acc, m) => acc + m.valor, 0);
+    const saidas = movimentacoesFiltradas.filter(m => m.tipo === 'Despesa').reduce((acc, m) => acc + m.valor, 0);
 
     return { entradas, saidas, saldo: entradas - saidas };
   };
 
   const { entradas, saidas, saldo } = calcularResumo();
+  const formatarMoeda = (valor: number) => `R$ ${Number(valor || 0).toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`;
+  const dataMesSelecionado = new Date(`${mesSelecionado}-01T12:00:00`);
+  const mesSelecionadoLabel = dataMesSelecionado.toLocaleDateString('pt-BR', { month: 'long', year: 'numeric' });
+  const ganhosDoMes = movimentacoesFiltradas.filter(m => m.tipo === 'Receita');
+  const despesasDoMes = movimentacoesFiltradas.filter(m => m.tipo === 'Despesa');
   const anoAtual = new Date().getFullYear();
   const mesesGrafico = ['Jan', 'Fev', 'Mar', 'Abr', 'Mai', 'Jun', 'Jul', 'Ago', 'Set', 'Out', 'Nov', 'Dez'];
   const alugueisMensais = mesesGrafico.map((mes, index) => {
@@ -92,14 +114,14 @@ const FinanceDashboard: React.FC = () => {
   const maiorAluguelMensal = Math.max(...alugueisMensais.map(item => item.total), 1);
   const totalAlugueisAno = alugueisMensais.reduce((acc, item) => acc + item.total, 0);
 
-  if (loading) return <div className="p-20 text-center font-light text-gray-400 tracking-widest uppercase animate-pulse">Carregando Finanças...</div>;
+  if (loading) return <div className="p-20 text-center font-light text-gray-600 tracking-widest uppercase animate-pulse">Carregando Finanças...</div>;
 
   return (
     <div className="max-w-6xl mx-auto p-6 animate-in fade-in duration-700">
       <header className="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
         <div>
           <h1 className="text-4xl font-light text-gray-800 tracking-tight italic">Fluxo de <span className="text-[#b24a2b] font-serif">Caixa</span></h1>
-          <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] mt-2">Claudia Festas • Gestão</p>
+          <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em] mt-2">Claudia Festas • Gestão</p>
         </div>
 
         <div className="flex gap-2 bg-gray-100 p-1.5 rounded-[20px]">
@@ -107,33 +129,62 @@ const FinanceDashboard: React.FC = () => {
             <button
               key={p}
               onClick={() => setFiltro(p)}
-              className={`px-6 py-2 rounded-[15px] text-[10px] font-bold uppercase tracking-widest transition-all ${filtro === p ? 'bg-white text-[#b24a2b] shadow-sm' : 'text-gray-400 hover:text-gray-600'}`}
+              className={`px-6 py-2 rounded-[15px] text-[10px] font-bold uppercase tracking-widest transition-all ${filtro === p ? 'bg-white text-[#b24a2b] shadow-sm' : 'text-gray-600 hover:text-gray-800'}`}
             >
               {p === 'dia' ? 'Hoje' : p === 'mes' ? 'Mês' : 'Tudo'}
             </button>
           ))}
+        </div>
+
+        <div className="flex items-center gap-2">
+          <button
+            type="button"
+            onClick={() => alterarMesSelecionado(-1)}
+            className="w-9 h-9 rounded-full bg-white text-gray-600 border border-gray-100 shadow-sm flex items-center justify-center transition-all hover:text-[#b24a2b] hover:scale-110 active:scale-95"
+            title="Mes anterior"
+          >
+            <i className="fa-solid fa-chevron-left text-xs"></i>
+          </button>
+          <input
+            type="month"
+            value={mesSelecionado}
+            onChange={(e) => {
+              setMesSelecionado(e.target.value);
+              setFiltro('mes');
+            }}
+            className="h-9 rounded-full bg-white border border-gray-100 px-4 text-[11px] font-black uppercase tracking-widest text-gray-500 shadow-sm outline-none focus:ring-2 focus:ring-[#b24a2b]/20"
+            title="Selecionar mes"
+          />
+          <button
+            type="button"
+            onClick={() => alterarMesSelecionado(1)}
+            className="w-9 h-9 rounded-full bg-white text-gray-600 border border-gray-100 shadow-sm flex items-center justify-center transition-all hover:text-[#b24a2b] hover:scale-110 active:scale-95"
+            title="Proximo mes"
+          >
+            <i className="fa-solid fa-chevron-right text-xs"></i>
+          </button>
         </div>
       </header>
 
       {/* NOVO: Formulário de Cadastro de Gastos */}
       <div className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm mb-10 flex flex-wrap items-end gap-4">
         <div className="flex-1 min-w-[200px]">
-          <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Descrição do Gasto (Ex: Combustível)</label>
+          <label className="text-[10px] font-black text-gray-600 uppercase mb-2 block">Descrição do Gasto (Ex: Combustível)</label>
           <input 
             type="text" 
             value={descGasto} 
             onChange={(e) => setDescGasto(e.target.value)}
-            className="w-full bg-gray-50 border-none rounded-xl p-3 text-sm outline-none focus:ring-1 ring-[#b24a2b]/20"
+            className="w-full bg-gray-50 border-none rounded-xl p-3 text-sm text-gray-800 outline-none focus:ring-1 ring-[#b24a2b]/20 placeholder:text-gray-500"
             placeholder="O que você pagou?"
           />
         </div>
         <div className="w-40">
-          <label className="text-[10px] font-black text-gray-400 uppercase mb-2 block">Valor (R$)</label>
+          <label className="text-[10px] font-black text-gray-600 uppercase mb-2 block">Valor (R$)</label>
           <input 
             type="number" 
             value={valorGasto} 
             onChange={(e) => setValorGasto(e.target.value)}
-            className="w-full bg-gray-50 border-none rounded-xl p-3 text-sm outline-none"
+            className="w-full bg-gray-50 border-none rounded-xl p-3 text-sm text-gray-800 outline-none placeholder:text-gray-500"
             placeholder="0,00"
           />
         </div>
@@ -157,19 +208,73 @@ const FinanceDashboard: React.FC = () => {
         </div>
 
         <div className={`p-8 rounded-[32px] shadow-lg ${saldo >= 0 ? 'bg-[#b24a2b]' : 'bg-gray-800'}`}>
-          <span className="text-[10px] font-black text-white/60 uppercase tracking-widest block mb-4">Saldo Atual</span>
+          <span className="text-[10px] font-black text-white/80 uppercase tracking-widest block mb-4">Saldo Atual</span>
           <p className="text-3xl font-bold text-white">R$ {saldo.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}</p>
         </div>
       </div>
+
+      {filtro === 'mes' && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-12">
+          <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-50 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-emerald-600 uppercase italic tracking-tight">Ganhos do mes</h2>
+                <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.25em] mt-2">{mesSelecionadoLabel}</p>
+              </div>
+              <strong className="text-xl font-black text-emerald-600">{formatarMoeda(entradas)}</strong>
+            </div>
+            <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+              {ganhosDoMes.map(m => (
+                <div key={m.id} className="p-5 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-gray-700">{m.descricao}</p>
+                    {m.cadastro?.cliente && <p className="text-[10px] text-[#b24a2b] font-medium uppercase mt-0.5">{m.cadastro.cliente}</p>}
+                    <p className="text-[10px] text-gray-600 font-bold mt-1">{new Date(m.data).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <span className="text-sm font-black text-emerald-600 whitespace-nowrap">{formatarMoeda(m.valor)}</span>
+                </div>
+              ))}
+              {ganhosDoMes.length === 0 && (
+                <div className="p-10 text-center text-xs text-gray-600 font-black uppercase tracking-widest">Nenhum ganho neste mes.</div>
+              )}
+            </div>
+          </div>
+
+          <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+            <div className="p-6 border-b border-gray-50 flex items-end justify-between gap-4">
+              <div>
+                <h2 className="text-lg font-black text-red-500 uppercase italic tracking-tight">Despesas do mes</h2>
+                <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.25em] mt-2">{mesSelecionadoLabel}</p>
+              </div>
+              <strong className="text-xl font-black text-red-500">{formatarMoeda(saidas)}</strong>
+            </div>
+            <div className="divide-y divide-gray-50 max-h-80 overflow-y-auto">
+              {despesasDoMes.map(m => (
+                <div key={m.id} className="p-5 flex items-start justify-between gap-4">
+                  <div>
+                    <p className="text-sm font-bold text-gray-700">{m.descricao}</p>
+                    {m.cadastro?.cliente && <p className="text-[10px] text-[#b24a2b] font-medium uppercase mt-0.5">{m.cadastro.cliente}</p>}
+                    <p className="text-[10px] text-gray-600 font-bold mt-1">{new Date(m.data).toLocaleDateString('pt-BR')}</p>
+                  </div>
+                  <span className="text-sm font-black text-red-500 whitespace-nowrap">{formatarMoeda(m.valor)}</span>
+                </div>
+              ))}
+              {despesasDoMes.length === 0 && (
+                <div className="p-10 text-center text-xs text-gray-600 font-black uppercase tracking-widest">Nenhuma despesa neste mes.</div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm p-6 md:p-8 mb-12">
         <div className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <h2 className="text-xl font-black text-gray-800 uppercase italic tracking-tight">Aluguéis Mensais</h2>
-            <p className="text-[10px] font-black text-gray-300 uppercase tracking-[0.3em] mt-2">Receitas de reservas em {anoAtual}</p>
+            <p className="text-[10px] font-black text-gray-600 uppercase tracking-[0.3em] mt-2">Receitas de reservas em {anoAtual}</p>
           </div>
           <div className="text-left md:text-right">
-            <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest block mb-1">Total no ano</span>
+            <span className="text-[9px] font-black text-gray-600 uppercase tracking-widest block mb-1">Total no ano</span>
             <strong className="text-2xl font-black text-[#b24a2b]">
               R$ {totalAlugueisAno.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}
             </strong>
@@ -182,7 +287,7 @@ const FinanceDashboard: React.FC = () => {
 
             return (
               <div key={item.mes} className="min-w-[54px] flex-1 h-full flex flex-col items-center justify-end gap-3">
-                <span className="text-[10px] font-black text-gray-400 whitespace-nowrap">
+                <span className="text-[10px] font-black text-gray-600 whitespace-nowrap">
                   {item.total > 0 ? `R$ ${item.total.toLocaleString('pt-BR', { maximumFractionDigits: 0 })}` : '-'}
                 </span>
                 <div className="w-full max-w-[42px] h-[200px] flex items-end">
@@ -192,7 +297,7 @@ const FinanceDashboard: React.FC = () => {
                     title={`${item.mes}: R$ ${item.total.toLocaleString('pt-BR', { minimumFractionDigits: 2 })}`}
                   ></div>
                 </div>
-                <span className="text-[10px] font-black text-gray-400 uppercase tracking-widest">{item.mes}</span>
+                <span className="text-[10px] font-black text-gray-600 uppercase tracking-widest">{item.mes}</span>
               </div>
             );
           })}
@@ -202,7 +307,7 @@ const FinanceDashboard: React.FC = () => {
       <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
         <table className="w-full text-left">
           <thead>
-            <tr className="text-[9px] font-black text-gray-300 uppercase tracking-widest border-b border-gray-50">
+            <tr className="text-[9px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-50">
               <th className="p-6">Data</th>
               <th className="p-6">Descrição</th>
               <th className="p-6">Tipo</th>
@@ -210,9 +315,9 @@ const FinanceDashboard: React.FC = () => {
             </tr>
           </thead>
           <tbody className="divide-y divide-gray-50">
-            {movimentacoes.map(m => (
+            {movimentacoesFiltradas.map(m => (
               <tr key={m.id} className="hover:bg-gray-50/50 transition-colors">
-                <td className="p-6 text-xs text-gray-400">
+                <td className="p-6 text-xs text-gray-600">
                   {new Date(m.data).toLocaleDateString('pt-BR')}
                 </td>
                 <td className="p-6">
@@ -229,6 +334,13 @@ const FinanceDashboard: React.FC = () => {
                 </td>
               </tr>
             ))}
+            {movimentacoesFiltradas.length === 0 && (
+              <tr>
+                <td colSpan={4} className="p-10 text-center text-xs text-gray-600 font-black uppercase tracking-widest">
+                  Nenhuma movimentacao encontrada neste periodo.
+                </td>
+              </tr>
+            )}
           </tbody>
         </table>
       </div>

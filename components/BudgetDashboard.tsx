@@ -329,7 +329,7 @@ const BudgetDashboard: React.FC = () => {
     <div className="w-full animate-in fade-in duration-500">
       <div className="text-center mb-10">
         <h1 className="text-3xl md:text-4xl font-black text-[#b24a2b] italic uppercase tracking-tighter">Orçamentos</h1>
-        <p className="text-[10px] font-bold text-gray-400 uppercase tracking-[0.35em] mt-2">Propostas e valores em aberto</p>
+        <p className="text-[10px] font-bold text-gray-600 uppercase tracking-[0.35em] mt-2">Propostas e valores em aberto</p>
       </div>
 
       <div className="flex flex-col md:flex-row gap-3 items-center justify-between mb-8">
@@ -353,7 +353,7 @@ const BudgetDashboard: React.FC = () => {
       {orcamentosFiltrados.length === 0 ? (
         <div className="border-2 border-dashed border-gray-200 rounded-[32px] p-12 text-center">
           <i className="fa-solid fa-file-signature text-4xl text-gray-200 mb-4"></i>
-          <p className="text-gray-300 text-xs font-black uppercase tracking-widest">Nenhum orçamento cadastrado.</p>
+          <p className="text-gray-600 text-xs font-black uppercase tracking-widest">Nenhum orçamento cadastrado.</p>
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
@@ -362,10 +362,10 @@ const BudgetDashboard: React.FC = () => {
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-black text-gray-800 uppercase">{orcamento.cliente}</h3>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
+                  <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">
                     Reserva: {orcamento.reserva ? orcamento.reserva.split('-').reverse().join('/') : '--/--/----'}
                   </p>
-                  <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">
+                  <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">
                     Retirada: {orcamento.retirada ? orcamento.retirada.split('-').reverse().join('/') : '--/--/----'}
                   </p>
                 </div>
@@ -424,7 +424,7 @@ const BudgetDashboard: React.FC = () => {
           <form onSubmit={salvarOrcamento} className="bg-white rounded-[36px] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-orange-100 animate-in zoom-in duration-200">
             <div className="text-center mb-6">
               <h2 className="text-xl font-black text-gray-800 uppercase italic">Novo Orçamento</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Preencha os dados principais</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">Preencha os dados principais</p>
             </div>
 
             <div className="space-y-4">
@@ -504,7 +504,7 @@ const BudgetDashboard: React.FC = () => {
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-3 mb-2 block">Reserva</label>
+                  <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-3 mb-2 block">Reserva</label>
                   <input
                     type="date"
                     required
@@ -514,7 +514,7 @@ const BudgetDashboard: React.FC = () => {
                   />
                 </div>
                 <div>
-                  <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-3 mb-2 block">Retirada</label>
+                  <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-3 mb-2 block">Retirada</label>
                   <input
                     type="date"
                     required
@@ -571,7 +571,7 @@ const BudgetDashboard: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setModalAberto(false)}
-                className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200"
+                className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200"
               >
                 Voltar
               </button>

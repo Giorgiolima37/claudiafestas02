@@ -421,7 +421,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             <header className="mb-10 flex flex-col md:flex-row justify-between items-center gap-6 px-4 md:px-0">
                 <div>
                   <h1 className="text-[#b24a2b] text-4xl font-black italic uppercase tracking-tighter">Clientes</h1>
-                  <p className="text-gray-400 text-[10px] font-bold uppercase tracking-widest mt-1">Base de dados e cadastros ativos</p>
+                  <p className="text-gray-600 text-[10px] font-bold uppercase tracking-widest mt-1">Base de dados e cadastros ativos</p>
                 </div>
                 <div className="relative w-full md:w-auto">
                   <input 
@@ -431,14 +431,14 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                     onChange={(e) => setBusca(e.target.value)}
                     className="pl-12 pr-6 py-4 bg-gray-50 border-2 border-gray-100 rounded-full outline-none w-full md:w-80 text-xs font-black uppercase tracking-widest focus:border-[#b24a2b] focus:bg-white transition-all shadow-sm"
                   />
-                  <i className="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-gray-300"></i>
+                  <i className="fa-solid fa-magnifying-glass absolute left-5 top-1/2 -translate-y-1/2 text-gray-600"></i>
                 </div>
             </header>
 
             <div className="flex gap-4 md:gap-8 mb-8 border-b border-gray-100 items-center justify-center md:justify-start px-4">
               <button 
                 onClick={() => setAbaAtiva('normais')} 
-                className={`pb-4 px-2 font-black text-[10px] uppercase tracking-[0.2em] transition-all ${abaAtiva === 'normais' ? 'border-b-4 border-[#b24a2b] text-[#b24a2b]' : 'text-gray-300 hover:text-gray-400'}`}
+                className={`pb-4 px-2 font-black text-[10px] uppercase tracking-[0.2em] transition-all ${abaAtiva === 'normais' ? 'border-b-4 border-[#b24a2b] text-[#b24a2b]' : 'text-gray-600 hover:text-gray-600'}`}
               >
                 Clientes Ativos
               </button>
@@ -453,7 +453,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             <div className="mx-4 md:mx-0 overflow-x-auto rounded-[30px] md:rounded-[40px] border border-gray-100 bg-white shadow-xl">
               <table className="w-full text-left border-collapse min-w-[600px] md:min-w-full">
                 <thead>
-                  <tr className="bg-gray-50/50 uppercase text-[9px] font-black text-gray-400 tracking-[0.2em]">
+                  <tr className="bg-gray-50/50 uppercase text-[9px] font-black text-gray-600 tracking-[0.2em]">
                     <th className="p-5 md:p-8">Nome do Cliente</th>
                     <th className="p-5 md:p-8 hidden md:table-cell">Bairro</th>
                     <th className="p-5 md:p-8 hidden md:table-cell">Município</th>
@@ -473,15 +473,15 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         >
                           {item.cliente}
                         </button>
-                        <p className="sm:hidden text-[8px] font-bold text-gray-400 mt-1">ID: {item['id-client'] || '---'}</p>
+                        <p className="sm:hidden text-[8px] font-bold text-gray-600 mt-1">ID: {item['id-client'] || '---'}</p>
                       </td>
                       <td className="p-5 md:p-8 hidden md:table-cell">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">
                           {item.bairro || '---'}
                         </span>
                       </td>
                       <td className="p-5 md:p-8 hidden md:table-cell">
-                        <span className="text-xs font-bold text-gray-400 uppercase tracking-wider">
+                        <span className="text-xs font-bold text-gray-600 uppercase tracking-wider">
                           {item.municipio || '---'}
                         </span>
                       </td>
@@ -515,7 +515,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                               setEditandoId(item.id);
                               setNovoIdValor(item['id-client'] || '');
                             }}
-                            className="inline-block bg-gray-100 text-gray-400 text-[10px] px-4 py-2 rounded-full font-black cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest whitespace-nowrap min-w-[80px] text-center"
+                            className="inline-block bg-gray-100 text-gray-600 text-[10px] px-4 py-2 rounded-full font-black cursor-pointer hover:bg-[#b24a2b] hover:text-white transition-all uppercase tracking-widest whitespace-nowrap min-w-[80px] text-center"
                           >
                             ID: {item['id-client'] || '---'}
                           </span>
@@ -528,7 +528,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             setMotivoTexto(item.motivo || 'Nenhum motivo cadastrado.');
                             setModalVisualizarMotivoAberto(true);
                           }}
-                          className="w-10 h-10 rounded-full bg-gray-50 text-gray-300 flex items-center justify-center hover:bg-orange-100 hover:text-[#b24a2b] transition-all shadow-sm"
+                          className="w-10 h-10 rounded-full bg-gray-50 text-gray-600 flex items-center justify-center hover:bg-orange-100 hover:text-[#b24a2b] transition-all shadow-sm"
                           title="Ver Motivo/Observações"
                         >
                           <i className="fa-solid fa-file-lines text-lg"></i>
@@ -557,7 +557,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                                   handleExcluirCliente(item);
                                 }}
                                 title="Excluir Cliente Permanentemente"
-                                className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 text-gray-400 flex items-center justify-center transition-all shadow-sm hover:bg-gray-200 hover:text-red-500"
+                                className="w-8 h-8 md:w-10 md:h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-all shadow-sm hover:bg-gray-200 hover:text-red-500"
                             >
                                 <i className="fa-solid fa-trash-can text-xs md:text-base"></i>
                             </button>
@@ -586,13 +586,13 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
               
               <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 md:gap-12">
                 <div className="lg:col-span-2">
-                  <h2 className="text-gray-400 font-black text-[10px] uppercase mb-6 md:mb-8 border-b border-gray-100 pb-4 tracking-[0.3em]">Histórico Geral de Locações</h2>
+                  <h2 className="text-gray-600 font-black text-[10px] uppercase mb-6 md:mb-8 border-b border-gray-100 pb-4 tracking-[0.3em]">Histórico Geral de Locações</h2>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {clienteDetalhado.historico.map((h: any) => (
                       <div key={h.id} className="p-5 md:p-6 bg-gray-50 rounded-[25px] md:rounded-[30px] flex justify-between items-center border border-gray-100">
                         <div className="max-w-[150px]">
                           <p className="font-black text-gray-800 text-xs md:text-sm uppercase break-words">{h.item}</p>
-                          <p className="text-[9px] text-gray-400 font-black uppercase mt-2">
+                          <p className="text-[9px] text-gray-600 font-black uppercase mt-2">
                             {new Date(h.data_evento).toLocaleDateString('pt-BR')}
                           </p>
                         </div>
@@ -623,7 +623,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                                 setDadosClienteEdicao(clienteDetalhado);
                                 setModalEdicaoClienteAberto(true);
                             }}
-                            className="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-400 rounded-full hover:bg-[#b24a2b] hover:text-white transition-all shadow-sm"
+                            className="w-8 h-8 flex items-center justify-center bg-gray-100 text-gray-600 rounded-full hover:bg-[#b24a2b] hover:text-white transition-all shadow-sm"
                             title="Editar Dados do Cliente"
                         >
                             <i className="fa-solid fa-pen-to-square text-sm"></i>
@@ -632,11 +632,11 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
                     <div className="space-y-6 md:space-y-8">
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Contato Principal</span>
+                        <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Contato Principal</span>
                         <span className="font-black text-base md:text-lg text-gray-800">{clienteDetalhado.telefone}</span>
                       </div>
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">IDENTIFICAÇÃO</span>
+                        <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">IDENTIFICAÇÃO</span>
                         <span className="font-bold text-sm text-gray-800 break-words">{clienteDetalhado.identificação || 'NÃO CADASTRADO'}</span>
                         {clienteDetalhado.nome_fantasia && (
                           <span className="text-[10px] font-black text-[#b24a2b] uppercase tracking-tighter mt-1 italic">
@@ -647,17 +647,17 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                       
                       <div className="flex flex-col sm:flex-row gap-4 sm:gap-6">
                           <div className="flex flex-col flex-1">
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Localização / Bairro</span>
+                            <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Localização / Bairro</span>
                             <span className="font-black text-sm text-[#b24a2b] uppercase">{clienteDetalhado.bairro || 'NÃO INFORMADO'}</span>
                           </div>
                           <div className="flex flex-col flex-1">
-                            <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Município</span>
+                            <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Município</span>
                             <span className="font-black text-sm text-[#b24a2b] uppercase">{clienteDetalhado.municipio || 'NÃO INFORMADO'}</span>
                           </div>
                       </div>
 
                       <div className="flex flex-col">
-                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest mb-1">Endereço Completo</span>
+                        <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Endereço Completo</span>
                         <span className="font-bold text-xs text-gray-600 italic leading-relaxed">
                           {clienteDetalhado.endereco || 'Sem endereço cadastrado.'}
                         </span>
@@ -675,7 +675,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-[30px] md:rounded-[40px] p-6 md:p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-[#b24a2b] uppercase italic mb-2">MOTIVO DA LISTA NEGRA</h3>
-            <p className="text-[10px] font-bold text-gray-400 uppercase mb-6 tracking-widest">
+            <p className="text-[10px] font-bold text-gray-600 uppercase mb-6 tracking-widest">
               Observações sobre o cliente <span className="text-gray-800">{clienteParaBloqueio?.cliente}</span>:
             </p>
             
@@ -700,7 +700,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
         <div className="fixed inset-0 bg-black/60 backdrop-blur-sm flex items-center justify-center z-[100] p-4">
           <div className="bg-white rounded-[30px] md:rounded-[40px] p-6 md:p-10 w-full max-w-md shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
             <h3 className="text-xl font-black text-red-600 uppercase italic mb-2">ENVIAR PARA LISTA NEGRA</h3>
-            <p className="text-[10px] font-bold text-gray-400 uppercase mb-6 tracking-widest">
+            <p className="text-[10px] font-bold text-gray-600 uppercase mb-6 tracking-widest">
               Motivo para enviar <span className="text-gray-800">{clienteParaBloqueio?.cliente}</span> para a Lista Negra:
             </p>
             
@@ -715,7 +715,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             <div className="flex gap-4 mt-8">
               <button 
                 onClick={() => { setModalMotivoAberto(false); setMotivoTexto(''); }} 
-                className="flex-1 py-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+                className="flex-1 py-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
               >
                 Cancelar
               </button>
@@ -737,13 +737,13 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 <div className="flex justify-between items-start mb-6">
                     <div>
                         <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Pedido</h3>
-                        <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Data: {new Date(dadosPedidoFixo?.data_evento).toLocaleDateString()}</p>
+                        <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">Data: {new Date(dadosPedidoFixo?.data_evento).toLocaleDateString()}</p>
                     </div>
-                    <button onClick={() => setModalAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+                    <button onClick={() => setModalAberto(false)} className="text-gray-600 hover:text-red-500 text-2xl">×</button>
                 </div>
 
                 <div className="bg-gray-50 rounded-2xl md:rounded-3xl p-4 md:p-6 mb-6">
-                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens no Pedido</h4>
+                    <h4 className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-4">Itens no Pedido</h4>
                     <div className="space-y-3">
                         {pedidoEmEdicao.map((item, idx) => {
                             if (item._deleted) return null; 
@@ -754,7 +754,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                                     </div>
                                     <div className="flex items-center gap-4 w-full sm:w-auto justify-between">
                                         <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg">
-                                            <span className="text-[8px] font-bold text-gray-400 uppercase">Qtd:</span>
+                                            <span className="text-[8px] font-bold text-gray-600 uppercase">Qtd:</span>
                                             <input 
                                                 type="number" 
                                                 className="w-12 bg-transparent text-center font-black text-sm outline-none"
@@ -808,7 +808,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3">
-                    <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+                    <button onClick={() => setModalAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
                     <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Alterações</button>
                 </div>
             </div>
@@ -821,12 +821,12 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             <div className="bg-white rounded-[30px] md:rounded-[35px] p-6 md:p-8 w-full max-w-lg shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
                 <div className="flex justify-between items-start mb-6">
                     <h3 className="text-xl font-black text-gray-800 uppercase italic">Editar Cliente</h3>
-                    <button onClick={() => setModalEdicaoClienteAberto(false)} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+                    <button onClick={() => setModalEdicaoClienteAberto(false)} className="text-gray-600 hover:text-red-500 text-2xl">×</button>
                 </div>
                 
                 <div className="space-y-4 max-h-[70vh] overflow-y-auto px-2">
                     <div className="flex flex-col">
-                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Nome do Cliente</label>
+                        <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Nome do Cliente</label>
                         <input 
                             className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
                             value={dadosClienteEdicao.cliente || ''}
@@ -834,7 +834,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         />
                     </div>
                     <div className="flex flex-col">
-                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Telefone</label>
+                        <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Telefone</label>
                         <input 
                             className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
                             value={dadosClienteEdicao.telefone || ''}
@@ -842,7 +842,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         />
                     </div>
                     <div className="flex flex-col">
-                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Identificação (CPF/CNPJ)</label>
+                        <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Identificação (CPF/CNPJ)</label>
                         <input 
                             className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
                             value={dadosClienteEdicao.identificação || ''}
@@ -851,7 +851,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4">
                         <div className="flex flex-col flex-1">
-                            <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Bairro</label>
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Bairro</label>
                             <input 
                                 className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
                                 value={dadosClienteEdicao.bairro || ''}
@@ -859,7 +859,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             />
                         </div>
                         <div className="flex flex-col flex-1">
-                            <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Município</label>
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Município</label>
                             <input 
                                 className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
                                 value={dadosClienteEdicao.municipio || ''}
@@ -868,7 +868,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         </div>
                     </div>
                     <div className="flex flex-col">
-                        <label className="text-[10px] font-bold text-gray-400 mb-1 uppercase tracking-widest">Endereço Completo</label>
+                        <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Endereço Completo</label>
                         <textarea 
                             className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm resize-none h-20"
                             value={dadosClienteEdicao.endereco || ''}
@@ -878,7 +878,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 </div>
 
                 <div className="flex flex-col sm:flex-row gap-3 mt-6">
-                    <button onClick={() => setModalEdicaoClienteAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+                    <button onClick={() => setModalEdicaoClienteAberto(false)} className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
                     <button onClick={handleSalvarEdicaoCliente} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20]">Salvar Dados</button>
                 </div>
             </div>

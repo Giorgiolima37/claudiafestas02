@@ -838,7 +838,7 @@ const OrderManagement: React.FC = () => {
         <h1 className="text-4xl font-black text-gray-800 italic uppercase">Gestão de Pedidos</h1>
         <div className="flex flex-col items-center gap-4 mt-8">
           <input type="text" placeholder="PROCURAR POR NOME OU ID..." value={busca} onChange={(e) => setBusca(e.target.value)} className="w-full max-w-md px-6 py-4 bg-white border-2 border-gray-100 rounded-full text-xs text-center font-bold outline-none focus:border-[#b24a2b] shadow-sm transition-all" />
-          <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-white border-amber-500 text-amber-600 shadow-lg' : 'bg-white border-gray-100 text-gray-400 hover:border-amber-200'}`}>
+          <button onClick={() => setFiltroUrgentes(!filtroUrgentes)} className={`px-6 py-3 rounded-full font-black text-[10px] uppercase border-2 flex items-center gap-3 ${filtroUrgentes ? 'bg-white border-amber-500 text-amber-600 shadow-lg' : 'bg-white border-gray-100 text-gray-600 hover:border-amber-200'}`}>
             {filtroUrgentes ? '✕ Mostrar todos' : `⏳ Ver devoluções em 24h`}
             {totalUrgentes > 0 && !filtroUrgentes && <span className="bg-amber-500 text-white px-2 py-0.5 rounded-full text-[9px] animate-pulse">{totalUrgentes}</span>}
           </button>
@@ -863,7 +863,7 @@ const OrderManagement: React.FC = () => {
                       {isOnline && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-blue-600 text-white shadow-sm border border-blue-400">Online</span>}
                       {pedido.isFutura && <span className="text-[9px] font-black px-3 py-1.5 rounded-full uppercase bg-gray-800 text-white shadow-sm border border-gray-600">Reserva Futura</span>}
                     </div>
-                    <span className="text-[9px] font-bold text-gray-400 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
+                    <span className="text-[9px] font-bold text-gray-600 ml-2 uppercase">ID CLIENTE: {pedido.idPersonalizado || '---'}</span>
                   </div>
                   <div className="flex flex-wrap gap-2 justify-end">
                     <button onClick={() => abrirWhatsApp(pedido)} className="w-9 h-9 bg-green-500 text-white rounded-full flex items-center justify-center text-sm shadow-sm hover:scale-105 transition-transform"><i className="fa-brands fa-whatsapp"></i></button>
@@ -880,7 +880,7 @@ const OrderManagement: React.FC = () => {
 
                 <h3 className="font-black text-3xl text-gray-800 uppercase tracking-tighter mb-1">{pedido.nomeCliente}</h3>
                 <button onClick={() => handleAbrirEdicao(pedido)} className="mt-2 mb-6 border-2 border-black text-black text-[10px] font-black uppercase px-6 py-2 rounded-full hover:bg-black hover:text-white transition-all shadow-sm">Editar Pedido</button>
-                <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-400'}`}>Devolução: {formatarDataBR(pedido.dataDevolucao)}</p>
+                <p className={`text-[10px] font-bold uppercase mb-8 ${atrasado ? 'text-red-600' : urgente ? 'text-amber-600' : 'text-gray-600'}`}>Devolução: {formatarDataBR(pedido.dataDevolucao)}</p>
 
                 <div className="space-y-4 border-t border-gray-100 pt-8 mb-6">
                   {pedido.itens.map((i: any) => (
@@ -889,7 +889,7 @@ const OrderManagement: React.FC = () => {
                         <span className="uppercase text-gray-500 italic">• {i.item} <span className="text-blue-600 font-bold ml-2">[{i.codigo_item || 'S/C'}]</span></span>
                         <span className="font-black text-gray-900">x{i.quantidade}</span>
                       </div>
-                      <span className="text-[9px] text-gray-400 font-bold uppercase ml-4">CÓDIGO INTERNO: {i.codigo_item || 'S/C'}</span>
+                      <span className="text-[9px] text-gray-600 font-bold uppercase ml-4">CÓDIGO INTERNO: {i.codigo_item || 'S/C'}</span>
                     </div>
                   ))}
                 </div>
@@ -947,7 +947,7 @@ const OrderManagement: React.FC = () => {
                         <div className="flex justify-between items-start mb-2">
                           <div>
                             <h4 className={`font-black text-sm uppercase ${estaBloqueado ? 'text-red-600' : 'text-gray-800'}`}>{po.cliente_nome}</h4>
-                            <p className="text-[9px] font-bold text-gray-400 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
+                            <p className="text-[9px] font-bold text-gray-600 uppercase mt-1">{formatarDataBR(po.created_at)}</p>
                           </div>
                           <div className="flex gap-1 ml-2">
                              <button onClick={() => abrirWhatsApp({ telefone: po.cliente_whatsapp })} className="w-8 h-8 bg-green-500 text-white rounded-full flex items-center justify-center shadow-sm"><i className="fa-brands fa-whatsapp text-xs"></i></button>
@@ -966,7 +966,7 @@ const OrderManagement: React.FC = () => {
                   })}
                 </div>
               ) : (
-                <div className="text-center mt-10 text-gray-300 uppercase font-black text-[9px]">Sem novos pedidos.</div>
+                <div className="text-center mt-10 text-gray-600 uppercase font-black text-[9px]">Sem novos pedidos.</div>
               )}
             </div>
           </div>
@@ -983,23 +983,23 @@ const OrderManagement: React.FC = () => {
                     {editandoData ? (
                         <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" value={dadosPedidoFixo?.data_evento?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_evento: e.target.value })} onBlur={() => setEditandoData(false)} autoFocus />
                     ) : (
-                        <p className="text-[10px] font-bold text-gray-400 uppercase">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
+                        <p className="text-[10px] font-bold text-gray-600 uppercase">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
                     )}
-                    <button onClick={() => setEditandoData(!editandoData)} className="text-gray-400 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
+                    <button onClick={() => setEditandoData(!editandoData)} className="text-gray-600 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {editandoDevolucao ? (
                     <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" min={new Date().toISOString().split('T')[0]} value={dadosPedidoFixo?.data_devolucao?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_devolucao: e.target.value })} onBlur={() => setEditandoDevolucao(false)} autoFocus />
                   ) : (
-                    <p className="text-[10px] font-bold text-gray-400 uppercase">Devolução: {formatarDataBR(dadosPedidoFixo?.data_devolucao)}</p>
+                    <p className="text-[10px] font-bold text-gray-600 uppercase">Devolução: {formatarDataBR(dadosPedidoFixo?.data_devolucao)}</p>
                   )}
-                  <button onClick={() => setEditandoDevolucao(!editandoDevolucao)} className="text-gray-400 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
+                  <button onClick={() => setEditandoDevolucao(!editandoDevolucao)} className="text-gray-600 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
                 </div>
               </div>
-              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="text-gray-400 hover:text-red-500 text-2xl">×</button>
+              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="text-gray-600 hover:text-red-500 text-2xl">×</button>
             </div>
             <div className="bg-gray-50 rounded-3xl p-6 mb-6">
-              <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest mb-4">Itens no Pedido</h4>
+              <h4 className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-4">Itens no Pedido</h4>
               <div className="space-y-3">
                 {pedidoEmEdicao.map((item, idx) => {
                   if (item._deleted) return null;
@@ -1007,7 +1007,7 @@ const OrderManagement: React.FC = () => {
                     <div key={idx} className="flex items-center justify-between bg-white p-3 rounded-xl border border-gray-100 shadow-sm">
                       <div className="flex-1"><p className="text-xs font-black text-gray-700 uppercase">{item.item} {item._isNew && <span className="text-green-500 text-[8px] ml-2">(NOVO)</span>}</p></div>
                       <div className="flex items-center gap-4">
-                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg"><span className="text-[8px] font-bold text-gray-400 uppercase">Qtd:</span><input type="number" className="w-12 bg-transparent text-center font-black text-sm outline-none" value={item.quantidade} min="1" onChange={(e) => handleAlterarQtdExistente(idx, parseInt(e.target.value))} /></div>
+                        <div className="flex items-center gap-2 bg-gray-50 px-3 py-1 rounded-lg"><span className="text-[8px] font-bold text-gray-600 uppercase">Qtd:</span><input type="number" className="w-12 bg-transparent text-center font-black text-sm outline-none" value={item.quantidade} min="1" onChange={(e) => handleAlterarQtdExistente(idx, parseInt(e.target.value))} /></div>
                         <button onClick={() => handleRemoverItemLista(idx)} className="text-red-500 hover:text-red-700 transition-colors"><i className="fa-solid fa-trash-can"></i></button>
                       </div>
                     </div>
@@ -1061,7 +1061,7 @@ const OrderManagement: React.FC = () => {
               </div>
             </div>
             <div className="flex gap-3">
-              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
+              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200">Cancelar</button>
               <button onClick={handleSalvarAlteracoes} className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg">Salvar Alterações</button>
             </div>
           </div>

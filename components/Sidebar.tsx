@@ -215,7 +215,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
           href="https://wa.me/48991347343"
           target="_blank"
           rel="noopener noreferrer"
-          className="bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-2 shadow-md transition-all active:scale-95"
+          className="bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-2 shadow-md transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
           title="Suporte via WhatsApp"
         >
           <i className="fa-brands fa-whatsapp text-lg"></i>
@@ -257,7 +257,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
               className="w-full accent-[#B24D2D]"
               aria-label="Clarear ou escurecer a barra lateral"
             />
-            <div className="mt-1 flex justify-between text-[9px] font-bold uppercase text-gray-400">
+            <div className="mt-1 flex justify-between text-[9px] font-bold uppercase text-gray-600">
               <span>Escura</span>
               <span>Clara</span>
             </div>
@@ -273,7 +273,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
             target="_blank"
             rel="noopener noreferrer"
             title="Abrir Instagram"
-            className="rounded-xl transition-transform hover:scale-110 active:scale-95"
+            className="rounded-xl transition-all duration-300 transform-gpu hover:scale-125 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
           >
             <img
               src={instaLogo}
@@ -285,15 +285,15 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
           <img src={logo2} alt="Logo Claudia Festas" className="w-full h-full object-contain scale-[1.6]" />
           </div>
           <a
-            href="https://www.google.com.br/"
+            href="https://www.google.com/maps"
             target="_blank"
             rel="noopener noreferrer"
-            title="Abrir Google"
-            className="rounded-xl transition-transform hover:scale-110 active:scale-95"
+            title="Abrir Google Maps"
+            className="rounded-xl transition-all duration-300 transform-gpu hover:scale-125 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
           >
             <img
               src={googleLogo}
-              alt="Google"
+              alt="Google Maps"
               className="w-10 h-10 object-contain rounded-xl"
             />
           </a>
@@ -313,9 +313,9 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
 
               onNavigate(item.id);
             }}
-            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all duration-300 ${
+            className={`w-full flex items-center gap-4 px-6 py-4 rounded-2xl font-bold transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98] ${
               activeScreen === item.id 
-                ? 'bg-white shadow-lg scale-105' 
+                ? 'bg-white shadow-xl scale-[1.05]' 
                 : 'hover:bg-white/10 text-white/80'
             }`}
             style={activeScreen === item.id ? { color: SIDEBAR_BRAND_COLOR } : undefined}
@@ -328,31 +328,39 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
 
       {/* Widget de Previsão do Tempo */}
       <div
-        className="mt-6 mb-6 bg-white/95 text-gray-800 rounded-xl p-4 shadow-xl border max-w-[240px] mx-auto w-full backdrop-blur-sm min-h-[190px] flex flex-col justify-center relative"
+        className="mt-6 mb-6 bg-white/95 text-gray-800 rounded-xl px-4 pt-1 pb-4 shadow-xl border max-w-[240px] mx-auto w-full backdrop-blur-sm min-h-[220px] flex flex-col justify-start relative"
         style={{ borderColor: currentTheme.accent }}
       >
         
         {/* Setas de navegação superiores */}
-        <div className="absolute top-3 left-4 right-4 flex justify-between z-10">
-          <i 
-            onClick={prevCity} 
-            className="fa-solid fa-arrow-left text-gray-500 text-xs cursor-pointer hover:text-black transition-colors p-1"
-          ></i>
-          <i 
-            onClick={nextCity} 
-            className="fa-solid fa-arrow-right text-gray-500 text-xs cursor-pointer hover:text-black transition-colors p-1"
-          ></i>
-        </div>
-
         {loading ? (
-          <div className="flex flex-col items-center justify-center gap-2 text-xs text-gray-400 py-4 font-sans">
+          <div className="flex flex-col items-center justify-center gap-2 text-xs text-gray-600 py-4 font-sans">
             <i className="fa-solid fa-circle-notch animate-spin text-xl text-[#B24D2D]"></i>
             <span>Buscando clima...</span>
           </div>
         ) : weather ? (
           <>
             {/* Localização Dinâmica / Input de Busca */}
-            <div className="flex items-center justify-between text-[11px] font-sans mb-2 mt-2 min-h-[22px]">
+            <div className="flex items-center justify-between mb-1 min-h-6">
+              <button
+                type="button"
+                onClick={prevCity}
+                className="w-6 h-6 rounded-full bg-gray-50 text-gray-500 border border-gray-100 flex items-center justify-center hover:bg-gray-100 hover:text-black transition-colors active:scale-95"
+                title="Cidade anterior"
+              >
+                <i className="fa-solid fa-chevron-left text-[10px]"></i>
+              </button>
+              <button
+                type="button"
+                onClick={nextCity}
+                className="w-6 h-6 rounded-full bg-gray-50 text-gray-500 border border-gray-100 flex items-center justify-center hover:bg-gray-100 hover:text-black transition-colors active:scale-95"
+                title="Próxima cidade"
+              >
+                <i className="fa-solid fa-chevron-right text-[10px]"></i>
+              </button>
+            </div>
+
+            <div className="flex items-center justify-between text-[11px] font-sans mb-2 min-h-[22px]">
               <div className="flex items-center gap-1 font-bold text-black flex-1 mr-1">
                 <i className="fa-solid fa-location-dot text-gray-600"></i>
                 {isSearching ? (
@@ -364,7 +372,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
                     onChange={(e) => setSearchQuery(e.target.value)}
                     onKeyDown={handleSearchSubmit}
                     onBlur={() => setIsSearching(false)}
-                    className="border-b border-gray-400 bg-transparent outline-none w-full text-black font-normal px-0.5 placeholder-gray-400"
+                    className="border-b border-gray-400 bg-transparent outline-none w-full text-black font-normal px-0.5 placeholder-gray-600"
                   />
                 ) : (
                   <span 
@@ -396,7 +404,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
               <div className="flex items-start">
                 <span className="text-5xl font-light tracking-tighter text-black">{weather.temp}</span>
                 <span className="text-sm font-semibold ml-1 text-gray-500 pt-1">
-                  °C<span className="text-gray-300 mx-1 font-normal">|</span>°F
+                  °C<span className="text-gray-600 mx-1 font-normal">|</span>°F
                 </span>
               </div>
             </div>
@@ -404,12 +412,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
             {/* Abas Internas */}
             <div className="flex border-b border-gray-200 text-[11px] text-center font-sans mb-2 mt-1">
               <div className="flex-1 pb-1 border-b-2 border-amber-500 font-bold text-black">Temperatura</div>
-              <div className="flex-1 pb-1 text-gray-400 cursor-not-allowed">Chuva</div>
-              <div className="flex-1 pb-1 text-gray-400 cursor-not-allowed">Vento</div>
+              <div className="flex-1 pb-1 text-gray-600 cursor-not-allowed">Chuva</div>
+              <div className="flex-1 pb-1 text-gray-600 cursor-not-allowed">Vento</div>
             </div>
 
             {/* Detalhes do Clima + Animação ao Lado */}
-            <div className="flex items-start justify-between gap-2 text-[11px] text-gray-500 font-sans pl-1">
+            <div className="flex items-start justify-between gap-2 text-[11px] text-gray-500 font-sans pl-1 pb-1">
               <div className="space-y-0.5">
                 <div>Chuva: <span className="text-gray-800 font-semibold">{weather.isRain ? 'Sim' : '0%'}</span></div>
                 <div>Umidade: <span className="text-gray-800 font-semibold">{weather.humidity}%</span></div>
@@ -417,7 +425,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
               </div>
 
               {/* Área gráfica da casinha */}
-              <div className={`flex flex-col items-center justify-end h-14 w-16 shrink-0 relative overflow-hidden rounded-xl border border-gray-100 p-1 bg-gradient-to-b ${
+              <div className={`flex flex-col items-center justify-end h-12 w-14 shrink-0 relative overflow-hidden rounded-xl border border-gray-100 p-1 bg-gradient-to-b ${
                 weather.isDay ? 'from-sky-50 to-gray-50' : 'from-slate-900 to-slate-800 border-slate-700'
               }`}>
                 {/* Estilos CSS das animações injetados de forma limpa */}
@@ -466,11 +474,11 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
                     {/* Modo Dia - Sol Lindo + Pássaros */}
                     <div className="absolute inset-0 pointer-events-none z-0">
                       <i 
-                        className="fa-solid fa-crow bird absolute text-gray-400 text-[7px] top-3 left-0" 
+                        className="fa-solid fa-crow bird absolute text-gray-600 text-[7px] top-3 left-0" 
                         style={{ animationDelay: '0s', animationDuration: '4.5s' }}
                       ></i>
                       <i 
-                        className="fa-solid fa-crow bird absolute text-gray-400 text-[6px] top-1 left-0" 
+                        className="fa-solid fa-crow bird absolute text-gray-600 text-[6px] top-1 left-0" 
                         style={{ animationDelay: '2s', animationDuration: '3.8s' }}
                       ></i>
                     </div>

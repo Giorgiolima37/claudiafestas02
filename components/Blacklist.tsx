@@ -38,14 +38,14 @@ const Blacklist: React.FC = () => {
   return (
     <div>
       <h1 className="text-center text-gray-900 text-3xl font-bold mb-1">Lista Negra</h1>
-      <div className="text-center text-gray-400 text-sm uppercase tracking-[3px] mb-8">Restrição</div>
+      <div className="text-center text-gray-600 text-sm uppercase tracking-[3px] mb-8">Restrição</div>
       
       {loading ? (
         <div className="flex justify-center p-10">
           <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-black"></div>
         </div>
       ) : lista.length === 0 ? (
-        <p className="text-center text-gray-400 italic">Lista limpa. Bom trabalho!</p>
+        <p className="text-center text-gray-600 italic">Lista limpa. Bom trabalho!</p>
       ) : (
         <div className="space-y-3">
           {lista.map(c => (

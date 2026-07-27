@@ -229,7 +229,7 @@ const App: React.FC = () => {
               <img src={logo2} alt="Logo" className="w-full h-full object-contain scale-150" />
           </div>
           <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
-          <p className="text-gray-400 text-sm mb-4 font-bold uppercase tracking-widest">Claudia Festas</p>
+          <p className="text-gray-600 text-sm mb-4 font-bold uppercase tracking-widest">Claudia Festas</p>
           <button
             type="button"
             onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${currentTheme.name} significado`)}`, '_blank', 'noopener,noreferrer')}
@@ -254,7 +254,7 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#B24D2D] transition-colors focus:outline-none"
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-[#B24D2D] transition-colors focus:outline-none"
               >
                 <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
               </button>
@@ -309,21 +309,21 @@ const App: React.FC = () => {
           <div className="flex gap-3 mb-6 md:mb-8 w-full max-w-6xl">
             <button 
               onClick={() => navigateTo('CADASTRO')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Novo Cliente"
             >
               <i className="fa-solid fa-user-plus"></i>
             </button>
             <button 
               onClick={() => navigateTo('PEDIDOS')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Gestão de Pedidos"
             >
               <i className="fa-solid fa-rectangle-list"></i>
             </button>
             <button 
               onClick={() => navigateTo('CAIXA')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Caixa"
             >
               <i className="fa-solid fa-file-invoice-dollar"></i>
@@ -331,7 +331,7 @@ const App: React.FC = () => {
             
             <button 
               onClick={() => setIsCalendarOpen(true)}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md border border-orange-100 transition-all active:scale-95"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Abrir Calendário"
             >
               <i className="fa-solid fa-calendar-days"></i>
@@ -356,22 +356,22 @@ const App: React.FC = () => {
           >
             <div className="flex justify-between items-center mb-6 w-full">
               <h3 className="font-black text-[#B24D2D] uppercase italic text-lg tracking-tight">Calendário de Eventos</h3>
-              <button onClick={() => setIsCalendarOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-light">×</button>
+              <button onClick={() => setIsCalendarOpen(false)} className="text-gray-600 hover:text-red-500 text-2xl font-light">×</button>
             </div>
             
             <div className="flex justify-between items-center w-full mb-4 px-2">
-              <button onClick={() => mudarMes('ant')} className="text-gray-400 hover:text-[#B24D2D] font-black text-sm">
+              <button onClick={() => mudarMes('ant')} className="text-gray-600 hover:text-[#B24D2D] font-black text-sm">
                 <i className="fa-solid fa-chevron-left"></i>
               </button>
               <span className="font-black text-[#B24D2D] text-sm uppercase tracking-wider">
                 {nomesMeses[currentMonth]} de {currentYear}
               </span>
-              <button onClick={() => mudarMes('prox')} className="text-gray-400 hover:text-[#B24D2D] font-black text-sm">
+              <button onClick={() => mudarMes('prox')} className="text-gray-600 hover:text-[#B24D2D] font-black text-sm">
                 <i className="fa-solid fa-chevron-right"></i>
               </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 text-center font-black text-[10px] text-gray-400 uppercase mb-2 tracking-widest">
+            <div className="grid grid-cols-7 gap-1 text-center font-black text-[10px] text-gray-600 uppercase mb-2 tracking-widest">
               <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
             </div>
 
@@ -407,7 +407,7 @@ const App: React.FC = () => {
             </div>
             
             <div className="w-full max-h-[160px] overflow-y-auto pr-1">
-              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-2">
+              <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3 border-b border-gray-100 pb-2">
                 Box Retiradas em {selectedDate ? selectedDate.split('-').reverse().join('/') : ''}:
               </h4>
               
@@ -427,13 +427,13 @@ const App: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4 text-gray-300 font-bold uppercase text-[9px] tracking-wider italic">
+                <div className="text-center py-4 text-gray-600 font-bold uppercase text-[9px] tracking-wider italic">
                   Nenhuma retirada para esta data.
                 </div>
               )}
             </div>
             
-            <p className="text-[9px] font-bold text-gray-400 uppercase mt-6 text-center tracking-widest border-t border-gray-100 pt-4 w-full">
+            <p className="text-[9px] font-bold text-gray-600 uppercase mt-6 text-center tracking-widest border-t border-gray-100 pt-4 w-full">
               Claudia Festas & Locações
             </p>
           </div>

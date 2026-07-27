@@ -220,7 +220,7 @@ const InventoryHistory: React.FC<InventoryHistoryProps> = ({ clientId, onBack })
 
       <div className="space-y-6">
         {pedidosAgrupados.length === 0 ? (
-          <div className="text-center py-20 text-gray-300 font-bold italic">Nenhum pedido pendente nas reservas.</div>
+          <div className="text-center py-20 text-gray-600 font-bold italic">Nenhum pedido pendente nas reservas.</div>
         ) : (
           pedidosAgrupados.map((pedido, index) => (
             <div key={index} className="bg-white p-6 rounded-[32px] border border-gray-100 shadow-sm flex flex-col md:flex-row justify-between items-center group hover:shadow-md transition-all shadow-xl">

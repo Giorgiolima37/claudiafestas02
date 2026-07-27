@@ -232,7 +232,7 @@ const ReservationForm: React.FC = () => {
       <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
           <div className="flex flex-col">
-            <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
+            <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             
             <input 
               type="text" 
@@ -261,7 +261,7 @@ const ReservationForm: React.FC = () => {
           </div>
 
           <div className="flex flex-col">
-            <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Data de Aluguel</label>
+            <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">Data de Aluguel</label>
             <input type="date" required className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold focus:border-[#b24a2b] transition-all" value={reservaGeral.data} onChange={(e) => setReservaGeral({...reservaGeral, data: e.target.value})} />
             {reservaGeral.data && (
                 <span className="text-[10px] font-bold text-blue-600 ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.data)}</span>
@@ -279,7 +279,7 @@ const ReservationForm: React.FC = () => {
 
         <div className="grid grid-cols-1 gap-6">
           <div className="flex flex-col">
-            <label className="text-[10px] font-black text-gray-400 ml-4 mb-2 uppercase tracking-widest">Complemento do EndereÃ§o</label>
+            <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">Complemento do EndereÃ§o</label>
             <input
               type="text"
               placeholder="Ex: casa 1, creche, auditoria, salÃ£o 4..."
@@ -291,11 +291,11 @@ const ReservationForm: React.FC = () => {
         </div>
 
         <div className="space-y-4 pt-10">
-          <label className="text-[10px] font-black text-gray-400 uppercase ml-4 block tracking-widest">Materiais Selecionados</label>
+          <label className="text-[10px] font-black text-gray-600 uppercase ml-4 block tracking-widest">Materiais Selecionados</label>
           {itensSelecionados.map((linha, index) => (
             <div key={index} className="flex flex-col md:flex-row gap-4 items-end bg-gray-50/50 p-6 rounded-[30px] border border-gray-100">
               <div className="flex-1 w-full">
-                <label className="text-[9px] font-black text-gray-400 ml-2 mb-1 uppercase">Material</label>
+                <label className="text-[9px] font-black text-gray-600 ml-2 mb-1 uppercase">Material</label>
                 <select 
                   required 
                   className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-700 focus:border-[#b24a2b]" 
@@ -312,7 +312,7 @@ const ReservationForm: React.FC = () => {
               </div>
 
               <div className="w-full md:w-32">
-                <label className="text-[9px] font-black text-gray-400 ml-2 mb-1 uppercase">Qtd</label>
+                <label className="text-[9px] font-black text-gray-600 ml-2 mb-1 uppercase">Qtd</label>
                 <input 
                   type="number" 
                   required 
@@ -350,7 +350,7 @@ const ReservationForm: React.FC = () => {
           </button>
 
           <div className="w-full max-w-sm flex flex-col items-center">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3">Campo de OBS</label>
+            <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3">Campo de OBS</label>
             <textarea 
               placeholder="Digite aqui observações ou detalhes extras..."
               className="w-full p-5 bg-[#b24a2b] text-white rounded-[25px] text-center font-bold outline-none shadow-lg placeholder:text-orange-200 focus:ring-4 ring-orange-200 transition-all resize-none min-h-[80px]"
@@ -366,7 +366,7 @@ const ReservationForm: React.FC = () => {
           <div className="bg-white rounded-[40px] p-8 w-full max-w-md max-h-[90vh] overflow-y-auto shadow-2xl border border-gray-100 animate-in zoom-in duration-300">
             <div className="text-center mb-6">
               <h2 className="text-xl font-black text-gray-800 uppercase italic">Confirmar Frete</h2>
-              <p className="text-[10px] font-bold text-gray-400 uppercase mt-1">Ajuste valores antes de finalizar</p>
+              <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">Ajuste valores antes de finalizar</p>
             </div>
 
             <div className="space-y-4">
@@ -405,7 +405,7 @@ const ReservationForm: React.FC = () => {
               </div>
 
               <div className="bg-gray-50 p-6 rounded-3xl border border-gray-100">
-                <div className="flex justify-between text-[10px] font-bold text-gray-400 uppercase mb-2">
+                <div className="flex justify-between text-[10px] font-bold text-gray-600 uppercase mb-2">
                   <span>Subtotal Itens:</span>
                   <span>R$ {formatarMoeda(calcularSubtotal())}</span>
                 </div>
@@ -430,7 +430,7 @@ const ReservationForm: React.FC = () => {
               <div className="flex gap-3 pt-2">
                 <button 
                   onClick={() => setShowFreteModal(false)} 
-                  className="flex-1 p-4 bg-gray-100 text-gray-400 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
+                  className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200 transition-all"
                 >
                   Voltar
                 </button>
