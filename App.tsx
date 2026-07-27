@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Screen } from './types';
+import React, { useState, useEffect, useRef } from 'react';
+import { ActiveUserPresence, Screen } from './types';
 import Sidebar, { getSidebarTheme } from './components/Sidebar';
 import CustomerRegistration from './components/CustomerRegistration';
 import CustomerList from './components/CustomerList';
@@ -12,6 +12,11 @@ import Catalog from './components/Catalog';
 import BudgetDashboard from './components/BudgetDashboard';
 import { db } from './services/supabase';
 import logo2 from './logo-2.png';
+
+const ACCESS_PASSWORD_STORAGE_KEY = 'claudia_access_password';
+const LOGOUT_PASSWORD_STORAGE_KEY = 'claudia_logout_password';
+const DEFAULT_ACCESS_PASSWORD = '123456';
+const DEFAULT_LOGOUT_PASSWORD = '123456';
 
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('PEDIDOS');
@@ -33,9 +38,149 @@ const App: React.FC = () => {
   const [error, setError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isZooming, setIsZooming] = useState(false);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [activeUserDetails, setActiveUserDetails] = useState<ActiveUserPresence[]>([]);
+  const [isLoginPresenceOpen, setIsLoginPresenceOpen] = useState(false);
+  const [logoutMessage, setLogoutMessage] = useState('');
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [accessPassword, setAccessPassword] = useState(() => localStorage.getItem(ACCESS_PASSWORD_STORAGE_KEY) || DEFAULT_ACCESS_PASSWORD);
+  const [logoutPassword, setLogoutPassword] = useState(() => localStorage.getItem(LOGOUT_PASSWORD_STORAGE_KEY) || DEFAULT_LOGOUT_PASSWORD);
+  const [adminAccessPassword, setAdminAccessPassword] = useState(accessPassword);
+  const [adminLogoutPassword, setAdminLogoutPassword] = useState(logoutPassword);
+  const [showAdminAccessPassword, setShowAdminAccessPassword] = useState(false);
+  const [showAdminLogoutPassword, setShowAdminLogoutPassword] = useState(false);
+  const presenceChannelRef = useRef<any>(null);
+  const [presenceSessionId] = useState(() => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  });
   const currentTheme = getSidebarTheme();
 
   const isCatalogRoute = window.location.pathname === '/catalogo';
+  const isLocalProgrammerAccess =
+    ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+    window.location.port === '3000';
+
+  const getDeviceInfo = () => {
+    const userAgent = navigator.userAgent || '';
+    const platform = navigator.platform || '';
+    const mobilePattern = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+
+    let device = mobilePattern.test(userAgent) ? 'Celular' : 'Computador';
+    let system = 'Navegador';
+
+    if (/Windows/i.test(userAgent) || /Win/i.test(platform)) {
+      device = 'Computador';
+      system = 'Windows';
+    } else if (/Android/i.test(userAgent)) {
+      device = 'Celular';
+      system = 'Android';
+    } else if (/iPhone|iPad|iPod/i.test(userAgent)) {
+      device = 'Celular';
+      system = 'iOS';
+    } else if (/Mac/i.test(userAgent) || /Mac/i.test(platform)) {
+      device = 'Computador';
+      system = 'Mac';
+    } else if (/Linux/i.test(userAgent) || /Linux/i.test(platform)) {
+      system = 'Linux';
+    }
+
+    return { device, platform: system };
+  };
+
+  const getUserCity = async () => {
+    if (!('geolocation' in navigator)) {
+      return 'Local nao disponivel';
+    }
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 10 * 60 * 1000
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=pt`
+      );
+      const data = await response.json();
+      const city = data.city || data.locality || data.principalSubdivision;
+      const state = data.principalSubdivisionCode || data.principalSubdivision;
+
+      if (city && state) return `${city}, ${String(state).replace(/^BR-/, '')}`;
+      if (city) return city;
+      return 'Local encontrado';
+    } catch {
+      return 'Local nao autorizado';
+    }
+  };
+
+  const handleLogout = (message = '') => {
+    sessionStorage.removeItem('claudia_auth');
+    setIsAuthenticated(false);
+    setIsSidebarOpen(false);
+    setIsCalendarOpen(false);
+    setIsLoginPresenceOpen(false);
+    setPasswordInput('');
+    setError(false);
+    setCurrentScreen('PEDIDOS');
+    setLogoutMessage(message);
+    presenceChannelRef.current?.untrack();
+  };
+
+  const handleLogoutSession = async (sessionId: string) => {
+    const password = window.prompt('Digite a senha para deslogar usuarios:');
+    if (password !== logoutPassword) {
+      alert('Senha para deslogar usuarios incorreta.');
+      return;
+    }
+
+    if (sessionId === presenceSessionId) {
+      handleLogout('Sessao encerrada. Faca login novamente.');
+      return;
+    }
+
+    await presenceChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'force-logout',
+      payload: { targetSessionId: sessionId }
+    });
+    localStorage.setItem('claudia_force_logout', JSON.stringify({
+      targetSessionId: sessionId,
+      createdAt: Date.now()
+    }));
+  };
+
+  const handleOpenAdmin = () => {
+    setAdminAccessPassword(accessPassword);
+    setAdminLogoutPassword(logoutPassword);
+    setIsAdminOpen(true);
+  };
+
+  const handleSaveAdminSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!adminAccessPassword.trim() || !adminLogoutPassword.trim()) {
+      alert('Preencha as duas senhas.');
+      return;
+    }
+
+    const nextAccessPassword = adminAccessPassword.trim();
+    const nextLogoutPassword = adminLogoutPassword.trim();
+
+    localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, nextAccessPassword);
+    localStorage.setItem(LOGOUT_PASSWORD_STORAGE_KEY, nextLogoutPassword);
+    setAccessPassword(nextAccessPassword);
+    setLogoutPassword(nextLogoutPassword);
+    setIsAdminOpen(false);
+    alert('Configuracoes salvas com sucesso.');
+  };
 
   useEffect(() => {
     const sessionAuth = sessionStorage.getItem('claudia_auth');
@@ -58,6 +203,77 @@ const App: React.FC = () => {
     }
     verificarConexaoSupabase();
   }, []);
+
+  useEffect(() => {
+    if (isCatalogRoute) return;
+
+    const channel = db.channel('claudia-system-presence', {
+      config: {
+        presence: {
+          key: presenceSessionId
+        }
+      }
+    });
+    presenceChannelRef.current = channel;
+
+    const updatePresenceCount = () => {
+      const state = channel.presenceState() as Record<string, ActiveUserPresence[]>;
+      const details = Object.values(state).flat();
+      setActiveUserDetails(details);
+      setActiveUsers(details.length);
+    };
+
+    channel
+      .on('presence', { event: 'sync' }, updatePresenceCount)
+      .on('broadcast', { event: 'force-logout' }, ({ payload }) => {
+        if (payload?.targetSessionId === presenceSessionId) {
+          handleLogout('Sessao encerrada por outro usuario. Faca login novamente.');
+        }
+      })
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          if (isAuthenticated && !isLocalProgrammerAccess) {
+            const deviceInfo = getDeviceInfo();
+            const city = await getUserCity();
+            await channel.track({
+              sessionId: presenceSessionId,
+              device: deviceInfo.device,
+              platform: deviceInfo.platform,
+              city,
+              onlineAt: new Date().toISOString()
+            });
+          }
+
+          updatePresenceCount();
+        }
+      });
+
+    return () => {
+      channel.untrack();
+      db.removeChannel(channel);
+      if (presenceChannelRef.current === channel) {
+        presenceChannelRef.current = null;
+      }
+    };
+  }, [isAuthenticated, isCatalogRoute, isLocalProgrammerAccess, presenceSessionId]);
+
+  useEffect(() => {
+    const handleStorageLogout = (event: StorageEvent) => {
+      if (event.key !== 'claudia_force_logout' || !event.newValue) return;
+
+      try {
+        const payload = JSON.parse(event.newValue);
+        if (payload?.targetSessionId === presenceSessionId) {
+          handleLogout('Sessao encerrada por outro usuario. Faca login novamente.');
+        }
+      } catch (err) {
+        console.error('Erro ao processar logout remoto:', err);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageLogout);
+    return () => window.removeEventListener('storage', handleStorageLogout);
+  }, [presenceSessionId]);
 
   const fetchCalendarEvents = async () => {
     try {
@@ -166,8 +382,9 @@ const App: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === '123456') {
+    if (passwordInput === accessPassword) {
       setError(false);
+      setLogoutMessage('');
       setIsZooming(true);
       setTimeout(() => {
         setIsAuthenticated(true);
@@ -225,11 +442,66 @@ const App: React.FC = () => {
         style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
       >
         <div className={`w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center transition-all duration-300 ${isZooming ? 'opacity-0 scale-95 pointer-events-none' : 'animate-in zoom-in duration-500'}`}>
+          <div className="relative mb-5 inline-block">
+            <button
+              type="button"
+              onClick={() => setIsLoginPresenceOpen(!isLoginPresenceOpen)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
+              title="Ver dispositivos conectados"
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
+              <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+            </button>
+
+            {isLoginPresenceOpen && (
+              <div className="absolute left-1/2 top-full z-30 mt-2 w-60 -translate-x-1/2 rounded-2xl bg-white p-3 text-left text-gray-800 shadow-xl border border-orange-100">
+                <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-gray-600">Conectados agora</p>
+                <div className="space-y-2">
+                  {activeUserDetails.length > 0 ? (
+                    activeUserDetails.map((user, index) => (
+                      <div key={`${user.sessionId}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <i className={`fa-solid ${user.device === 'Celular' ? 'fa-mobile-screen-button' : 'fa-desktop'} text-[#B24D2D] text-xs`}></i>
+                          <div>
+                            <p className="text-[10px] font-black uppercase leading-tight">{user.device}</p>
+                            <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
+                            {user.city && (
+                              <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">
+                                <i className="fa-solid fa-location-dot mr-1 text-[8px]"></i>{user.city}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                          <button
+                            type="button"
+                            onClick={() => handleLogoutSession(user.sessionId)}
+                            className="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center transition-all hover:bg-red-500 hover:text-white active:scale-95"
+                            title={user.sessionId === presenceSessionId ? 'Deslogar esta sessao' : 'Deslogar esta pessoa'}
+                          >
+                            <i className="fa-solid fa-right-from-bracket text-[10px]"></i>
+                          </button>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-600">Nenhuma sessao ativa.</p>
+                  )}
+                </div>
+              </div>
+            )}
+          </div>
           <div className={`w-56 h-56 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden rounded-full bg-white transition-all duration-200 ease-in-out ${isZooming ? 'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[5] opacity-0 shadow-none' : ''}`}>
               <img src={logo2} alt="Logo" className="w-full h-full object-contain scale-150" />
           </div>
           <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
-          <p className="text-gray-400 text-sm mb-4 font-bold uppercase tracking-widest">Claudia Festas</p>
+          <p className="text-gray-600 text-sm mb-4 font-bold uppercase tracking-widest">Claudia Festas</p>
+          {logoutMessage && (
+            <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-600">
+              {logoutMessage}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${currentTheme.name} significado`)}`, '_blank', 'noopener,noreferrer')}
@@ -254,7 +526,7 @@ const App: React.FC = () => {
               <button
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-[#B24D2D] transition-colors focus:outline-none"
+                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-[#B24D2D] transition-colors focus:outline-none"
               >
                 <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
               </button>
@@ -297,8 +569,97 @@ const App: React.FC = () => {
       </div>
 
       <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-[284px] h-full shadow-2xl`}>
-        <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} />
+        <Sidebar
+          activeScreen={currentScreen}
+          onNavigate={navigateTo}
+          activeUsers={activeUsers}
+          activeUserDetails={activeUserDetails}
+          currentPresenceSessionId={presenceSessionId}
+          onLogoutSession={handleLogoutSession}
+          onOpenAdmin={handleOpenAdmin}
+        />
       </div>
+
+      {isAdminOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[32px] bg-white p-6 shadow-2xl border border-orange-100">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black italic text-gray-900">Administrador</h2>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600">Senhas do sistema</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAdminOpen(false)}
+                className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-all hover:bg-red-50 hover:text-red-500 active:scale-95"
+                title="Fechar"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAdminSettings} className="space-y-4">
+              <div>
+                <label className="mb-2 ml-3 block text-[10px] font-black uppercase tracking-widest text-gray-600">Senha de acesso</label>
+                <div className="relative">
+                  <input
+                    type={showAdminAccessPassword ? 'text' : 'password'}
+                    value={adminAccessPassword}
+                    onChange={(e) => setAdminAccessPassword(e.target.value)}
+                    className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 p-4 pr-12 text-center text-sm font-black outline-none transition-all focus:border-[#B24D2D]"
+                    placeholder="Senha para entrar no sistema"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminAccessPassword(!showAdminAccessPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 transition-colors hover:text-[#B24D2D]"
+                    title={showAdminAccessPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    <i className={`fa-solid ${showAdminAccessPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 ml-3 block text-[10px] font-black uppercase tracking-widest text-gray-600">Senha para deslogar usuarios</label>
+                <div className="relative">
+                  <input
+                    type={showAdminLogoutPassword ? 'text' : 'password'}
+                    value={adminLogoutPassword}
+                    onChange={(e) => setAdminLogoutPassword(e.target.value)}
+                    className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 p-4 pr-12 text-center text-sm font-black outline-none transition-all focus:border-[#B24D2D]"
+                    placeholder="Senha para encerrar sessoes"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminLogoutPassword(!showAdminLogoutPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 transition-colors hover:text-[#B24D2D]"
+                    title={showAdminLogoutPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    <i className={`fa-solid ${showAdminLogoutPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAdminOpen(false)}
+                  className="flex-1 rounded-2xl bg-gray-100 p-4 text-[10px] font-black uppercase tracking-widest text-gray-600 transition-all hover:bg-gray-200 active:scale-95"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 rounded-2xl bg-[#B24D2D] p-4 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-[#943a20] active:scale-95"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <main
         className="flex-1 flex flex-col h-full overflow-y-auto bg-[#fdf8f6]"
@@ -309,21 +670,21 @@ const App: React.FC = () => {
           <div className="flex gap-3 mb-6 md:mb-8 w-full max-w-6xl">
             <button 
               onClick={() => navigateTo('CADASTRO')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Novo Cliente"
             >
               <i className="fa-solid fa-user-plus"></i>
             </button>
             <button 
               onClick={() => navigateTo('PEDIDOS')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Gestão de Pedidos"
             >
               <i className="fa-solid fa-rectangle-list"></i>
             </button>
             <button 
               onClick={() => navigateTo('CAIXA')}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md active:scale-95 border border-orange-100 transition-all"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Caixa"
             >
               <i className="fa-solid fa-file-invoice-dollar"></i>
@@ -331,7 +692,7 @@ const App: React.FC = () => {
             
             <button 
               onClick={() => setIsCalendarOpen(true)}
-              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm hover:shadow-md border border-orange-100 transition-all active:scale-95"
+              className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
               title="Abrir Calendário"
             >
               <i className="fa-solid fa-calendar-days"></i>
@@ -356,22 +717,22 @@ const App: React.FC = () => {
           >
             <div className="flex justify-between items-center mb-6 w-full">
               <h3 className="font-black text-[#B24D2D] uppercase italic text-lg tracking-tight">Calendário de Eventos</h3>
-              <button onClick={() => setIsCalendarOpen(false)} className="text-gray-400 hover:text-red-500 text-2xl font-light">×</button>
+              <button onClick={() => setIsCalendarOpen(false)} className="text-gray-600 hover:text-red-500 text-2xl font-light">×</button>
             </div>
             
             <div className="flex justify-between items-center w-full mb-4 px-2">
-              <button onClick={() => mudarMes('ant')} className="text-gray-400 hover:text-[#B24D2D] font-black text-sm">
+              <button onClick={() => mudarMes('ant')} className="text-gray-600 hover:text-[#B24D2D] font-black text-sm">
                 <i className="fa-solid fa-chevron-left"></i>
               </button>
               <span className="font-black text-[#B24D2D] text-sm uppercase tracking-wider">
                 {nomesMeses[currentMonth]} de {currentYear}
               </span>
-              <button onClick={() => mudarMes('prox')} className="text-gray-400 hover:text-[#B24D2D] font-black text-sm">
+              <button onClick={() => mudarMes('prox')} className="text-gray-600 hover:text-[#B24D2D] font-black text-sm">
                 <i className="fa-solid fa-chevron-right"></i>
               </button>
             </div>
 
-            <div className="grid grid-cols-7 gap-1 text-center font-black text-[10px] text-gray-400 uppercase mb-2 tracking-widest">
+            <div className="grid grid-cols-7 gap-1 text-center font-black text-[10px] text-gray-600 uppercase mb-2 tracking-widest">
               <div>D</div><div>S</div><div>T</div><div>Q</div><div>Q</div><div>S</div><div>S</div>
             </div>
 
@@ -407,7 +768,7 @@ const App: React.FC = () => {
             </div>
             
             <div className="w-full max-h-[160px] overflow-y-auto pr-1">
-              <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest mb-3 border-b border-gray-100 pb-2">
+              <h4 className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3 border-b border-gray-100 pb-2">
                 Box Retiradas em {selectedDate ? selectedDate.split('-').reverse().join('/') : ''}:
               </h4>
               
@@ -427,13 +788,13 @@ const App: React.FC = () => {
                   ))}
                 </div>
               ) : (
-                <div className="text-center py-4 text-gray-300 font-bold uppercase text-[9px] tracking-wider italic">
+                <div className="text-center py-4 text-gray-600 font-bold uppercase text-[9px] tracking-wider italic">
                   Nenhuma retirada para esta data.
                 </div>
               )}
             </div>
             
-            <p className="text-[9px] font-bold text-gray-400 uppercase mt-6 text-center tracking-widest border-t border-gray-100 pt-4 w-full">
+            <p className="text-[9px] font-bold text-gray-600 uppercase mt-6 text-center tracking-widest border-t border-gray-100 pt-4 w-full">
               Claudia Festas & Locações
             </p>
           </div>
