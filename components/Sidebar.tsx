@@ -11,6 +11,7 @@ interface SidebarProps {
   activeUserDetails?: ActiveUserPresence[];
   currentPresenceSessionId?: string;
   onLogoutSession?: (sessionId: string) => void;
+  onOpenAdmin?: () => void;
 }
 
 interface WeatherData {
@@ -87,7 +88,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeUsers = 0,
   activeUserDetails = [],
   currentPresenceSessionId,
-  onLogoutSession
+  onLogoutSession,
+  onOpenAdmin
 }) => {
   const currentTheme = getSidebarTheme();
   const [sidebarTone, setSidebarTone] = useState<number>(() => {
@@ -233,14 +235,24 @@ const Sidebar: React.FC<SidebarProps> = ({
           <i className="fa-brands fa-whatsapp text-lg"></i>
           <span>Suporte do Sistema</span>
         </a>
-        <button
-          type="button"
-          onClick={() => setIsToneControlOpen(!isToneControlOpen)}
-          className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-          title="Ajustar cor da barra lateral"
-        >
-          <i className="fa-solid fa-sliders text-sm"></i>
-        </button>
+        <div className="relative flex flex-col items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setIsToneControlOpen(!isToneControlOpen)}
+            className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            title="Ajustar cor da barra lateral"
+          >
+            <i className="fa-solid fa-sliders text-sm"></i>
+          </button>
+          <button
+            type="button"
+            onClick={onOpenAdmin}
+            className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            title="Administrador"
+          >
+            <i className="fa-solid fa-gear text-sm"></i>
+          </button>
+        </div>
 
         {isToneControlOpen && (
           <div
@@ -385,7 +397,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Widget de Previsão do Tempo */}
       <div
-        className="mt-6 mb-6 bg-white/95 text-gray-800 rounded-xl px-4 pt-1 pb-4 shadow-xl border max-w-[240px] mx-auto w-full backdrop-blur-sm min-h-[220px] flex flex-col justify-start relative"
+        className="mt-5 mb-5 bg-white/95 text-gray-800 rounded-xl px-3 pt-1 pb-3 shadow-xl border max-w-[220px] mx-auto w-full backdrop-blur-sm min-h-[205px] flex flex-col justify-start relative"
         style={{ borderColor: currentTheme.accent }}
       >
         
@@ -398,11 +410,11 @@ const Sidebar: React.FC<SidebarProps> = ({
         ) : weather ? (
           <>
             {/* Localização Dinâmica / Input de Busca */}
-            <div className="flex items-center justify-between mb-1 min-h-6">
+            <div className="flex items-center justify-between mb-0.5 min-h-5">
               <button
                 type="button"
                 onClick={prevCity}
-                className="w-6 h-6 rounded-full bg-gray-50 text-gray-500 border border-gray-100 flex items-center justify-center hover:bg-gray-100 hover:text-black transition-colors active:scale-95"
+                className="w-5 h-5 rounded-full bg-gray-50 text-gray-500 border border-gray-100 flex items-center justify-center hover:bg-gray-100 hover:text-black transition-colors active:scale-95"
                 title="Cidade anterior"
               >
                 <i className="fa-solid fa-chevron-left text-[10px]"></i>
@@ -410,14 +422,14 @@ const Sidebar: React.FC<SidebarProps> = ({
               <button
                 type="button"
                 onClick={nextCity}
-                className="w-6 h-6 rounded-full bg-gray-50 text-gray-500 border border-gray-100 flex items-center justify-center hover:bg-gray-100 hover:text-black transition-colors active:scale-95"
+                className="w-5 h-5 rounded-full bg-gray-50 text-gray-500 border border-gray-100 flex items-center justify-center hover:bg-gray-100 hover:text-black transition-colors active:scale-95"
                 title="Próxima cidade"
               >
                 <i className="fa-solid fa-chevron-right text-[10px]"></i>
               </button>
             </div>
 
-            <div className="flex items-center justify-between text-[11px] font-sans mb-2 min-h-[22px]">
+            <div className="flex items-center justify-between text-[10px] font-sans mb-1 min-h-[20px]">
               <div className="flex items-center gap-1 font-bold text-black flex-1 mr-1">
                 <i className="fa-solid fa-location-dot text-gray-600"></i>
                 {isSearching ? (
@@ -442,24 +454,24 @@ const Sidebar: React.FC<SidebarProps> = ({
                 )}
               </div>
               {!isSearching && (
-                <span className="text-[9px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">Ao vivo</span>
+                <span className="text-[8px] text-emerald-600 font-bold bg-emerald-50 px-1.5 py-0.5 rounded shrink-0">Ao vivo</span>
               )}
             </div>
 
             {/* Bloco de Temperatura e Ícone Principal */}
-            <div className="flex items-center gap-4 my-1 font-sans">
-              <div className="w-12 flex justify-center">
+            <div className="flex items-center gap-3 my-0.5 font-sans">
+              <div className="w-11 flex justify-center">
                 {weather.isRain ? (
-                  <i className="fa-solid fa-cloud-showers-heavy text-blue-500 text-4xl"></i>
+                  <i className="fa-solid fa-cloud-showers-heavy text-blue-500 text-3xl"></i>
                 ) : weather.isDay ? (
-                  <i className="fa-solid fa-sun text-amber-500 text-4xl animate-pulse"></i>
+                  <i className="fa-solid fa-sun text-amber-500 text-3xl animate-pulse"></i>
                 ) : (
-                  <i className="fa-solid fa-moon text-indigo-900 text-4xl drop-shadow-[0_0_4px_rgba(49,46,129,0.3)]"></i>
+                  <i className="fa-solid fa-moon text-indigo-900 text-3xl drop-shadow-[0_0_4px_rgba(49,46,129,0.3)]"></i>
                 )}
               </div>
               
               <div className="flex items-start">
-                <span className="text-5xl font-light tracking-tighter text-black">{weather.temp}</span>
+                <span className="text-4xl font-light tracking-tighter text-black">{weather.temp}</span>
                 <span className="text-sm font-semibold ml-1 text-gray-500 pt-1">
                   °C<span className="text-gray-600 mx-1 font-normal">|</span>°F
                 </span>
@@ -467,22 +479,22 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
 
             {/* Abas Internas */}
-            <div className="flex border-b border-gray-200 text-[11px] text-center font-sans mb-2 mt-1">
+            <div className="flex border-b border-gray-200 text-[10px] text-center font-sans mb-1 mt-0.5">
               <div className="flex-1 pb-1 border-b-2 border-amber-500 font-bold text-black">Temperatura</div>
               <div className="flex-1 pb-1 text-gray-600 cursor-not-allowed">Chuva</div>
               <div className="flex-1 pb-1 text-gray-600 cursor-not-allowed">Vento</div>
             </div>
 
             {/* Detalhes do Clima + Animação ao Lado */}
-            <div className="flex items-start justify-between gap-2 text-[11px] text-gray-500 font-sans pl-1 pb-1">
-              <div className="space-y-0.5">
+            <div className="flex items-start justify-between gap-2 text-[10px] text-gray-500 font-sans pl-1">
+              <div className="space-y-0">
                 <div>Chuva: <span className="text-gray-800 font-semibold">{weather.isRain ? 'Sim' : '0%'}</span></div>
                 <div>Umidade: <span className="text-gray-800 font-semibold">{weather.humidity}%</span></div>
                 <div>Vento: <span className="text-gray-800 font-semibold">{weather.windSpeed} km/h</span></div>
               </div>
 
               {/* Área gráfica da casinha */}
-              <div className={`flex flex-col items-center justify-end h-12 w-14 shrink-0 relative overflow-hidden rounded-xl border border-gray-100 p-1 bg-gradient-to-b ${
+              <div className={`flex flex-col items-center justify-end h-11 w-12 shrink-0 relative overflow-hidden rounded-xl border border-gray-100 p-1 bg-gradient-to-b ${
                 weather.isDay ? 'from-sky-50 to-gray-50' : 'from-slate-900 to-slate-800 border-slate-700'
               }`}>
                 {/* Estilos CSS das animações injetados de forma limpa */}
