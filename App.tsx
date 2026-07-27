@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [activeUsers, setActiveUsers] = useState(0);
   const [activeUserDetails, setActiveUserDetails] = useState<ActiveUserPresence[]>([]);
   const [isLoginPresenceOpen, setIsLoginPresenceOpen] = useState(false);
+  const [logoutMessage, setLogoutMessage] = useState('');
   const presenceChannelRef = useRef<any>(null);
   const [presenceSessionId] = useState(() => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -75,17 +76,22 @@ const App: React.FC = () => {
     return { device, platform: system };
   };
 
-  const handleLogout = () => {
+  const handleLogout = (message = '') => {
     sessionStorage.removeItem('claudia_auth');
     setIsAuthenticated(false);
     setIsSidebarOpen(false);
+    setIsCalendarOpen(false);
+    setIsLoginPresenceOpen(false);
+    setPasswordInput('');
+    setError(false);
     setCurrentScreen('PEDIDOS');
+    setLogoutMessage(message);
     presenceChannelRef.current?.untrack();
   };
 
   const handleLogoutSession = async (sessionId: string) => {
     if (sessionId === presenceSessionId) {
-      handleLogout();
+      handleLogout('Sessao encerrada. Faca login novamente.');
       return;
     }
 
@@ -94,6 +100,10 @@ const App: React.FC = () => {
       event: 'force-logout',
       payload: { targetSessionId: sessionId }
     });
+    localStorage.setItem('claudia_force_logout', JSON.stringify({
+      targetSessionId: sessionId,
+      createdAt: Date.now()
+    }));
   };
 
   useEffect(() => {
@@ -141,7 +151,7 @@ const App: React.FC = () => {
       .on('presence', { event: 'sync' }, updatePresenceCount)
       .on('broadcast', { event: 'force-logout' }, ({ payload }) => {
         if (payload?.targetSessionId === presenceSessionId) {
-          handleLogout();
+          handleLogout('Sessao encerrada por outro usuario. Faca login novamente.');
         }
       })
       .subscribe(async (status) => {
@@ -168,6 +178,24 @@ const App: React.FC = () => {
       }
     };
   }, [isAuthenticated, isCatalogRoute, presenceSessionId]);
+
+  useEffect(() => {
+    const handleStorageLogout = (event: StorageEvent) => {
+      if (event.key !== 'claudia_force_logout' || !event.newValue) return;
+
+      try {
+        const payload = JSON.parse(event.newValue);
+        if (payload?.targetSessionId === presenceSessionId) {
+          handleLogout('Sessao encerrada por outro usuario. Faca login novamente.');
+        }
+      } catch (err) {
+        console.error('Erro ao processar logout remoto:', err);
+      }
+    };
+
+    window.addEventListener('storage', handleStorageLogout);
+    return () => window.removeEventListener('storage', handleStorageLogout);
+  }, [presenceSessionId]);
 
   const fetchCalendarEvents = async () => {
     try {
@@ -278,6 +306,7 @@ const App: React.FC = () => {
     e.preventDefault();
     if (passwordInput === '123456') {
       setError(false);
+      setLogoutMessage('');
       setIsZooming(true);
       setTimeout(() => {
         setIsAuthenticated(true);
@@ -385,6 +414,11 @@ const App: React.FC = () => {
           </div>
           <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
           <p className="text-gray-600 text-sm mb-4 font-bold uppercase tracking-widest">Claudia Festas</p>
+          {logoutMessage && (
+            <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-600">
+              {logoutMessage}
+            </p>
+          )}
           <button
             type="button"
             onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${currentTheme.name} significado`)}`, '_blank', 'noopener,noreferrer')}
