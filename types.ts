@@ -26,6 +26,7 @@ export interface ActiveUserPresence {
   sessionId: string;
   device: string;
   platform: string;
+  city?: string;
   onlineAt: string;
 }
 

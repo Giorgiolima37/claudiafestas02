@@ -91,6 +91,36 @@ const App: React.FC = () => {
     return { device, platform: system };
   };
 
+  const getUserCity = async () => {
+    if (!('geolocation' in navigator)) {
+      return 'Local nao disponivel';
+    }
+
+    try {
+      const position = await new Promise<GeolocationPosition>((resolve, reject) => {
+        navigator.geolocation.getCurrentPosition(resolve, reject, {
+          enableHighAccuracy: false,
+          timeout: 5000,
+          maximumAge: 10 * 60 * 1000
+        });
+      });
+
+      const { latitude, longitude } = position.coords;
+      const response = await fetch(
+        `https://api.bigdatacloud.net/data/reverse-geocode-client?latitude=${latitude}&longitude=${longitude}&localityLanguage=pt`
+      );
+      const data = await response.json();
+      const city = data.city || data.locality || data.principalSubdivision;
+      const state = data.principalSubdivisionCode || data.principalSubdivision;
+
+      if (city && state) return `${city}, ${String(state).replace(/^BR-/, '')}`;
+      if (city) return city;
+      return 'Local encontrado';
+    } catch {
+      return 'Local nao autorizado';
+    }
+  };
+
   const handleLogout = (message = '') => {
     sessionStorage.removeItem('claudia_auth');
     setIsAuthenticated(false);
@@ -204,10 +234,12 @@ const App: React.FC = () => {
         if (status === 'SUBSCRIBED') {
           if (isAuthenticated && !isLocalProgrammerAccess) {
             const deviceInfo = getDeviceInfo();
+            const city = await getUserCity();
             await channel.track({
               sessionId: presenceSessionId,
               device: deviceInfo.device,
               platform: deviceInfo.platform,
+              city,
               onlineAt: new Date().toISOString()
             });
           }
@@ -433,6 +465,11 @@ const App: React.FC = () => {
                           <div>
                             <p className="text-[10px] font-black uppercase leading-tight">{user.device}</p>
                             <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
+                            {user.city && (
+                              <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">
+                                <i className="fa-solid fa-location-dot mr-1 text-[8px]"></i>{user.city}
+                              </p>
+                            )}
                           </div>
                         </div>
                         <div className="flex items-center gap-2">
