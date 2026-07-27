@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Screen } from './types';
+import { ActiveUserPresence, Screen } from './types';
 import Sidebar, { getSidebarTheme } from './components/Sidebar';
 import CustomerRegistration from './components/CustomerRegistration';
 import CustomerList from './components/CustomerList';
@@ -34,6 +34,8 @@ const App: React.FC = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [isZooming, setIsZooming] = useState(false);
   const [activeUsers, setActiveUsers] = useState(0);
+  const [activeUserDetails, setActiveUserDetails] = useState<ActiveUserPresence[]>([]);
+  const [isLoginPresenceOpen, setIsLoginPresenceOpen] = useState(false);
   const [presenceSessionId] = useState(() => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
       return crypto.randomUUID();
@@ -44,6 +46,33 @@ const App: React.FC = () => {
   const currentTheme = getSidebarTheme();
 
   const isCatalogRoute = window.location.pathname === '/catalogo';
+
+  const getDeviceInfo = () => {
+    const userAgent = navigator.userAgent || '';
+    const platform = navigator.platform || '';
+    const mobilePattern = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i;
+
+    let device = mobilePattern.test(userAgent) ? 'Celular' : 'Computador';
+    let system = 'Navegador';
+
+    if (/Windows/i.test(userAgent) || /Win/i.test(platform)) {
+      device = 'Computador';
+      system = 'Windows';
+    } else if (/Android/i.test(userAgent)) {
+      device = 'Celular';
+      system = 'Android';
+    } else if (/iPhone|iPad|iPod/i.test(userAgent)) {
+      device = 'Celular';
+      system = 'iOS';
+    } else if (/Mac/i.test(userAgent) || /Mac/i.test(platform)) {
+      device = 'Computador';
+      system = 'Mac';
+    } else if (/Linux/i.test(userAgent) || /Linux/i.test(platform)) {
+      system = 'Linux';
+    }
+
+    return { device, platform: system };
+  };
 
   useEffect(() => {
     const sessionAuth = sessionStorage.getItem('claudia_auth');
@@ -79,9 +108,10 @@ const App: React.FC = () => {
     });
 
     const updatePresenceCount = () => {
-      const state = channel.presenceState() as Record<string, unknown[]>;
-      const total = Object.values(state).reduce((acc, presences) => acc + presences.length, 0);
-      setActiveUsers(total);
+      const state = channel.presenceState() as Record<string, ActiveUserPresence[]>;
+      const details = Object.values(state).flat();
+      setActiveUserDetails(details);
+      setActiveUsers(details.length);
     };
 
     channel
@@ -89,8 +119,11 @@ const App: React.FC = () => {
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           if (isAuthenticated) {
+            const deviceInfo = getDeviceInfo();
             await channel.track({
               sessionId: presenceSessionId,
+              device: deviceInfo.device,
+              platform: deviceInfo.platform,
               onlineAt: new Date().toISOString()
             });
           }
@@ -271,9 +304,40 @@ const App: React.FC = () => {
         style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
       >
         <div className={`w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center transition-all duration-300 ${isZooming ? 'opacity-0 scale-95 pointer-events-none' : 'animate-in zoom-in duration-500'}`}>
-          <div className="mb-5 inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 shadow-sm">
-            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
-            <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+          <div className="relative mb-5 inline-block">
+            <button
+              type="button"
+              onClick={() => setIsLoginPresenceOpen(!isLoginPresenceOpen)}
+              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
+              title="Ver dispositivos conectados"
+            >
+              <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
+              <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+            </button>
+
+            {isLoginPresenceOpen && (
+              <div className="absolute left-1/2 top-full z-30 mt-2 w-60 -translate-x-1/2 rounded-2xl bg-white p-3 text-left text-gray-800 shadow-xl border border-orange-100">
+                <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-gray-600">Conectados agora</p>
+                <div className="space-y-2">
+                  {activeUserDetails.length > 0 ? (
+                    activeUserDetails.map((user, index) => (
+                      <div key={`${user.sessionId}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2">
+                        <div className="flex items-center gap-2">
+                          <i className={`fa-solid ${user.device === 'Celular' ? 'fa-mobile-screen-button' : 'fa-desktop'} text-[#B24D2D] text-xs`}></i>
+                          <div>
+                            <p className="text-[10px] font-black uppercase leading-tight">{user.device}</p>
+                            <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
+                          </div>
+                        </div>
+                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-600">Nenhuma sessao ativa.</p>
+                  )}
+                </div>
+              </div>
+            )}
           </div>
           <div className={`w-56 h-56 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden rounded-full bg-white transition-all duration-200 ease-in-out ${isZooming ? 'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[5] opacity-0 shadow-none' : ''}`}>
               <img src={logo2} alt="Logo" className="w-full h-full object-contain scale-150" />
@@ -347,7 +411,12 @@ const App: React.FC = () => {
       </div>
 
       <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-[284px] h-full shadow-2xl`}>
-        <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} activeUsers={activeUsers} />
+        <Sidebar
+          activeScreen={currentScreen}
+          onNavigate={navigateTo}
+          activeUsers={activeUsers}
+          activeUserDetails={activeUserDetails}
+        />
       </div>
 
       <main

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Screen } from '../types';
+import { ActiveUserPresence, Screen } from '../types';
 import logo2 from '../logo-2.png';
 import instaLogo from '../insta.webp';
 import googleLogo from '../google.webp';
@@ -8,6 +8,7 @@ interface SidebarProps {
   activeScreen: Screen;
   onNavigate: (screen: Screen) => void;
   activeUsers?: number;
+  activeUserDetails?: ActiveUserPresence[];
 }
 
 interface WeatherData {
@@ -78,13 +79,14 @@ export const getSidebarTheme = () => {
   return SIDEBAR_THEMES.find(theme => theme.month === currentMonth) || SIDEBAR_THEMES[0];
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate, activeUsers = 0 }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate, activeUsers = 0, activeUserDetails = [] }) => {
   const currentTheme = getSidebarTheme();
   const [sidebarTone, setSidebarTone] = useState<number>(() => {
     const storedTone = window.localStorage.getItem(PAGE_TONE_STORAGE_KEY);
     return storedTone ? Number(storedTone) : 0;
   });
   const [isToneControlOpen, setIsToneControlOpen] = useState(false);
+  const [isPresenceOpen, setIsPresenceOpen] = useState(false);
   const pageBackgroundColor = adjustHexColor(PAGE_BACKGROUND_COLOR, sidebarTone);
   const controlBorderOpacity = Math.min(0.35, 0.08 + Math.abs(sidebarTone) / 130);
   const menuItems: Array<{ id: Screen | 'NFSE-BIGUACU'; label: string; icon: string; href?: string }> = [
@@ -268,9 +270,40 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate, activeUsers
 
       {/* Cabeçalho / Logo */}
       <div className="mb-0 mt-4 text-center">
-        <div className="mb-3 inline-flex items-center justify-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[#B24D2D] shadow-sm">
-          <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
-          <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+        <div className="relative mb-3 inline-block">
+          <button
+            type="button"
+            onClick={() => setIsPresenceOpen(!isPresenceOpen)}
+            className="inline-flex items-center justify-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[#B24D2D] shadow-sm transition-all hover:bg-white active:scale-95"
+            title="Ver dispositivos conectados"
+          >
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
+            <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+          </button>
+
+          {isPresenceOpen && (
+            <div className="absolute left-1/2 top-full z-30 mt-2 w-56 -translate-x-1/2 rounded-2xl bg-white p-3 text-left text-gray-800 shadow-xl border border-orange-100">
+              <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-gray-600">Conectados agora</p>
+              <div className="space-y-2">
+                {activeUserDetails.length > 0 ? (
+                  activeUserDetails.map((user, index) => (
+                    <div key={`${user.sessionId}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2">
+                      <div className="flex items-center gap-2">
+                        <i className={`fa-solid ${user.device === 'Celular' ? 'fa-mobile-screen-button' : 'fa-desktop'} text-[#B24D2D] text-xs`}></i>
+                        <div>
+                          <p className="text-[10px] font-black uppercase leading-tight">{user.device}</p>
+                          <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
+                        </div>
+                      </div>
+                      <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                    </div>
+                  ))
+                ) : (
+                  <p className="py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-600">Nenhuma sessao ativa.</p>
+                )}
+              </div>
+            </div>
+          )}
         </div>
         <div className="flex items-center justify-center gap-3 mb-5">
           <a

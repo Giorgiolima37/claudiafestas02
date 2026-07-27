@@ -22,4 +22,11 @@ export interface Estoque {
 }
 
 // Adicionado 'HISTORICO' para suportar a nova tela de movimentações
+export interface ActiveUserPresence {
+  sessionId: string;
+  device: string;
+  platform: string;
+  onlineAt: string;
+}
+
 export type Screen = 'CADASTRO' | 'LISTAGEM' | 'LISTA_NEGRA' | 'RESERVA' | 'PEDIDOS' | 'ORCAMENTO' | 'ESTOQUE' | 'CAIXA' | 'HISTORICO';
