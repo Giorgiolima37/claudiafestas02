@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ActiveUserPresence, Screen } from './types';
 import Sidebar, { getSidebarTheme } from './components/Sidebar';
 import CustomerRegistration from './components/CustomerRegistration';
@@ -36,6 +36,7 @@ const App: React.FC = () => {
   const [activeUsers, setActiveUsers] = useState(0);
   const [activeUserDetails, setActiveUserDetails] = useState<ActiveUserPresence[]>([]);
   const [isLoginPresenceOpen, setIsLoginPresenceOpen] = useState(false);
+  const presenceChannelRef = useRef<any>(null);
   const [presenceSessionId] = useState(() => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
       return crypto.randomUUID();
@@ -74,6 +75,27 @@ const App: React.FC = () => {
     return { device, platform: system };
   };
 
+  const handleLogout = () => {
+    sessionStorage.removeItem('claudia_auth');
+    setIsAuthenticated(false);
+    setIsSidebarOpen(false);
+    setCurrentScreen('PEDIDOS');
+    presenceChannelRef.current?.untrack();
+  };
+
+  const handleLogoutSession = async (sessionId: string) => {
+    if (sessionId === presenceSessionId) {
+      handleLogout();
+      return;
+    }
+
+    await presenceChannelRef.current?.send({
+      type: 'broadcast',
+      event: 'force-logout',
+      payload: { targetSessionId: sessionId }
+    });
+  };
+
   useEffect(() => {
     const sessionAuth = sessionStorage.getItem('claudia_auth');
     if (sessionAuth === 'true') {
@@ -106,6 +128,7 @@ const App: React.FC = () => {
         }
       }
     });
+    presenceChannelRef.current = channel;
 
     const updatePresenceCount = () => {
       const state = channel.presenceState() as Record<string, ActiveUserPresence[]>;
@@ -116,6 +139,11 @@ const App: React.FC = () => {
 
     channel
       .on('presence', { event: 'sync' }, updatePresenceCount)
+      .on('broadcast', { event: 'force-logout' }, ({ payload }) => {
+        if (payload?.targetSessionId === presenceSessionId) {
+          handleLogout();
+        }
+      })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
           if (isAuthenticated) {
@@ -135,6 +163,9 @@ const App: React.FC = () => {
     return () => {
       channel.untrack();
       db.removeChannel(channel);
+      if (presenceChannelRef.current === channel) {
+        presenceChannelRef.current = null;
+      }
     };
   }, [isAuthenticated, isCatalogRoute, presenceSessionId]);
 
@@ -329,7 +360,17 @@ const App: React.FC = () => {
                             <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
                           </div>
                         </div>
-                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        <div className="flex items-center gap-2">
+                          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                          <button
+                            type="button"
+                            onClick={() => handleLogoutSession(user.sessionId)}
+                            className="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center transition-all hover:bg-red-500 hover:text-white active:scale-95"
+                            title={user.sessionId === presenceSessionId ? 'Deslogar esta sessao' : 'Deslogar esta pessoa'}
+                          >
+                            <i className="fa-solid fa-right-from-bracket text-[10px]"></i>
+                          </button>
+                        </div>
                       </div>
                     ))
                   ) : (
@@ -416,6 +457,8 @@ const App: React.FC = () => {
           onNavigate={navigateTo}
           activeUsers={activeUsers}
           activeUserDetails={activeUserDetails}
+          currentPresenceSessionId={presenceSessionId}
+          onLogoutSession={handleLogoutSession}
         />
       </div>
 

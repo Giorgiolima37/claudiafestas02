@@ -9,6 +9,8 @@ interface SidebarProps {
   onNavigate: (screen: Screen) => void;
   activeUsers?: number;
   activeUserDetails?: ActiveUserPresence[];
+  currentPresenceSessionId?: string;
+  onLogoutSession?: (sessionId: string) => void;
 }
 
 interface WeatherData {
@@ -79,7 +81,14 @@ export const getSidebarTheme = () => {
   return SIDEBAR_THEMES.find(theme => theme.month === currentMonth) || SIDEBAR_THEMES[0];
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate, activeUsers = 0, activeUserDetails = [] }) => {
+const Sidebar: React.FC<SidebarProps> = ({
+  activeScreen,
+  onNavigate,
+  activeUsers = 0,
+  activeUserDetails = [],
+  currentPresenceSessionId,
+  onLogoutSession
+}) => {
   const currentTheme = getSidebarTheme();
   const [sidebarTone, setSidebarTone] = useState<number>(() => {
     const storedTone = window.localStorage.getItem(PAGE_TONE_STORAGE_KEY);
@@ -295,7 +304,17 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate, activeUsers
                           <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
                         </div>
                       </div>
-                      <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                      <div className="flex items-center gap-2">
+                        <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
+                        <button
+                          type="button"
+                          onClick={() => onLogoutSession?.(user.sessionId)}
+                          className="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center transition-all hover:bg-red-500 hover:text-white active:scale-95"
+                          title={user.sessionId === currentPresenceSessionId ? 'Deslogar esta sessao' : 'Deslogar esta pessoa'}
+                        >
+                          <i className="fa-solid fa-right-from-bracket text-[10px]"></i>
+                        </button>
+                      </div>
                     </div>
                   ))
                 ) : (
