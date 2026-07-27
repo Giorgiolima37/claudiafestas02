@@ -7,6 +7,7 @@ import googleLogo from '../google.webp';
 interface SidebarProps {
   activeScreen: Screen;
   onNavigate: (screen: Screen) => void;
+  activeUsers?: number;
 }
 
 interface WeatherData {
@@ -77,7 +78,7 @@ export const getSidebarTheme = () => {
   return SIDEBAR_THEMES.find(theme => theme.month === currentMonth) || SIDEBAR_THEMES[0];
 };
 
-const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
+const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate, activeUsers = 0 }) => {
   const currentTheme = getSidebarTheme();
   const [sidebarTone, setSidebarTone] = useState<number>(() => {
     const storedTone = window.localStorage.getItem(PAGE_TONE_STORAGE_KEY);
@@ -267,6 +268,10 @@ const Sidebar: React.FC<SidebarProps> = ({ activeScreen, onNavigate }) => {
 
       {/* Cabeçalho / Logo */}
       <div className="mb-0 mt-4 text-center">
+        <div className="mb-3 inline-flex items-center justify-center gap-2 rounded-full bg-white/95 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-[#B24D2D] shadow-sm">
+          <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
+          <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+        </div>
         <div className="flex items-center justify-center gap-3 mb-5">
           <a
             href="https://www.instagram.com/"

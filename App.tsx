@@ -33,6 +33,14 @@ const App: React.FC = () => {
   const [error, setError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [isZooming, setIsZooming] = useState(false);
+  const [activeUsers, setActiveUsers] = useState(0);
+  const [presenceSessionId] = useState(() => {
+    if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
+      return crypto.randomUUID();
+    }
+
+    return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+  });
   const currentTheme = getSidebarTheme();
 
   const isCatalogRoute = window.location.pathname === '/catalogo';
@@ -58,6 +66,44 @@ const App: React.FC = () => {
     }
     verificarConexaoSupabase();
   }, []);
+
+  useEffect(() => {
+    if (isCatalogRoute) return;
+
+    const channel = db.channel('claudia-system-presence', {
+      config: {
+        presence: {
+          key: presenceSessionId
+        }
+      }
+    });
+
+    const updatePresenceCount = () => {
+      const state = channel.presenceState() as Record<string, unknown[]>;
+      const total = Object.values(state).reduce((acc, presences) => acc + presences.length, 0);
+      setActiveUsers(total);
+    };
+
+    channel
+      .on('presence', { event: 'sync' }, updatePresenceCount)
+      .subscribe(async (status) => {
+        if (status === 'SUBSCRIBED') {
+          if (isAuthenticated) {
+            await channel.track({
+              sessionId: presenceSessionId,
+              onlineAt: new Date().toISOString()
+            });
+          }
+
+          updatePresenceCount();
+        }
+      });
+
+    return () => {
+      channel.untrack();
+      db.removeChannel(channel);
+    };
+  }, [isAuthenticated, isCatalogRoute, presenceSessionId]);
 
   const fetchCalendarEvents = async () => {
     try {
@@ -225,6 +271,10 @@ const App: React.FC = () => {
         style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
       >
         <div className={`w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center transition-all duration-300 ${isZooming ? 'opacity-0 scale-95 pointer-events-none' : 'animate-in zoom-in duration-500'}`}>
+          <div className="mb-5 inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 shadow-sm">
+            <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
+            <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+          </div>
           <div className={`w-56 h-56 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden rounded-full bg-white transition-all duration-200 ease-in-out ${isZooming ? 'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[5] opacity-0 shadow-none' : ''}`}>
               <img src={logo2} alt="Logo" className="w-full h-full object-contain scale-150" />
           </div>
@@ -297,7 +347,7 @@ const App: React.FC = () => {
       </div>
 
       <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-[284px] h-full shadow-2xl`}>
-        <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} />
+        <Sidebar activeScreen={currentScreen} onNavigate={navigateTo} activeUsers={activeUsers} />
       </div>
 
       <main
