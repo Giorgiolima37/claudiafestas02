@@ -13,6 +13,11 @@ import BudgetDashboard from './components/BudgetDashboard';
 import { db } from './services/supabase';
 import logo2 from './logo-2.png';
 
+const ACCESS_PASSWORD_STORAGE_KEY = 'claudia_access_password';
+const LOGOUT_PASSWORD_STORAGE_KEY = 'claudia_logout_password';
+const DEFAULT_ACCESS_PASSWORD = '123456';
+const DEFAULT_LOGOUT_PASSWORD = '123456';
+
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('PEDIDOS');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -37,6 +42,13 @@ const App: React.FC = () => {
   const [activeUserDetails, setActiveUserDetails] = useState<ActiveUserPresence[]>([]);
   const [isLoginPresenceOpen, setIsLoginPresenceOpen] = useState(false);
   const [logoutMessage, setLogoutMessage] = useState('');
+  const [isAdminOpen, setIsAdminOpen] = useState(false);
+  const [accessPassword, setAccessPassword] = useState(() => localStorage.getItem(ACCESS_PASSWORD_STORAGE_KEY) || DEFAULT_ACCESS_PASSWORD);
+  const [logoutPassword, setLogoutPassword] = useState(() => localStorage.getItem(LOGOUT_PASSWORD_STORAGE_KEY) || DEFAULT_LOGOUT_PASSWORD);
+  const [adminAccessPassword, setAdminAccessPassword] = useState(accessPassword);
+  const [adminLogoutPassword, setAdminLogoutPassword] = useState(logoutPassword);
+  const [showAdminAccessPassword, setShowAdminAccessPassword] = useState(false);
+  const [showAdminLogoutPassword, setShowAdminLogoutPassword] = useState(false);
   const presenceChannelRef = useRef<any>(null);
   const [presenceSessionId] = useState(() => {
     if (typeof crypto !== 'undefined' && 'randomUUID' in crypto) {
@@ -48,6 +60,9 @@ const App: React.FC = () => {
   const currentTheme = getSidebarTheme();
 
   const isCatalogRoute = window.location.pathname === '/catalogo';
+  const isLocalProgrammerAccess =
+    ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
+    window.location.port === '3000';
 
   const getDeviceInfo = () => {
     const userAgent = navigator.userAgent || '';
@@ -90,6 +105,12 @@ const App: React.FC = () => {
   };
 
   const handleLogoutSession = async (sessionId: string) => {
+    const password = window.prompt('Digite a senha para deslogar usuarios:');
+    if (password !== logoutPassword) {
+      alert('Senha para deslogar usuarios incorreta.');
+      return;
+    }
+
     if (sessionId === presenceSessionId) {
       handleLogout('Sessao encerrada. Faca login novamente.');
       return;
@@ -104,6 +125,31 @@ const App: React.FC = () => {
       targetSessionId: sessionId,
       createdAt: Date.now()
     }));
+  };
+
+  const handleOpenAdmin = () => {
+    setAdminAccessPassword(accessPassword);
+    setAdminLogoutPassword(logoutPassword);
+    setIsAdminOpen(true);
+  };
+
+  const handleSaveAdminSettings = (e: React.FormEvent) => {
+    e.preventDefault();
+
+    if (!adminAccessPassword.trim() || !adminLogoutPassword.trim()) {
+      alert('Preencha as duas senhas.');
+      return;
+    }
+
+    const nextAccessPassword = adminAccessPassword.trim();
+    const nextLogoutPassword = adminLogoutPassword.trim();
+
+    localStorage.setItem(ACCESS_PASSWORD_STORAGE_KEY, nextAccessPassword);
+    localStorage.setItem(LOGOUT_PASSWORD_STORAGE_KEY, nextLogoutPassword);
+    setAccessPassword(nextAccessPassword);
+    setLogoutPassword(nextLogoutPassword);
+    setIsAdminOpen(false);
+    alert('Configuracoes salvas com sucesso.');
   };
 
   useEffect(() => {
@@ -156,7 +202,7 @@ const App: React.FC = () => {
       })
       .subscribe(async (status) => {
         if (status === 'SUBSCRIBED') {
-          if (isAuthenticated) {
+          if (isAuthenticated && !isLocalProgrammerAccess) {
             const deviceInfo = getDeviceInfo();
             await channel.track({
               sessionId: presenceSessionId,
@@ -177,7 +223,7 @@ const App: React.FC = () => {
         presenceChannelRef.current = null;
       }
     };
-  }, [isAuthenticated, isCatalogRoute, presenceSessionId]);
+  }, [isAuthenticated, isCatalogRoute, isLocalProgrammerAccess, presenceSessionId]);
 
   useEffect(() => {
     const handleStorageLogout = (event: StorageEvent) => {
@@ -304,7 +350,7 @@ const App: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    if (passwordInput === '123456') {
+    if (passwordInput === accessPassword) {
       setError(false);
       setLogoutMessage('');
       setIsZooming(true);
@@ -493,8 +539,90 @@ const App: React.FC = () => {
           activeUserDetails={activeUserDetails}
           currentPresenceSessionId={presenceSessionId}
           onLogoutSession={handleLogoutSession}
+          onOpenAdmin={handleOpenAdmin}
         />
       </div>
+
+      {isAdminOpen && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
+          <div className="w-full max-w-md rounded-[32px] bg-white p-6 shadow-2xl border border-orange-100">
+            <div className="mb-6 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black italic text-gray-900">Administrador</h2>
+                <p className="mt-1 text-[10px] font-black uppercase tracking-widest text-gray-600">Senhas do sistema</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsAdminOpen(false)}
+                className="w-10 h-10 rounded-full bg-gray-100 text-gray-600 flex items-center justify-center transition-all hover:bg-red-50 hover:text-red-500 active:scale-95"
+                title="Fechar"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveAdminSettings} className="space-y-4">
+              <div>
+                <label className="mb-2 ml-3 block text-[10px] font-black uppercase tracking-widest text-gray-600">Senha de acesso</label>
+                <div className="relative">
+                  <input
+                    type={showAdminAccessPassword ? 'text' : 'password'}
+                    value={adminAccessPassword}
+                    onChange={(e) => setAdminAccessPassword(e.target.value)}
+                    className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 p-4 pr-12 text-center text-sm font-black outline-none transition-all focus:border-[#B24D2D]"
+                    placeholder="Senha para entrar no sistema"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminAccessPassword(!showAdminAccessPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 transition-colors hover:text-[#B24D2D]"
+                    title={showAdminAccessPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    <i className={`fa-solid ${showAdminAccessPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                  </button>
+                </div>
+              </div>
+
+              <div>
+                <label className="mb-2 ml-3 block text-[10px] font-black uppercase tracking-widest text-gray-600">Senha para deslogar usuarios</label>
+                <div className="relative">
+                  <input
+                    type={showAdminLogoutPassword ? 'text' : 'password'}
+                    value={adminLogoutPassword}
+                    onChange={(e) => setAdminLogoutPassword(e.target.value)}
+                    className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 p-4 pr-12 text-center text-sm font-black outline-none transition-all focus:border-[#B24D2D]"
+                    placeholder="Senha para encerrar sessoes"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setShowAdminLogoutPassword(!showAdminLogoutPassword)}
+                    className="absolute right-4 top-1/2 -translate-y-1/2 text-gray-600 transition-colors hover:text-[#B24D2D]"
+                    title={showAdminLogoutPassword ? 'Ocultar senha' : 'Ver senha'}
+                  >
+                    <i className={`fa-solid ${showAdminLogoutPassword ? 'fa-eye-slash' : 'fa-eye'} text-sm`}></i>
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setIsAdminOpen(false)}
+                  className="flex-1 rounded-2xl bg-gray-100 p-4 text-[10px] font-black uppercase tracking-widest text-gray-600 transition-all hover:bg-gray-200 active:scale-95"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="flex-1 rounded-2xl bg-[#B24D2D] p-4 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-[#943a20] active:scale-95"
+                >
+                  Salvar
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <main
         className="flex-1 flex flex-col h-full overflow-y-auto bg-[#fdf8f6]"
