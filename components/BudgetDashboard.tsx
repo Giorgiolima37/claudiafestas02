@@ -243,9 +243,9 @@ const BudgetDashboard: React.FC = () => {
 
   const calcularFrete = () => Number.parseFloat(novoOrcamento.frete) || 0;
   const calcularDesconto = () => Number.parseFloat(novoOrcamento.desconto) || 0;
-  const calcularValorTotal = () => Math.max(0, calcularTotalProdutos() + calcularFrete() - calcularDesconto());
+  const calcularValorTotal = () => calcularTotalProdutos() + calcularFrete();
   const calcularAdiantamento = () => Number.parseFloat(novoOrcamento.adiantamento) || 0;
-  const calcularSaldoRestante = () => Math.max(0, calcularValorTotal() - calcularAdiantamento());
+  const calcularSaldoRestante = () => Math.max(0, calcularValorTotal() - calcularDesconto() - calcularAdiantamento());
 
   const atualizarProduto = (index: number, campo: 'item' | 'quantidade', valor: string | number) => {
     const lista = [...produtosSelecionados];
@@ -858,7 +858,7 @@ const BudgetDashboard: React.FC = () => {
                     value={calcularSaldoRestante()}
                     onChange={(e) => {
                       const novoSaldo = Number.parseFloat(e.target.value) || 0;
-                      const novoAdiantamento = Math.max(0, calcularValorTotal() - novoSaldo);
+                      const novoAdiantamento = Math.max(0, calcularValorTotal() - calcularDesconto() - novoSaldo);
                       setNovoOrcamento({ ...novoOrcamento, adiantamento: String(novoAdiantamento) });
                     }}
                     className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-black text-xl text-gray-700 focus:border-[#b24a2b]"
