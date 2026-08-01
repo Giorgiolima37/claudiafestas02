@@ -9,6 +9,8 @@ interface BudgetItem {
   retirada: string;
   observacoes: string;
   valor: number;
+  frete: number;
+  desconto: number;
   adiantamento: number;
   saldoRestante: number;
   produtos: Array<{ item: string; quantidade: number; preco: number; codigo: string; estoqueId?: string }>;
@@ -38,6 +40,8 @@ const BudgetDashboard: React.FC = () => {
     cliente: '',
     reserva: '',
     retirada: '',
+    frete: '',
+    desconto: '',
     adiantamento: '',
     observacoes: ''
   });
@@ -53,24 +57,30 @@ const BudgetDashboard: React.FC = () => {
 
       setClientes(resClientes.data || []);
       setEstoque(resEstoque.data || []);
-      setOrcamentos((resOrcamentos.data || []).map((orcamento: any) => ({
-        id: String(orcamento.id),
-        cliente: orcamento.cliente_nome,
-        reserva: orcamento.data_reserva,
-        retirada: orcamento.data_retirada,
-        observacoes: orcamento.observacoes || '',
-        valor: Number(orcamento.valor_total || 0),
-        adiantamento: Number(orcamento.adiantamento || 0),
-        saldoRestante: Number(orcamento.saldo_restante || 0),
-        criadoEm: orcamento.created_at,
-        produtos: (orcamento.orcamento_itens || []).map((produto: any) => ({
-          item: produto.item,
-          quantidade: Number(produto.quantidade || 0),
-          preco: Number(produto.valor_unitario || 0),
-          codigo: produto.codigo_item || 'S/C',
-          estoqueId: produto.estoque_id || undefined
-        }))
-      })));
+      setOrcamentos((resOrcamentos.data || []).map((orcamento: any) => {
+        const observacoes = orcamento.observacoes || '';
+
+        return {
+          id: String(orcamento.id),
+          cliente: orcamento.cliente_nome,
+          reserva: orcamento.data_reserva,
+          retirada: orcamento.data_retirada,
+          observacoes: limparMarcadoresFinanceiros(observacoes),
+          valor: Number(orcamento.valor_total || 0),
+          frete: Number(orcamento.valor_frete || extrairFreteDasObservacoes(observacoes) || 0),
+          desconto: Number(orcamento.valor_desconto || extrairDescontoDasObservacoes(observacoes) || 0),
+          adiantamento: Number(orcamento.adiantamento || 0),
+          saldoRestante: Number(orcamento.saldo_restante || 0),
+          criadoEm: orcamento.created_at,
+          produtos: (orcamento.orcamento_itens || []).map((produto: any) => ({
+            item: produto.item,
+            quantidade: Number(produto.quantidade || 0),
+            preco: Number(produto.valor_unitario || 0),
+            codigo: produto.codigo_item || 'S/C',
+            estoqueId: produto.estoque_id || undefined
+          }))
+        };
+      }));
     };
 
     carregarDados();
@@ -91,6 +101,37 @@ const BudgetDashboard: React.FC = () => {
   });
 
   const formatarNumeroMoeda = (valor: number) => Number(valor || 0).toFixed(2).replace('.', ',');
+
+  const extrairFreteDasObservacoes = (observacoes: string) => {
+    const match = observacoes.match(/VALOR DO FRETE:\s*R\$\s*([\d.,]+)/i);
+    if (!match) return 0;
+    return Number.parseFloat(match[1].replace(/\./g, '').replace(',', '.')) || 0;
+  };
+
+  const extrairDescontoDasObservacoes = (observacoes: string) => {
+    const match = observacoes.match(/DESCONTO PARA CLIENTE:\s*R\$\s*([\d.,]+)/i);
+    if (!match) return 0;
+    return Number.parseFloat(match[1].replace(/\./g, '').replace(',', '.')) || 0;
+  };
+
+  const limparMarcadoresFinanceiros = (observacoes: string) => {
+    return observacoes
+      .replace(/\n?\s*VALOR DO FRETE:\s*R\$\s*[\d.,]+\s*/i, '\n')
+      .replace(/\n?\s*DESCONTO PARA CLIENTE:\s*R\$\s*[\d.,]+\s*/i, '\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trim();
+  };
+
+  const adicionarMarcadoresFinanceiros = (observacoes: string, frete: number, desconto: number) => {
+    const observacoesSemMarcadores = limparMarcadoresFinanceiros(observacoes);
+    const marcadores = [
+      frete > 0 ? `VALOR DO FRETE: R$ ${formatarNumeroMoeda(frete)}` : '',
+      desconto > 0 ? `DESCONTO PARA CLIENTE: R$ ${formatarNumeroMoeda(desconto)}` : ''
+    ].filter(Boolean);
+
+    if (marcadores.length === 0) return observacoesSemMarcadores;
+    return [observacoesSemMarcadores, ...marcadores].filter(Boolean).join('\n');
+  };
 
   const formatarNomeProprio = (valor: string) => {
     return valor
@@ -200,8 +241,11 @@ const BudgetDashboard: React.FC = () => {
     }, 0);
   };
 
+  const calcularFrete = () => Number.parseFloat(novoOrcamento.frete) || 0;
+  const calcularDesconto = () => Number.parseFloat(novoOrcamento.desconto) || 0;
+  const calcularValorTotal = () => Math.max(0, calcularTotalProdutos() + calcularFrete() - calcularDesconto());
   const calcularAdiantamento = () => Number.parseFloat(novoOrcamento.adiantamento) || 0;
-  const calcularSaldoRestante = () => Math.max(0, calcularTotalProdutos() - calcularAdiantamento());
+  const calcularSaldoRestante = () => Math.max(0, calcularValorTotal() - calcularAdiantamento());
 
   const atualizarProduto = (index: number, campo: 'item' | 'quantidade', valor: string | number) => {
     const lista = [...produtosSelecionados];
@@ -269,7 +313,9 @@ const BudgetDashboard: React.FC = () => {
       reserva: novoOrcamento.reserva,
       retirada: novoOrcamento.retirada,
       observacoes: observacoesComClienteAvulso,
-      valor: calcularTotalProdutos(),
+      valor: calcularValorTotal(),
+      frete: calcularFrete(),
+      desconto: calcularDesconto(),
       adiantamento: calcularAdiantamento(),
       saldoRestante: calcularSaldoRestante(),
       produtos,
@@ -277,20 +323,39 @@ const BudgetDashboard: React.FC = () => {
     };
 
     try {
-      const { data: orcamentoSalvo, error: erroOrcamento } = await db
+      const payloadOrcamento = {
+        cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
+        cliente_nome: item.cliente,
+        data_reserva: item.reserva,
+        data_retirada: item.retirada,
+        valor_total: item.valor,
+        valor_frete: item.frete,
+        valor_desconto: item.desconto,
+        adiantamento: item.adiantamento,
+        saldo_restante: item.saldoRestante,
+        observacoes: item.observacoes
+      };
+
+      let { data: orcamentoSalvo, error: erroOrcamento } = await db
         .from('orcamentos')
-        .insert([{
-          cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
-          cliente_nome: item.cliente,
-          data_reserva: item.reserva,
-          data_retirada: item.retirada,
-          valor_total: item.valor,
-          adiantamento: item.adiantamento,
-          saldo_restante: item.saldoRestante,
-          observacoes: item.observacoes
-        }])
+        .insert([payloadOrcamento])
         .select('*')
         .single();
+
+      if (erroOrcamento?.code === 'PGRST204' && /valor_(frete|desconto)/.test(String(erroOrcamento.message || ''))) {
+        const { valor_frete, valor_desconto, ...payloadSemColunasFinanceiras } = payloadOrcamento;
+        const resultadoCompatibilidade = await db
+          .from('orcamentos')
+          .insert([{
+            ...payloadSemColunasFinanceiras,
+            observacoes: adicionarMarcadoresFinanceiros(item.observacoes, item.frete, item.desconto)
+          }])
+          .select('*')
+          .single();
+
+        orcamentoSalvo = resultadoCompatibilidade.data;
+        erroOrcamento = resultadoCompatibilidade.error;
+      }
 
       if (erroOrcamento) throw erroOrcamento;
 
@@ -317,7 +382,7 @@ const BudgetDashboard: React.FC = () => {
       };
 
       setOrcamentos((prev) => [itemSalvo, ...prev]);
-      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
+      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', frete: '', desconto: '', adiantamento: '', observacoes: '' });
       setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
       setClienteAvulsoAtivo(false);
       setProdutosSelecionados([{ item: '', quantidade: 1 }]);
@@ -395,6 +460,8 @@ const BudgetDashboard: React.FC = () => {
               width: 100%;
             }
             .currency { text-align: left; white-space: nowrap; }
+            .money.negative { grid-template-columns: 18px 8px 1fr; }
+            .sign { text-align: left; white-space: nowrap; }
             .amount { text-align: right; }
             .obs { border: 1px solid #000; min-height: 60px; padding: 8px; font-size: 11px; margin-top: 12px; }
             .dates { margin-top: 18px; font-size: 12px; font-weight: 900; }
@@ -433,8 +500,14 @@ const BudgetDashboard: React.FC = () => {
                     <td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(produto.quantidade * produto.preco)}</span></span></td>
                   </tr>
                 `).join('')}
+                ${orcamento.frete > 0 ? `
+                  <tr class="totals blue"><td colspan="3" style="text-align:right;">VALOR DO FRETE</td><td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.frete)}</span></span></td></tr>
+                ` : ''}
+                ${orcamento.desconto > 0 ? `
+                  <tr class="totals blue"><td colspan="3" style="text-align:right;">DESCONTO PARA CLIENTE</td><td><span class="money negative"><span class="currency">R$</span><span class="sign">-</span><span class="amount">${formatarNumeroMoeda(orcamento.desconto)}</span></span></td></tr>
+                ` : ''}
                 ${orcamento.adiantamento > 0 ? `
-                  <tr class="totals blue"><td colspan="3" style="text-align:right;">ADIANTAMENTO</td><td><span class="money"><span class="currency">- R$</span><span class="amount">${formatarNumeroMoeda(orcamento.adiantamento)}</span></span></td></tr>
+                  <tr class="totals blue"><td colspan="3" style="text-align:right;">ADIANTAMENTO</td><td><span class="money negative"><span class="currency">R$</span><span class="sign">-</span><span class="amount">${formatarNumeroMoeda(orcamento.adiantamento)}</span></span></td></tr>
                   <tr class="totals blue"><td colspan="3" style="text-align:right;">SALDO RESTANTE</td><td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.saldoRestante)}</span></span></td></tr>
                 ` : ''}
                 <tr class="totals"><td colspan="3" style="text-align:right;">VALOR TOTAL</td><td style="background:#eee;"><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.valor)}</span></span></td></tr>
@@ -514,6 +587,18 @@ const BudgetDashboard: React.FC = () => {
               </div>
               <div className="mt-5 border-t border-orange-100 pt-4">
                 <p className="text-2xl font-black text-[#b24a2b]">{formatarMoeda(orcamento.valor)}</p>
+                {orcamento.frete > 0 && (
+                  <div className="mt-2 flex justify-between text-[11px] font-black uppercase text-orange-700">
+                    <span>Valor do frete:</span>
+                    <span>{formatarMoeda(orcamento.frete)}</span>
+                  </div>
+                )}
+                {orcamento.desconto > 0 && (
+                  <div className="mt-2 flex justify-between text-[11px] font-black uppercase text-green-600">
+                    <span>Desconto para cliente:</span>
+                    <span>{formatarMoeda(orcamento.desconto)}</span>
+                  </div>
+                )}
                 {orcamento.adiantamento > 0 && (
                   <div className="mt-2 space-y-1 text-[11px] font-black uppercase">
                     <div className="flex justify-between text-blue-600">
@@ -723,10 +808,34 @@ const BudgetDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div className="w-full p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl text-[#b24a2b]">
                   <span className="block text-[9px] font-black uppercase tracking-widest text-orange-400">Valor total</span>
-                  <strong className="text-xl font-black">{formatarMoeda(calcularTotalProdutos())}</strong>
+                  <strong className="text-xl font-black">{formatarMoeda(calcularValorTotal())}</strong>
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest ml-3 mb-2 block">Valor do frete (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={novoOrcamento.frete}
+                    onChange={(e) => setNovoOrcamento({ ...novoOrcamento, frete: e.target.value })}
+                    className="w-full p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl outline-none font-black text-xl text-[#b24a2b] focus:border-orange-300"
+                    placeholder="R$ 0,00"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-green-600 uppercase tracking-widest ml-3 mb-2 block">Desconto para cliente (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={novoOrcamento.desconto}
+                    onChange={(e) => setNovoOrcamento({ ...novoOrcamento, desconto: e.target.value })}
+                    className="w-full p-4 bg-green-50 border-2 border-green-100 rounded-2xl outline-none font-black text-xl text-green-600 focus:border-green-300"
+                    placeholder="R$ 0,00"
+                  />
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest ml-3 mb-2 block">Adiantamento</label>
@@ -749,7 +858,7 @@ const BudgetDashboard: React.FC = () => {
                     value={calcularSaldoRestante()}
                     onChange={(e) => {
                       const novoSaldo = Number.parseFloat(e.target.value) || 0;
-                      const novoAdiantamento = Math.max(0, calcularTotalProdutos() - novoSaldo);
+                      const novoAdiantamento = Math.max(0, calcularValorTotal() - novoSaldo);
                       setNovoOrcamento({ ...novoOrcamento, adiantamento: String(novoAdiantamento) });
                     }}
                     className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-black text-xl text-gray-700 focus:border-[#b24a2b]"
