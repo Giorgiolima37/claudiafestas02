@@ -12,6 +12,7 @@ interface SidebarProps {
   currentPresenceSessionId?: string;
   onLogoutSession?: (sessionId: string) => void;
   onOpenAdmin?: () => void;
+  onLogout?: () => void;
 }
 
 interface WeatherData {
@@ -89,7 +90,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeUserDetails = [],
   currentPresenceSessionId,
   onLogoutSession,
-  onOpenAdmin
+  onOpenAdmin,
+  onLogout
 }) => {
   const currentTheme = getSidebarTheme();
   const [sidebarTone, setSidebarTone] = useState<number>(() => {
@@ -224,17 +226,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         color: '#ffffff'
       }}
     >
-      <div className="fixed right-10 top-7 z-[80] flex items-center gap-3">
-        <a
-          href="https://wa.me/48991347343"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-2 shadow-md transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
-          title="Suporte via WhatsApp"
-        >
-          <i className="fa-brands fa-whatsapp text-lg"></i>
-          <span>Suporte do Sistema</span>
-        </a>
+      <div className="fixed right-6 top-7 z-[80] flex items-center gap-2">
         <div className="relative flex flex-col items-center gap-2">
           <button
             type="button"
@@ -251,6 +243,14 @@ const Sidebar: React.FC<SidebarProps> = ({
             title="Administrador"
           >
             <i className="fa-solid fa-gear text-sm"></i>
+          </button>
+          <button
+            type="button"
+            onClick={onLogout}
+            className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            title="Deslogar"
+          >
+            <i className="fa-solid fa-door-open text-sm"></i>
           </button>
         </div>
 
@@ -582,6 +582,17 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </div>
+
+      <a
+        href="https://wa.me/48991347343"
+        target="_blank"
+        rel="noopener noreferrer"
+        className="mb-5 -mt-1 mx-auto bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-[9px] uppercase tracking-wider py-2 px-4 rounded-full flex items-center justify-center gap-1.5 shadow-md transition-all duration-300 transform-gpu hover:scale-105 active:scale-[0.98]"
+        title="Suporte via WhatsApp"
+      >
+        <i className="fa-brands fa-whatsapp text-sm"></i>
+        <span>Suporte do Sistema</span>
+      </a>
 
     </div>
   );
