@@ -59,6 +59,22 @@ const BudgetDashboard: React.FC = () => {
       setEstoque(resEstoque.data || []);
       setOrcamentos((resOrcamentos.data || []).map((orcamento: any) => {
         const observacoes = orcamento.observacoes || '';
+        const produtos = (orcamento.orcamento_itens || []).map((produto: any) => ({
+          item: produto.item,
+          quantidade: Number(produto.quantidade || 0),
+          preco: Number(produto.valor_unitario || 0),
+          codigo: produto.codigo_item || 'S/C',
+          estoqueId: produto.estoque_id || undefined
+        }));
+        const frete = Number(orcamento.valor_frete || extrairFreteDasObservacoes(observacoes) || 0);
+        const desconto = Number(orcamento.valor_desconto || extrairDescontoDasObservacoes(observacoes) || 0);
+        const adiantamento = Number(orcamento.adiantamento || 0);
+        const subtotalProdutos = produtos.reduce((acc: number, produto: BudgetItem['produtos'][number]) => (
+          acc + (produto.quantidade * produto.preco)
+        ), 0);
+        const valor = produtos.length > 0
+          ? calcularValorFinal(subtotalProdutos, frete, desconto)
+          : Number(orcamento.valor_total || 0);
 
         return {
           id: String(orcamento.id),
@@ -66,19 +82,13 @@ const BudgetDashboard: React.FC = () => {
           reserva: orcamento.data_reserva,
           retirada: orcamento.data_retirada,
           observacoes: limparMarcadoresFinanceiros(observacoes),
-          valor: Number(orcamento.valor_total || 0),
-          frete: Number(orcamento.valor_frete || extrairFreteDasObservacoes(observacoes) || 0),
-          desconto: Number(orcamento.valor_desconto || extrairDescontoDasObservacoes(observacoes) || 0),
-          adiantamento: Number(orcamento.adiantamento || 0),
-          saldoRestante: Number(orcamento.saldo_restante || 0),
+          valor,
+          frete,
+          desconto,
+          adiantamento,
+          saldoRestante: Math.max(0, valor - adiantamento),
           criadoEm: orcamento.created_at,
-          produtos: (orcamento.orcamento_itens || []).map((produto: any) => ({
-            item: produto.item,
-            quantidade: Number(produto.quantidade || 0),
-            preco: Number(produto.valor_unitario || 0),
-            codigo: produto.codigo_item || 'S/C',
-            estoqueId: produto.estoque_id || undefined
-          }))
+          produtos
         };
       }));
     };
@@ -101,6 +111,10 @@ const BudgetDashboard: React.FC = () => {
   });
 
   const formatarNumeroMoeda = (valor: number) => Number(valor || 0).toFixed(2).replace('.', ',');
+
+  const calcularValorFinal = (subtotal: number, frete: number, desconto: number) => {
+    return Math.max(0, subtotal + frete - desconto);
+  };
 
   const extrairFreteDasObservacoes = (observacoes: string) => {
     const match = observacoes.match(/VALOR DO FRETE:\s*R\$\s*([\d.,]+)/i);
@@ -243,9 +257,9 @@ const BudgetDashboard: React.FC = () => {
 
   const calcularFrete = () => Number.parseFloat(novoOrcamento.frete) || 0;
   const calcularDesconto = () => Number.parseFloat(novoOrcamento.desconto) || 0;
-  const calcularValorTotal = () => calcularTotalProdutos() + calcularFrete();
+  const calcularValorTotal = () => calcularValorFinal(calcularTotalProdutos(), calcularFrete(), calcularDesconto());
   const calcularAdiantamento = () => Number.parseFloat(novoOrcamento.adiantamento) || 0;
-  const calcularSaldoRestante = () => Math.max(0, calcularValorTotal() - calcularDesconto() - calcularAdiantamento());
+  const calcularSaldoRestante = () => Math.max(0, calcularValorTotal() - calcularAdiantamento());
 
   const atualizarProduto = (index: number, campo: 'item' | 'quantidade', valor: string | number) => {
     const lista = [...produtosSelecionados];
