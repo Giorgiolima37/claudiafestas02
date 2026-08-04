@@ -25,6 +25,7 @@ const BudgetDashboard: React.FC = () => {
   const [buscaCliente, setBuscaCliente] = useState('');
   const [buscaProduto, setBuscaProduto] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
+  const [orcamentoEmEdicao, setOrcamentoEmEdicao] = useState<BudgetItem | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [clienteAvulsoAtivo, setClienteAvulsoAtivo] = useState(false);
@@ -275,6 +276,26 @@ const BudgetDashboard: React.FC = () => {
     setProdutosSelecionados((prev) => prev.filter((_, idx) => idx !== index));
   };
 
+  const limparFormulario = () => {
+    setNovoOrcamento({ cliente: '', reserva: '', retirada: '', frete: '', desconto: '', adiantamento: '', observacoes: '' });
+    setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
+    setClienteAvulsoAtivo(false);
+    setProdutosSelecionados([{ item: '', quantidade: 1 }]);
+    setBuscaCliente('');
+    setBuscaProduto('');
+    setOrcamentoEmEdicao(null);
+  };
+
+  const abrirNovoOrcamento = () => {
+    limparFormulario();
+    setModalAberto(true);
+  };
+
+  const fecharModal = () => {
+    setModalAberto(false);
+    limparFormulario();
+  };
+
   const salvarOrcamento = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -350,28 +371,63 @@ const BudgetDashboard: React.FC = () => {
         observacoes: item.observacoes
       };
 
-      let { data: orcamentoSalvo, error: erroOrcamento } = await db
-        .from('orcamentos')
-        .insert([payloadOrcamento])
-        .select('*')
-        .single();
+      let orcamentoSalvo: any = null;
+      let erroOrcamento: any = null;
+
+      if (orcamentoEmEdicao) {
+        const resultadoUpdate = await db
+          .from('orcamentos')
+          .update(payloadOrcamento)
+          .eq('id', orcamentoEmEdicao.id)
+          .select('*')
+          .single();
+
+        orcamentoSalvo = resultadoUpdate.data;
+        erroOrcamento = resultadoUpdate.error;
+      } else {
+        const resultadoInsert = await db
+          .from('orcamentos')
+          .insert([payloadOrcamento])
+          .select('*')
+          .single();
+
+        orcamentoSalvo = resultadoInsert.data;
+        erroOrcamento = resultadoInsert.error;
+      }
 
       if (erroOrcamento?.code === 'PGRST204' && /valor_(frete|desconto)/.test(String(erroOrcamento.message || ''))) {
         const { valor_frete, valor_desconto, ...payloadSemColunasFinanceiras } = payloadOrcamento;
-        const resultadoCompatibilidade = await db
-          .from('orcamentos')
-          .insert([{
-            ...payloadSemColunasFinanceiras,
-            observacoes: adicionarMarcadoresFinanceiros(item.observacoes, item.frete, item.desconto)
-          }])
-          .select('*')
-          .single();
+        const payloadCompatibilidade = {
+          ...payloadSemColunasFinanceiras,
+          observacoes: adicionarMarcadoresFinanceiros(item.observacoes, item.frete, item.desconto)
+        };
+        const resultadoCompatibilidade = orcamentoEmEdicao
+          ? await db
+            .from('orcamentos')
+            .update(payloadCompatibilidade)
+            .eq('id', orcamentoEmEdicao.id)
+            .select('*')
+            .single()
+          : await db
+            .from('orcamentos')
+            .insert([payloadCompatibilidade])
+            .select('*')
+            .single();
 
         orcamentoSalvo = resultadoCompatibilidade.data;
         erroOrcamento = resultadoCompatibilidade.error;
       }
 
       if (erroOrcamento) throw erroOrcamento;
+
+      if (orcamentoEmEdicao) {
+        const { error: erroRemoverItens } = await db
+          .from('orcamento_itens')
+          .delete()
+          .eq('orcamento_id', orcamentoEmEdicao.id);
+
+        if (erroRemoverItens) throw erroRemoverItens;
+      }
 
       const itensParaSalvar = produtos.map((produto) => ({
         orcamento_id: orcamentoSalvo.id,
@@ -395,15 +451,13 @@ const BudgetDashboard: React.FC = () => {
         criadoEm: orcamentoSalvo.created_at
       };
 
-      setOrcamentos((prev) => [itemSalvo, ...prev]);
-      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', frete: '', desconto: '', adiantamento: '', observacoes: '' });
-      setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
-      setClienteAvulsoAtivo(false);
-      setProdutosSelecionados([{ item: '', quantidade: 1 }]);
-      setBuscaCliente('');
-      setBuscaProduto('');
+      setOrcamentos((prev) => orcamentoEmEdicao
+        ? prev.map((orcamento) => orcamento.id === itemSalvo.id ? itemSalvo : orcamento)
+        : [itemSalvo, ...prev]
+      );
+      limparFormulario();
       setModalAberto(false);
-      alert('Orçamento salvo no Supabase com sucesso!');
+      alert(orcamentoEmEdicao ? 'Orçamento atualizado com sucesso!' : 'Orçamento salvo no Supabase com sucesso!');
     } catch (err: any) {
       console.error('Erro ao salvar orçamento:', err);
       alert(`Erro ao salvar orçamento: ${err.message || 'verifique o console.'}`);
@@ -438,6 +492,47 @@ const BudgetDashboard: React.FC = () => {
       dadosCliente: blocoDados.replace(/\n/g, ' ').trim(),
       observacoesLimpas: restante.join('\n\n').trim()
     };
+  };
+
+  const extrairCampoClienteAvulso = (dadosCliente: string, campo: string) => {
+    const match = dadosCliente.match(new RegExp(`${campo}:\\s*([^\\n]+)`, 'i'));
+    return match?.[1]?.trim() || '';
+  };
+
+  const abrirEdicaoOrcamento = (orcamento: BudgetItem) => {
+    const clienteCadastrado = clientes.find((cliente) => cliente.cliente === orcamento.cliente);
+    const { observacoesLimpas } = separarDadosClienteAvulso(orcamento.observacoes);
+    const usaClienteAvulso = !clienteCadastrado || orcamento.observacoes.startsWith('DADOS DO CLIENTE AVULSO:');
+    const blocoClienteAvulso = usaClienteAvulso
+      ? orcamento.observacoes.replace('DADOS DO CLIENTE AVULSO:', '').split('\n\n')[0] || ''
+      : '';
+
+    setOrcamentoEmEdicao(orcamento);
+    setClienteAvulsoAtivo(usaClienteAvulso);
+    setNovoOrcamento({
+      cliente: usaClienteAvulso ? '' : orcamento.cliente,
+      reserva: orcamento.reserva || '',
+      retirada: orcamento.retirada || '',
+      frete: orcamento.frete ? String(orcamento.frete) : '',
+      desconto: orcamento.desconto ? String(orcamento.desconto) : '',
+      adiantamento: orcamento.adiantamento ? String(orcamento.adiantamento) : '',
+      observacoes: observacoesLimpas
+    });
+    setClienteAvulso({
+      nome: usaClienteAvulso ? orcamento.cliente : '',
+      telefone: extrairCampoClienteAvulso(blocoClienteAvulso, 'Telefone'),
+      documento: extrairCampoClienteAvulso(blocoClienteAvulso, 'Documento'),
+      cep: extrairCampoClienteAvulso(blocoClienteAvulso, 'CEP'),
+      endereco: extrairCampoClienteAvulso(blocoClienteAvulso, 'Endereco'),
+      complemento: extrairCampoClienteAvulso(blocoClienteAvulso, 'Complemento')
+    });
+    setProdutosSelecionados(orcamento.produtos.length > 0
+      ? orcamento.produtos.map((produto) => ({ item: produto.item, quantidade: produto.quantidade }))
+      : [{ item: '', quantidade: 1 }]
+    );
+    setBuscaCliente('');
+    setBuscaProduto('');
+    setModalAberto(true);
   };
 
   const gerarDocumentoOrcamento = (orcamento: BudgetItem) => {
@@ -555,7 +650,7 @@ const BudgetDashboard: React.FC = () => {
         />
         <button
           type="button"
-          onClick={() => setModalAberto(true)}
+          onClick={abrirNovoOrcamento}
           className="w-full md:w-auto px-6 py-4 bg-[#b24a2b] text-white rounded-full font-black uppercase text-xs tracking-widest shadow-lg hover:bg-[#943a20] active:scale-95 transition-all"
         >
           <i className="fa-solid fa-plus mr-2"></i>
@@ -589,6 +684,14 @@ const BudgetDashboard: React.FC = () => {
                   title="Abrir orçamento"
                 >
                   <i className="fa-solid fa-file-contract text-xs"></i>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => abrirEdicaoOrcamento(orcamento)}
+                  className="mr-2 w-9 h-9 rounded-full bg-amber-500 text-white shadow-sm hover:scale-105 transition-transform"
+                  title="Editar orçamento"
+                >
+                  <i className="fa-solid fa-pen-to-square text-xs"></i>
                 </button>
                 <button
                   type="button"
@@ -648,7 +751,9 @@ const BudgetDashboard: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={salvarOrcamento} className="bg-white rounded-[36px] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-orange-100 animate-in zoom-in duration-200">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-black text-gray-800 uppercase italic">Novo Orçamento</h2>
+              <h2 className="text-xl font-black text-gray-800 uppercase italic">
+                {orcamentoEmEdicao ? 'Editar Orçamento' : 'Novo Orçamento'}
+              </h2>
               <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">Preencha os dados principais</p>
             </div>
 
@@ -872,7 +977,7 @@ const BudgetDashboard: React.FC = () => {
                     value={calcularSaldoRestante()}
                     onChange={(e) => {
                       const novoSaldo = Number.parseFloat(e.target.value) || 0;
-                      const novoAdiantamento = Math.max(0, calcularValorTotal() - calcularDesconto() - novoSaldo);
+                      const novoAdiantamento = Math.max(0, calcularValorTotal() - novoSaldo);
                       setNovoOrcamento({ ...novoOrcamento, adiantamento: String(novoAdiantamento) });
                     }}
                     className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-black text-xl text-gray-700 focus:border-[#b24a2b]"
@@ -891,7 +996,7 @@ const BudgetDashboard: React.FC = () => {
             <div className="flex gap-3 mt-6">
               <button
                 type="button"
-                onClick={() => setModalAberto(false)}
+                onClick={fecharModal}
                 className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200"
               >
                 Voltar
@@ -901,7 +1006,7 @@ const BudgetDashboard: React.FC = () => {
                 disabled={salvando}
                 className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {salvando ? 'Salvando...' : 'Salvar'}
+                {salvando ? 'Salvando...' : orcamentoEmEdicao ? 'Atualizar' : 'Salvar'}
               </button>
             </div>
           </form>
