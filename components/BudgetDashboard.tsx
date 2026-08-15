@@ -9,8 +9,6 @@ interface BudgetItem {
   retirada: string;
   observacoes: string;
   valor: number;
-  frete: number;
-  desconto: number;
   adiantamento: number;
   saldoRestante: number;
   produtos: Array<{ item: string; quantidade: number; preco: number; codigo: string; estoqueId?: string }>;
@@ -25,7 +23,6 @@ const BudgetDashboard: React.FC = () => {
   const [buscaCliente, setBuscaCliente] = useState('');
   const [buscaProduto, setBuscaProduto] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
-  const [orcamentoEmEdicao, setOrcamentoEmEdicao] = useState<BudgetItem | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [clienteAvulsoAtivo, setClienteAvulsoAtivo] = useState(false);
@@ -41,8 +38,6 @@ const BudgetDashboard: React.FC = () => {
     cliente: '',
     reserva: '',
     retirada: '',
-    frete: '',
-    desconto: '',
     adiantamento: '',
     observacoes: ''
   });
@@ -58,40 +53,24 @@ const BudgetDashboard: React.FC = () => {
 
       setClientes(resClientes.data || []);
       setEstoque(resEstoque.data || []);
-      setOrcamentos((resOrcamentos.data || []).map((orcamento: any) => {
-        const observacoes = orcamento.observacoes || '';
-        const produtos = (orcamento.orcamento_itens || []).map((produto: any) => ({
+      setOrcamentos((resOrcamentos.data || []).map((orcamento: any) => ({
+        id: String(orcamento.id),
+        cliente: orcamento.cliente_nome,
+        reserva: orcamento.data_reserva,
+        retirada: orcamento.data_retirada,
+        observacoes: orcamento.observacoes || '',
+        valor: Number(orcamento.valor_total || 0),
+        adiantamento: Number(orcamento.adiantamento || 0),
+        saldoRestante: Number(orcamento.saldo_restante || 0),
+        criadoEm: orcamento.created_at,
+        produtos: (orcamento.orcamento_itens || []).map((produto: any) => ({
           item: produto.item,
           quantidade: Number(produto.quantidade || 0),
           preco: Number(produto.valor_unitario || 0),
           codigo: produto.codigo_item || 'S/C',
           estoqueId: produto.estoque_id || undefined
-        }));
-        const frete = Number(orcamento.valor_frete || extrairFreteDasObservacoes(observacoes) || 0);
-        const desconto = Number(orcamento.valor_desconto || extrairDescontoDasObservacoes(observacoes) || 0);
-        const adiantamento = Number(orcamento.adiantamento || 0);
-        const subtotalProdutos = produtos.reduce((acc: number, produto: BudgetItem['produtos'][number]) => (
-          acc + (produto.quantidade * produto.preco)
-        ), 0);
-        const valor = produtos.length > 0
-          ? calcularValorFinal(subtotalProdutos, frete, desconto)
-          : Number(orcamento.valor_total || 0);
-
-        return {
-          id: String(orcamento.id),
-          cliente: orcamento.cliente_nome,
-          reserva: orcamento.data_reserva,
-          retirada: orcamento.data_retirada,
-          observacoes: limparMarcadoresFinanceiros(observacoes),
-          valor,
-          frete,
-          desconto,
-          adiantamento,
-          saldoRestante: Math.max(0, valor - adiantamento),
-          criadoEm: orcamento.created_at,
-          produtos
-        };
-      }));
+        }))
+      })));
     };
 
     carregarDados();
@@ -112,41 +91,6 @@ const BudgetDashboard: React.FC = () => {
   });
 
   const formatarNumeroMoeda = (valor: number) => Number(valor || 0).toFixed(2).replace('.', ',');
-
-  const calcularValorFinal = (subtotal: number, frete: number, desconto: number) => {
-    return Math.max(0, subtotal + frete - desconto);
-  };
-
-  const extrairFreteDasObservacoes = (observacoes: string) => {
-    const match = observacoes.match(/VALOR DO FRETE:\s*R\$\s*([\d.,]+)/i);
-    if (!match) return 0;
-    return Number.parseFloat(match[1].replace(/\./g, '').replace(',', '.')) || 0;
-  };
-
-  const extrairDescontoDasObservacoes = (observacoes: string) => {
-    const match = observacoes.match(/DESCONTO PARA CLIENTE:\s*R\$\s*([\d.,]+)/i);
-    if (!match) return 0;
-    return Number.parseFloat(match[1].replace(/\./g, '').replace(',', '.')) || 0;
-  };
-
-  const limparMarcadoresFinanceiros = (observacoes: string) => {
-    return observacoes
-      .replace(/\n?\s*VALOR DO FRETE:\s*R\$\s*[\d.,]+\s*/i, '\n')
-      .replace(/\n?\s*DESCONTO PARA CLIENTE:\s*R\$\s*[\d.,]+\s*/i, '\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trim();
-  };
-
-  const adicionarMarcadoresFinanceiros = (observacoes: string, frete: number, desconto: number) => {
-    const observacoesSemMarcadores = limparMarcadoresFinanceiros(observacoes);
-    const marcadores = [
-      frete > 0 ? `VALOR DO FRETE: R$ ${formatarNumeroMoeda(frete)}` : '',
-      desconto > 0 ? `DESCONTO PARA CLIENTE: R$ ${formatarNumeroMoeda(desconto)}` : ''
-    ].filter(Boolean);
-
-    if (marcadores.length === 0) return observacoesSemMarcadores;
-    return [observacoesSemMarcadores, ...marcadores].filter(Boolean).join('\n');
-  };
 
   const formatarNomeProprio = (valor: string) => {
     return valor
@@ -256,11 +200,8 @@ const BudgetDashboard: React.FC = () => {
     }, 0);
   };
 
-  const calcularFrete = () => Number.parseFloat(novoOrcamento.frete) || 0;
-  const calcularDesconto = () => Number.parseFloat(novoOrcamento.desconto) || 0;
-  const calcularValorTotal = () => calcularValorFinal(calcularTotalProdutos(), calcularFrete(), calcularDesconto());
   const calcularAdiantamento = () => Number.parseFloat(novoOrcamento.adiantamento) || 0;
-  const calcularSaldoRestante = () => Math.max(0, calcularValorTotal() - calcularAdiantamento());
+  const calcularSaldoRestante = () => Math.max(0, calcularTotalProdutos() - calcularAdiantamento());
 
   const atualizarProduto = (index: number, campo: 'item' | 'quantidade', valor: string | number) => {
     const lista = [...produtosSelecionados];
@@ -274,26 +215,6 @@ const BudgetDashboard: React.FC = () => {
 
   const removerProduto = (index: number) => {
     setProdutosSelecionados((prev) => prev.filter((_, idx) => idx !== index));
-  };
-
-  const limparFormulario = () => {
-    setNovoOrcamento({ cliente: '', reserva: '', retirada: '', frete: '', desconto: '', adiantamento: '', observacoes: '' });
-    setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
-    setClienteAvulsoAtivo(false);
-    setProdutosSelecionados([{ item: '', quantidade: 1 }]);
-    setBuscaCliente('');
-    setBuscaProduto('');
-    setOrcamentoEmEdicao(null);
-  };
-
-  const abrirNovoOrcamento = () => {
-    limparFormulario();
-    setModalAberto(true);
-  };
-
-  const fecharModal = () => {
-    setModalAberto(false);
-    limparFormulario();
   };
 
   const salvarOrcamento = async (e: React.FormEvent) => {
@@ -348,9 +269,7 @@ const BudgetDashboard: React.FC = () => {
       reserva: novoOrcamento.reserva,
       retirada: novoOrcamento.retirada,
       observacoes: observacoesComClienteAvulso,
-      valor: calcularValorTotal(),
-      frete: calcularFrete(),
-      desconto: calcularDesconto(),
+      valor: calcularTotalProdutos(),
       adiantamento: calcularAdiantamento(),
       saldoRestante: calcularSaldoRestante(),
       produtos,
@@ -358,76 +277,22 @@ const BudgetDashboard: React.FC = () => {
     };
 
     try {
-      const payloadOrcamento = {
-        cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
-        cliente_nome: item.cliente,
-        data_reserva: item.reserva,
-        data_retirada: item.retirada,
-        valor_total: item.valor,
-        valor_frete: item.frete,
-        valor_desconto: item.desconto,
-        adiantamento: item.adiantamento,
-        saldo_restante: item.saldoRestante,
-        observacoes: item.observacoes
-      };
-
-      let orcamentoSalvo: any = null;
-      let erroOrcamento: any = null;
-
-      if (orcamentoEmEdicao) {
-        const resultadoUpdate = await db
-          .from('orcamentos')
-          .update(payloadOrcamento)
-          .eq('id', orcamentoEmEdicao.id)
-          .select('*')
-          .single();
-
-        orcamentoSalvo = resultadoUpdate.data;
-        erroOrcamento = resultadoUpdate.error;
-      } else {
-        const resultadoInsert = await db
-          .from('orcamentos')
-          .insert([payloadOrcamento])
-          .select('*')
-          .single();
-
-        orcamentoSalvo = resultadoInsert.data;
-        erroOrcamento = resultadoInsert.error;
-      }
-
-      if (erroOrcamento?.code === 'PGRST204' && /valor_(frete|desconto)/.test(String(erroOrcamento.message || ''))) {
-        const { valor_frete, valor_desconto, ...payloadSemColunasFinanceiras } = payloadOrcamento;
-        const payloadCompatibilidade = {
-          ...payloadSemColunasFinanceiras,
-          observacoes: adicionarMarcadoresFinanceiros(item.observacoes, item.frete, item.desconto)
-        };
-        const resultadoCompatibilidade = orcamentoEmEdicao
-          ? await db
-            .from('orcamentos')
-            .update(payloadCompatibilidade)
-            .eq('id', orcamentoEmEdicao.id)
-            .select('*')
-            .single()
-          : await db
-            .from('orcamentos')
-            .insert([payloadCompatibilidade])
-            .select('*')
-            .single();
-
-        orcamentoSalvo = resultadoCompatibilidade.data;
-        erroOrcamento = resultadoCompatibilidade.error;
-      }
+      const { data: orcamentoSalvo, error: erroOrcamento } = await db
+        .from('orcamentos')
+        .insert([{
+          cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
+          cliente_nome: item.cliente,
+          data_reserva: item.reserva,
+          data_retirada: item.retirada,
+          valor_total: item.valor,
+          adiantamento: item.adiantamento,
+          saldo_restante: item.saldoRestante,
+          observacoes: item.observacoes
+        }])
+        .select('*')
+        .single();
 
       if (erroOrcamento) throw erroOrcamento;
-
-      if (orcamentoEmEdicao) {
-        const { error: erroRemoverItens } = await db
-          .from('orcamento_itens')
-          .delete()
-          .eq('orcamento_id', orcamentoEmEdicao.id);
-
-        if (erroRemoverItens) throw erroRemoverItens;
-      }
 
       const itensParaSalvar = produtos.map((produto) => ({
         orcamento_id: orcamentoSalvo.id,
@@ -451,13 +316,15 @@ const BudgetDashboard: React.FC = () => {
         criadoEm: orcamentoSalvo.created_at
       };
 
-      setOrcamentos((prev) => orcamentoEmEdicao
-        ? prev.map((orcamento) => orcamento.id === itemSalvo.id ? itemSalvo : orcamento)
-        : [itemSalvo, ...prev]
-      );
-      limparFormulario();
+      setOrcamentos((prev) => [itemSalvo, ...prev]);
+      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
+      setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
+      setClienteAvulsoAtivo(false);
+      setProdutosSelecionados([{ item: '', quantidade: 1 }]);
+      setBuscaCliente('');
+      setBuscaProduto('');
       setModalAberto(false);
-      alert(orcamentoEmEdicao ? 'Orçamento atualizado com sucesso!' : 'Orçamento salvo no Supabase com sucesso!');
+      alert('Orçamento salvo no Supabase com sucesso!');
     } catch (err: any) {
       console.error('Erro ao salvar orçamento:', err);
       alert(`Erro ao salvar orçamento: ${err.message || 'verifique o console.'}`);
@@ -494,47 +361,6 @@ const BudgetDashboard: React.FC = () => {
     };
   };
 
-  const extrairCampoClienteAvulso = (dadosCliente: string, campo: string) => {
-    const match = dadosCliente.match(new RegExp(`${campo}:\\s*([^\\n]+)`, 'i'));
-    return match?.[1]?.trim() || '';
-  };
-
-  const abrirEdicaoOrcamento = (orcamento: BudgetItem) => {
-    const clienteCadastrado = clientes.find((cliente) => cliente.cliente === orcamento.cliente);
-    const { observacoesLimpas } = separarDadosClienteAvulso(orcamento.observacoes);
-    const usaClienteAvulso = !clienteCadastrado || orcamento.observacoes.startsWith('DADOS DO CLIENTE AVULSO:');
-    const blocoClienteAvulso = usaClienteAvulso
-      ? orcamento.observacoes.replace('DADOS DO CLIENTE AVULSO:', '').split('\n\n')[0] || ''
-      : '';
-
-    setOrcamentoEmEdicao(orcamento);
-    setClienteAvulsoAtivo(usaClienteAvulso);
-    setNovoOrcamento({
-      cliente: usaClienteAvulso ? '' : orcamento.cliente,
-      reserva: orcamento.reserva || '',
-      retirada: orcamento.retirada || '',
-      frete: orcamento.frete ? String(orcamento.frete) : '',
-      desconto: orcamento.desconto ? String(orcamento.desconto) : '',
-      adiantamento: orcamento.adiantamento ? String(orcamento.adiantamento) : '',
-      observacoes: observacoesLimpas
-    });
-    setClienteAvulso({
-      nome: usaClienteAvulso ? orcamento.cliente : '',
-      telefone: extrairCampoClienteAvulso(blocoClienteAvulso, 'Telefone'),
-      documento: extrairCampoClienteAvulso(blocoClienteAvulso, 'Documento'),
-      cep: extrairCampoClienteAvulso(blocoClienteAvulso, 'CEP'),
-      endereco: extrairCampoClienteAvulso(blocoClienteAvulso, 'Endereco'),
-      complemento: extrairCampoClienteAvulso(blocoClienteAvulso, 'Complemento')
-    });
-    setProdutosSelecionados(orcamento.produtos.length > 0
-      ? orcamento.produtos.map((produto) => ({ item: produto.item, quantidade: produto.quantidade }))
-      : [{ item: '', quantidade: 1 }]
-    );
-    setBuscaCliente('');
-    setBuscaProduto('');
-    setModalAberto(true);
-  };
-
   const gerarDocumentoOrcamento = (orcamento: BudgetItem) => {
     const cliente = clientes.find((item) => item.cliente === orcamento.cliente) || {};
     const { dadosCliente, observacoesLimpas } = separarDadosClienteAvulso(orcamento.observacoes);
@@ -545,9 +371,16 @@ const BudgetDashboard: React.FC = () => {
       <html>
         <head>
           <title>ORÇAMENTO - ${orcamento.cliente}</title>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
           <style>
             @page { size: A4; margin: 0; }
             body { font-family: Arial, Helvetica, sans-serif; margin: 0; padding: 5mm 0; width: 210mm; min-height: 297mm; display: flex; justify-content: center; box-sizing: border-box; }
+            .preview-toolbar { position: fixed; top: 16px; right: 20px; z-index: 10; display: flex; gap: 10px; padding: 10px; border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: 0 8px 30px rgba(0,0,0,.18); }
+            .preview-action { border: 0; border-radius: 999px; padding: 11px 16px; color: white; font-weight: 800; cursor: pointer; font-size: 13px; }
+            .preview-action.print { background: #2563eb; }
+            .preview-action.whatsapp { background: #16a34a; }
+            @media print { .preview-toolbar { display: none !important; } }
             .page-container { width: 200mm; min-height: 285mm; padding: 10px; border: 2px solid black; box-sizing: border-box; }
             .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
             .company-name { font-weight: 900; font-size: 16px; color: #1e40af; text-decoration: underline; }
@@ -569,8 +402,6 @@ const BudgetDashboard: React.FC = () => {
               width: 100%;
             }
             .currency { text-align: left; white-space: nowrap; }
-            .money.negative { grid-template-columns: 18px 8px 1fr; }
-            .sign { text-align: left; white-space: nowrap; }
             .amount { text-align: right; }
             .obs { border: 1px solid #000; min-height: 60px; padding: 8px; font-size: 11px; margin-top: 12px; }
             .dates { margin-top: 18px; font-size: 12px; font-weight: 900; }
@@ -579,7 +410,11 @@ const BudgetDashboard: React.FC = () => {
           </style>
         </head>
         <body>
-          <div class="page-container">
+          <div class="preview-toolbar">
+            <button class="preview-action print" type="button" onclick="window.print()">Imprimir</button>
+            <button class="preview-action whatsapp" type="button" onclick="enviarOrcamentoPdf(this)">Enviar PDF pelo WhatsApp</button>
+          </div>
+          <div id="orcamento-pdf" class="page-container">
             <div class="header">
               <div>
                 <div class="company-name">LOCAÇÃO DE ARTIGOS PARA FESTAS</div>
@@ -609,14 +444,8 @@ const BudgetDashboard: React.FC = () => {
                     <td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(produto.quantidade * produto.preco)}</span></span></td>
                   </tr>
                 `).join('')}
-                ${orcamento.frete > 0 ? `
-                  <tr class="totals blue"><td colspan="3" style="text-align:right;">VALOR DO FRETE</td><td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.frete)}</span></span></td></tr>
-                ` : ''}
-                ${orcamento.desconto > 0 ? `
-                  <tr class="totals blue"><td colspan="3" style="text-align:right;">DESCONTO PARA CLIENTE</td><td><span class="money negative"><span class="currency">R$</span><span class="sign">-</span><span class="amount">${formatarNumeroMoeda(orcamento.desconto)}</span></span></td></tr>
-                ` : ''}
                 ${orcamento.adiantamento > 0 ? `
-                  <tr class="totals blue"><td colspan="3" style="text-align:right;">ADIANTAMENTO</td><td><span class="money negative"><span class="currency">R$</span><span class="sign">-</span><span class="amount">${formatarNumeroMoeda(orcamento.adiantamento)}</span></span></td></tr>
+                  <tr class="totals blue"><td colspan="3" style="text-align:right;">ADIANTAMENTO</td><td><span class="money"><span class="currency">- R$</span><span class="amount">${formatarNumeroMoeda(orcamento.adiantamento)}</span></span></td></tr>
                   <tr class="totals blue"><td colspan="3" style="text-align:right;">SALDO RESTANTE</td><td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.saldoRestante)}</span></span></td></tr>
                 ` : ''}
                 <tr class="totals"><td colspan="3" style="text-align:right;">VALOR TOTAL</td><td style="background:#eee;"><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.valor)}</span></span></td></tr>
@@ -626,7 +455,56 @@ const BudgetDashboard: React.FC = () => {
             <div class="dates">RESERVA: ${formatarDataBR(orcamento.reserva)}<br>RETIRADA: ${formatarDataBR(orcamento.retirada)}</div>
             <div class="signatures"><div class="sig">CLIENTE</div><div class="sig">CLAUDIA FESTAS</div></div>
           </div>
-          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+          <script>
+            async function enviarOrcamentoPdf(botao) {
+              const textoOriginal = botao.textContent;
+              botao.disabled = true;
+              botao.textContent = 'Gerando PDF...';
+              const elemento = document.getElementById('orcamento-pdf');
+              const estiloOriginal = elemento ? elemento.getAttribute('style') : null;
+              try {
+                if (!elemento) throw new Error('Orçamento não encontrado para gerar o PDF.');
+                if (typeof window.html2canvas !== 'function' || !window.jspdf || !window.jspdf.jsPDF) throw new Error('Os recursos de PDF não foram carregados. Verifique sua internet.');
+                elemento.style.width = '195mm';
+                elemento.style.height = '278mm';
+                elemento.style.minHeight = '278mm';
+                elemento.style.maxHeight = '278mm';
+                elemento.style.overflow = 'hidden';
+                const nomeArquivo = 'Orcamento_${String(orcamento.cliente).replace(/[^a-zA-Z0-9À-ÿ]+/g, '_')}.pdf';
+                const canvas = await window.html2canvas(elemento, { scale: 2, useCORS: true, backgroundColor: '#ffffff', scrollX: 0, scrollY: 0, logging: false });
+                const documentoPdf = new window.jspdf.jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+                documentoPdf.addImage(canvas.toDataURL('image/jpeg', 1), 'JPEG', 7.5, 9.5, 195, 278, undefined, 'FAST');
+                documentoPdf.setDrawColor(0, 0, 0);
+                documentoPdf.setLineWidth(0.4);
+                documentoPdf.rect(7.5, 9.5, 195, 278);
+                documentoPdf.setDisplayMode('fullpage', 'single', 'UseNone');
+                const blob = documentoPdf.output('blob');
+                const arquivo = new File([blob], nomeArquivo, { type: 'application/pdf' });
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+                  await navigator.share({ files: [arquivo], title: 'Orçamento Claudia Festas', text: 'Orçamento - ${orcamento.cliente}' });
+                } else {
+                  const urlPdf = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = urlPdf;
+                  link.download = nomeArquivo;
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  setTimeout(function () { URL.revokeObjectURL(urlPdf); }, 30000);
+                  alert('O PDF foi baixado. Abra o WhatsApp e anexe o arquivo na conversa do cliente.');
+                }
+              } catch (erro) {
+                if (erro && erro.name !== 'AbortError') alert(erro.message || 'Não foi possível gerar o PDF.');
+              } finally {
+                if (elemento) {
+                  if (estiloOriginal === null) elemento.removeAttribute('style');
+                  else elemento.setAttribute('style', estiloOriginal);
+                }
+                botao.disabled = false;
+                botao.textContent = textoOriginal;
+              }
+            }
+          </script>
         </body>
       </html>
     `);
@@ -650,7 +528,7 @@ const BudgetDashboard: React.FC = () => {
         />
         <button
           type="button"
-          onClick={abrirNovoOrcamento}
+          onClick={() => setModalAberto(true)}
           className="w-full md:w-auto px-6 py-4 bg-[#b24a2b] text-white rounded-full font-black uppercase text-xs tracking-widest shadow-lg hover:bg-[#943a20] active:scale-95 transition-all"
         >
           <i className="fa-solid fa-plus mr-2"></i>
@@ -687,14 +565,6 @@ const BudgetDashboard: React.FC = () => {
                 </button>
                 <button
                   type="button"
-                  onClick={() => abrirEdicaoOrcamento(orcamento)}
-                  className="mr-2 w-9 h-9 rounded-full bg-amber-500 text-white shadow-sm hover:scale-105 transition-transform"
-                  title="Editar orçamento"
-                >
-                  <i className="fa-solid fa-pen-to-square text-xs"></i>
-                </button>
-                <button
-                  type="button"
                   onClick={() => removerOrcamento(orcamento.id)}
                   className="w-9 h-9 rounded-full bg-red-500 text-white shadow-sm hover:scale-105 transition-transform"
                   title="Remover orçamento"
@@ -704,18 +574,6 @@ const BudgetDashboard: React.FC = () => {
               </div>
               <div className="mt-5 border-t border-orange-100 pt-4">
                 <p className="text-2xl font-black text-[#b24a2b]">{formatarMoeda(orcamento.valor)}</p>
-                {orcamento.frete > 0 && (
-                  <div className="mt-2 flex justify-between text-[11px] font-black uppercase text-orange-700">
-                    <span>Valor do frete:</span>
-                    <span>{formatarMoeda(orcamento.frete)}</span>
-                  </div>
-                )}
-                {orcamento.desconto > 0 && (
-                  <div className="mt-2 flex justify-between text-[11px] font-black uppercase text-green-600">
-                    <span>Desconto para cliente:</span>
-                    <span>{formatarMoeda(orcamento.desconto)}</span>
-                  </div>
-                )}
                 {orcamento.adiantamento > 0 && (
                   <div className="mt-2 space-y-1 text-[11px] font-black uppercase">
                     <div className="flex justify-between text-blue-600">
@@ -751,9 +609,7 @@ const BudgetDashboard: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={salvarOrcamento} className="bg-white rounded-[36px] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-orange-100 animate-in zoom-in duration-200">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-black text-gray-800 uppercase italic">
-                {orcamentoEmEdicao ? 'Editar Orçamento' : 'Novo Orçamento'}
-              </h2>
+              <h2 className="text-xl font-black text-gray-800 uppercase italic">Novo Orçamento</h2>
               <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">Preencha os dados principais</p>
             </div>
 
@@ -927,34 +783,10 @@ const BudgetDashboard: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="w-full p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl text-[#b24a2b]">
                   <span className="block text-[9px] font-black uppercase tracking-widest text-orange-400">Valor total</span>
-                  <strong className="text-xl font-black">{formatarMoeda(calcularValorTotal())}</strong>
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest ml-3 mb-2 block">Valor do frete (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={novoOrcamento.frete}
-                    onChange={(e) => setNovoOrcamento({ ...novoOrcamento, frete: e.target.value })}
-                    className="w-full p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl outline-none font-black text-xl text-[#b24a2b] focus:border-orange-300"
-                    placeholder="R$ 0,00"
-                  />
-                </div>
-                <div>
-                  <label className="text-[9px] font-black text-green-600 uppercase tracking-widest ml-3 mb-2 block">Desconto para cliente (R$)</label>
-                  <input
-                    type="number"
-                    step="0.01"
-                    min="0"
-                    value={novoOrcamento.desconto}
-                    onChange={(e) => setNovoOrcamento({ ...novoOrcamento, desconto: e.target.value })}
-                    className="w-full p-4 bg-green-50 border-2 border-green-100 rounded-2xl outline-none font-black text-xl text-green-600 focus:border-green-300"
-                    placeholder="R$ 0,00"
-                  />
+                  <strong className="text-xl font-black">{formatarMoeda(calcularTotalProdutos())}</strong>
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest ml-3 mb-2 block">Adiantamento</label>
@@ -977,7 +809,7 @@ const BudgetDashboard: React.FC = () => {
                     value={calcularSaldoRestante()}
                     onChange={(e) => {
                       const novoSaldo = Number.parseFloat(e.target.value) || 0;
-                      const novoAdiantamento = Math.max(0, calcularValorTotal() - novoSaldo);
+                      const novoAdiantamento = Math.max(0, calcularTotalProdutos() - novoSaldo);
                       setNovoOrcamento({ ...novoOrcamento, adiantamento: String(novoAdiantamento) });
                     }}
                     className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-black text-xl text-gray-700 focus:border-[#b24a2b]"
@@ -996,7 +828,7 @@ const BudgetDashboard: React.FC = () => {
             <div className="flex gap-3 mt-6">
               <button
                 type="button"
-                onClick={fecharModal}
+                onClick={() => setModalAberto(false)}
                 className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200"
               >
                 Voltar
@@ -1006,7 +838,7 @@ const BudgetDashboard: React.FC = () => {
                 disabled={salvando}
                 className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {salvando ? 'Salvando...' : orcamentoEmEdicao ? 'Atualizar' : 'Salvar'}
+                {salvando ? 'Salvando...' : 'Salvar'}
               </button>
             </div>
           </form>

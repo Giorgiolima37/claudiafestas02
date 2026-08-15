@@ -364,6 +364,20 @@ const OrderManagement: React.FC = () => {
     const diaSemanaEnt = getDiaSemana(itensOrdenados[0].data_evento);
     const diaSemanaRec = getDiaSemana(pedido.dataDevolucao);
 
+    const telefoneWhatsApp = String(pedido.telefone || cliente.telefone || '').replace(/\D/g, '');
+    const numeroWhatsApp = telefoneWhatsApp.startsWith('55') ? telefoneWhatsApp : `55${telefoneWhatsApp}`;
+    const resumoItens = itensOrdenados.map((item: any) => `${item.quantidade}x ${item.item}`).join('\n');
+    const mensagemWhatsApp = encodeURIComponent(
+      `Olá, ${pedido.nomeCliente}! Seguem os dados do seu contrato com a Claudia Festas:\n\n` +
+      `${resumoItens}\n\nEntrega: ${dEnt} (${diaSemanaEnt})\nRecolhimento: ${dRec} (${diaSemanaRec})\n` +
+      `Total: R$ ${totalGeral.toFixed(2).replace('.', ',')}\n` +
+      (adiantamento > 0 ? `Adiantamento: R$ ${adiantamento.toFixed(2).replace('.', ',')}\nSaldo restante: R$ ${saldoRestante.toFixed(2).replace('.', ',')}\n` : '') +
+      `\nPara enviar o documento em PDF, use Imprimir > Salvar como PDF e anexe o arquivo nesta conversa.`
+    );
+    const whatsappUrl = telefoneWhatsApp
+      ? `https://wa.me/${numeroWhatsApp}?text=${mensagemWhatsApp}`
+      : `https://wa.me/?text=${mensagemWhatsApp}`;
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -371,6 +385,8 @@ const OrderManagement: React.FC = () => {
       <html>
         <head>
           <title>CONTRATO - ${pedido.nomeCliente}</title>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
           <style>
             @page { 
                 size: A4; 
@@ -388,6 +404,18 @@ const OrderManagement: React.FC = () => {
                 padding-top: 5mm;
                 padding-bottom: 5mm;
             }
+            .preview-toolbar {
+                position: fixed; top: 16px; right: 20px; z-index: 10;
+                display: flex; gap: 10px; padding: 10px; border-radius: 16px;
+                background: rgba(255,255,255,.96); box-shadow: 0 8px 30px rgba(0,0,0,.18);
+            }
+            .preview-action {
+                border: 0; border-radius: 999px; padding: 11px 16px;
+                color: white; font-weight: 800; cursor: pointer; font-size: 13px;
+            }
+            .preview-action.print { background: #2563eb; }
+            .preview-action.whatsapp { background: #16a34a; }
+            @media print { .preview-toolbar { display: none !important; } }
             .page-container {
                 width: 200mm;
                 padding: 10px;
@@ -511,8 +539,12 @@ const OrderManagement: React.FC = () => {
           </style>
         </head>
         <body>
+          <div class="preview-toolbar">
+            <button class="preview-action print" type="button" onclick="window.print()">Imprimir</button>
+            <button class="preview-action whatsapp" type="button" onclick="enviarContratoPdf(this)">Enviar PDF pelo WhatsApp</button>
+          </div>
           
-          <div class="page-container">
+          <div id="contrato-pdf" class="page-container">
               <div class="header">
                  <div class="company-info">
                     <div class="company-name">LOCAÇÃO DE ARTIGOS PARA FESTAS</div>
@@ -622,7 +654,89 @@ const OrderManagement: React.FC = () => {
               </div>
           </div>
 
-          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+          
+          <script>
+            async function enviarContratoPdf(botao) {
+              const textoOriginal = botao.textContent;
+              botao.disabled = true;
+              botao.textContent = 'Gerando PDF...';
+              const elemento = document.getElementById('contrato-pdf');
+              const estiloOriginal = elemento ? elemento.getAttribute('style') : null;
+
+              try {
+
+                if (!elemento) throw new Error('Contrato não encontrado para gerar o PDF.');
+
+                elemento.style.width = '195mm';
+                elemento.style.height = '278mm';
+                elemento.style.minHeight = '278mm';
+                elemento.style.maxHeight = '278mm';
+                elemento.style.overflow = 'hidden';
+
+                if (typeof window.html2canvas !== 'function' || !window.jspdf || !window.jspdf.jsPDF) {
+                  throw new Error('Os recursos de PDF não foram carregados. Verifique sua internet.');
+                }
+
+                const nomeArquivo = 'Contrato_${String(pedido.nomeCliente).replace(/[^a-zA-Z0-9À-ÿ]+/g, '_')}.pdf';
+                const canvas = await window.html2canvas(elemento, {
+                  scale: 2,
+                  useCORS: true,
+                  backgroundColor: '#ffffff',
+                  scrollX: 0,
+                  scrollY: 0,
+                  logging: false
+                });
+
+                const documentoPdf = new window.jspdf.jsPDF({
+                  orientation: 'portrait',
+                  unit: 'mm',
+                  format: 'a4',
+                  compress: true
+                });
+                const margemX = 7.5;
+                const margemY = 9.5;
+                const larguraContrato = 195;
+                const alturaContrato = 278;
+                documentoPdf.addImage(canvas.toDataURL('image/jpeg', 1), 'JPEG', margemX, margemY, larguraContrato, alturaContrato, undefined, 'FAST');
+                documentoPdf.setDrawColor(0, 0, 0);
+                documentoPdf.setLineWidth(0.4);
+                documentoPdf.rect(margemX, margemY, larguraContrato, alturaContrato);
+                documentoPdf.setDisplayMode('fullpage', 'single', 'UseNone');
+
+                const blob = documentoPdf.output('blob');
+                const arquivo = new File([blob], nomeArquivo, { type: 'application/pdf' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+                  await navigator.share({
+                    files: [arquivo],
+                    title: 'Contrato Claudia Festas',
+                    text: 'Contrato de locação - ${pedido.nomeCliente}'
+                  });
+                } else {
+                  const urlPdf = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = urlPdf;
+                  link.download = nomeArquivo;
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  setTimeout(function () { URL.revokeObjectURL(urlPdf); }, 30000);
+                  alert('O PDF foi baixado. Abra o WhatsApp e anexe o arquivo na conversa do cliente.');
+                }
+              } catch (erro) {
+                if (erro && erro.name !== 'AbortError') {
+                  alert(erro.message || 'Não foi possível gerar o PDF.');
+                }
+              } finally {
+                if (elemento) {
+                  if (estiloOriginal === null) elemento.removeAttribute('style');
+                  else elemento.setAttribute('style', estiloOriginal);
+                }
+                botao.disabled = false;
+                botao.textContent = textoOriginal;
+              }
+            }
+          </script>
         </body>
       </html>
     `);

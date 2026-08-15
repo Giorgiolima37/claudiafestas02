@@ -3,7 +3,6 @@ import { ActiveUserPresence, Screen } from '../types';
 import logo2 from '../logo-2.png';
 import instaLogo from '../insta.webp';
 import googleLogo from '../google.webp';
-import govLogo from '../gov.png';
 
 interface SidebarProps {
   activeScreen: Screen;
@@ -13,7 +12,6 @@ interface SidebarProps {
   currentPresenceSessionId?: string;
   onLogoutSession?: (sessionId: string) => void;
   onOpenAdmin?: () => void;
-  onLogout?: () => void;
 }
 
 interface WeatherData {
@@ -68,7 +66,6 @@ const SIDEBAR_THEMES: SidebarTheme[] = [
 const SIDEBAR_BRAND_COLOR = '#B24D2D';
 const PAGE_TONE_STORAGE_KEY = 'claudia_page_tone';
 const PAGE_BACKGROUND_COLOR = '#fdf8f6';
-const GOV_ACCESS_EXPIRES_AT = new Date('2026-08-08T23:59:59-03:00').getTime();
 
 const adjustHexColor = (hex: string, amount: number) => {
   const value = hex.replace('#', '');
@@ -92,8 +89,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeUserDetails = [],
   currentPresenceSessionId,
   onLogoutSession,
-  onOpenAdmin,
-  onLogout
+  onOpenAdmin
 }) => {
   const currentTheme = getSidebarTheme();
   const [sidebarTone, setSidebarTone] = useState<number>(() => {
@@ -102,7 +98,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   });
   const [isToneControlOpen, setIsToneControlOpen] = useState(false);
   const [isPresenceOpen, setIsPresenceOpen] = useState(false);
-  const [isGovActivationOpen, setIsGovActivationOpen] = useState(false);
   const pageBackgroundColor = adjustHexColor(PAGE_BACKGROUND_COLOR, sidebarTone);
   const controlBorderOpacity = Math.min(0.35, 0.08 + Math.abs(sidebarTone) / 130);
   const menuItems: Array<{ id: Screen | 'NFSE-BIGUACU'; label: string; icon: string; href?: string }> = [
@@ -130,15 +125,6 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Estados para o campo de busca
   const [isSearching, setIsSearching] = useState<boolean>(false);
   const [searchQuery, setSearchQuery] = useState<string>('');
-
-  const handleGovAccess = () => {
-    if (Date.now() <= GOV_ACCESS_EXPIRES_AT) {
-      window.open('https://www.gov.br/', '_blank', 'noopener,noreferrer');
-      return;
-    }
-
-    setIsGovActivationOpen(true);
-  };
 
   useEffect(() => {
     window.localStorage.setItem(PAGE_TONE_STORAGE_KEY, String(sidebarTone));
@@ -238,7 +224,17 @@ const Sidebar: React.FC<SidebarProps> = ({
         color: '#ffffff'
       }}
     >
-      <div className="fixed right-6 top-7 z-[80] flex items-center gap-2">
+      <div className="fixed right-10 top-7 z-[80] flex items-center gap-3">
+        <a
+          href="https://wa.me/48991347343"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-2 shadow-md transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
+          title="Suporte via WhatsApp"
+        >
+          <i className="fa-brands fa-whatsapp text-lg"></i>
+          <span>Suporte do Sistema</span>
+        </a>
         <div className="relative flex flex-col items-center gap-2">
           <button
             type="button"
@@ -255,14 +251,6 @@ const Sidebar: React.FC<SidebarProps> = ({
             title="Administrador"
           >
             <i className="fa-solid fa-gear text-sm"></i>
-          </button>
-          <button
-            type="button"
-            onClick={onLogout}
-            className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
-            title="Deslogar"
-          >
-            <i className="fa-solid fa-door-open text-sm"></i>
           </button>
         </div>
 
@@ -370,33 +358,19 @@ const Sidebar: React.FC<SidebarProps> = ({
           <div className="w-32 h-32 flex items-center justify-center overflow-hidden rounded-full bg-white">
           <img src={logo2} alt="Logo Claudia Festas" className="w-full h-full object-contain scale-[1.6]" />
           </div>
-          <div className="flex flex-col items-center gap-2">
-            <a
-              href="https://www.google.com/maps"
-              target="_blank"
-              rel="noopener noreferrer"
-              title="Abrir Google Maps"
-              className="rounded-xl transition-all duration-300 transform-gpu hover:scale-125 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
-            >
-              <img
-                src={googleLogo}
-                alt="Google Maps"
-                className="w-10 h-10 object-contain rounded-xl"
-              />
-            </a>
-            <button
-              type="button"
-              onClick={handleGovAccess}
-              title="Abrir Gov.br"
-              className="rounded-xl transition-all duration-300 transform-gpu hover:scale-125 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
-            >
-              <img
-                src={govLogo}
-                alt="Gov.br"
-                className="w-10 h-10 object-contain rounded-xl"
-              />
-            </button>
-          </div>
+          <a
+            href="https://www.google.com/maps"
+            target="_blank"
+            rel="noopener noreferrer"
+            title="Abrir Google Maps"
+            className="rounded-xl transition-all duration-300 transform-gpu hover:scale-125 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
+          >
+            <img
+              src={googleLogo}
+              alt="Google Maps"
+              className="w-10 h-10 object-contain rounded-xl"
+            />
+          </a>
         </div>
       </div>
 
@@ -608,40 +582,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </div>
-
-      <a
-        href="https://wa.me/48991347343"
-        target="_blank"
-        rel="noopener noreferrer"
-        className="mb-5 -mt-1 mx-auto bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-[9px] uppercase tracking-wider py-2 px-4 rounded-full flex items-center justify-center gap-1.5 shadow-md transition-all duration-300 transform-gpu hover:scale-105 active:scale-[0.98]"
-        title="Suporte via WhatsApp"
-      >
-        <i className="fa-brands fa-whatsapp text-sm"></i>
-        <span>Suporte do Sistema</span>
-      </a>
-
-      {isGovActivationOpen && (
-        <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/40 p-4 backdrop-blur-sm">
-          <div className="w-full max-w-sm rounded-[28px] border border-orange-100 bg-white p-6 text-center text-gray-800 shadow-2xl animate-in zoom-in duration-200">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-orange-50 text-[#B24D2D]">
-              <i className="fa-solid fa-lock text-lg"></i>
-            </div>
-            <p className="text-lg font-black leading-snug">
-              Gostou do recurso?
-            </p>
-            <p className="mt-2 text-sm font-bold text-gray-600">
-              Ative com o seu administrador
-            </p>
-            <button
-              type="button"
-              onClick={() => setIsGovActivationOpen(false)}
-              className="mt-6 w-full rounded-2xl bg-[#B24D2D] p-4 text-[10px] font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-[#943a20] active:scale-95"
-            >
-              Entendi
-            </button>
-          </div>
-        </div>
-      )}
 
     </div>
   );
