@@ -1,4 +1,5 @@
 import React, { useState, useEffect } from 'react';
+import Select from 'react-select';
 import { db } from '../services/supabase';
 
 const ReservationForm: React.FC = () => {
@@ -74,6 +75,13 @@ const ReservationForm: React.FC = () => {
     }, 0);
   };
 
+  const obterOpcoesMateriais = (indiceAtual: number) => estoque.map((produto) => ({
+    value: produto.item,
+    label: `[${produto.codigo_interno || 'S/C'}] ${produto.item} (Disp: ${produto.disponivel})`,
+    indisponivel: itensSelecionados.some((selecionado, indice) =>
+      selecionado.item === produto.item && indice !== indiceAtual
+    )
+  }));
   const calcularTotalGeral = () => calcularSubtotal() + freteAjustado - desconto;
   const calcularSaldoRestante = () => Math.max(0, calcularTotalGeral() - adiantamento);
   const formatarMoeda = (valor: number) => valor.toFixed(2).replace('.', ',');
@@ -84,7 +92,10 @@ const ReservationForm: React.FC = () => {
       alert("Preencha os dados do cliente e as datas de aluguel e devolução.");
       return;
     }
-    setShowFreteModal(true);
+    if (itensSelecionados.some((item) => !item.item || Number(item.quantidade || 0) < 1)) {
+      alert('Selecione todos os materiais e informe uma quantidade válida.');
+      return;
+    }    setShowFreteModal(true);
   };
 
   const gerarArquivoCalendario = () => {
@@ -296,19 +307,43 @@ const ReservationForm: React.FC = () => {
             <div key={index} className="flex flex-col md:flex-row gap-4 items-end bg-gray-50/50 p-6 rounded-[30px] border border-gray-100">
               <div className="flex-1 w-full">
                 <label className="text-[9px] font-black text-gray-600 ml-2 mb-1 uppercase">Material</label>
-                <select 
-                  required 
-                  className="w-full p-4 bg-white border-2 border-gray-100 rounded-2xl outline-none font-bold text-sm text-gray-700 focus:border-[#b24a2b]" 
-                  value={linha.item} 
-                  onChange={(e) => atualizarItemLinha(index, 'item', e.target.value)}
-                >
-                  <option value="">O que será alugado?</option>
-                  {estoque.map(i => (
-                    <option key={i.id} value={i.item} disabled={itensSelecionados.some((s, idx) => s.item === i.item && idx !== index)}>
-                      [{i.codigo_interno || 'S/C'}] {i.item} (Disp: {i.disponivel})
-                    </option>
-                  ))}
-                </select>
+                <Select
+                  inputId={`material-${index}`}
+                  options={obterOpcoesMateriais(index)}
+                  value={obterOpcoesMateriais(index).find((opcao) => opcao.value === linha.item) || null}
+                  onChange={(opcao) => atualizarItemLinha(index, 'item', opcao?.value || '')}
+                  isOptionDisabled={(opcao) => opcao.indisponivel}
+                  placeholder="Digite o nome ou código do produto..."
+                  noOptionsMessage={() => 'Nenhum material encontrado'}
+                  isClearable
+                  openMenuOnFocus
+                  className="text-sm font-bold"
+                  styles={{
+                    control: (base, estado) => ({
+                      ...base,
+                      minHeight: '58px',
+                      borderRadius: '16px',
+                      borderWidth: '2px',
+                      borderColor: estado.isFocused ? '#b24a2b' : '#f3f4f6',
+                      boxShadow: 'none',
+                      paddingLeft: '6px',
+                      backgroundColor: '#ffffff',
+                      '&:hover': { borderColor: '#b24a2b' }
+                    }),
+                    menu: (base) => ({ ...base, zIndex: 40, borderRadius: '16px', overflow: 'hidden' }),
+                    option: (base, estado) => ({
+                      ...base,
+                      fontSize: '13px',
+                      fontWeight: 700,
+                      backgroundColor: estado.isSelected ? '#b24a2b' : estado.isFocused ? '#fff1eb' : '#ffffff',
+                      color: estado.isSelected ? '#ffffff' : '#374151'
+                    })
+                  }}
+                  filterOption={(opcao, texto) => {
+                    const termo = texto.toLowerCase().trim();
+                    return !termo || opcao.label.toLowerCase().includes(termo);
+                  }}
+                />
               </div>
 
               <div className="w-full md:w-32">
