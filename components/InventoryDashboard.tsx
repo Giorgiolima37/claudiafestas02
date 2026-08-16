@@ -92,22 +92,57 @@ const InventoryDashboard: React.FC = () => {
     });
     setIsReservaModalOpen(true);
   };
-  const salvarIdRapido = async (itemIdInterno: number) => {
+  const normalizarCodigo = (codigo: string) => {
+    const valor = String(codigo || '').trim().toUpperCase();
+    return /^\d+$/.test(valor) ? String(Number(valor)) : valor;
+  };
+
+  const encontrarProdutoComCodigo = async (codigo: string, ignorarId?: string) => {
+    const codigoNormalizado = normalizarCodigo(codigo);
+    if (!codigoNormalizado) return null;
+
+    const { data, error } = await db
+      .from('estoque')
+      .select('id, item, codigo_interno');
+    if (error) throw error;
+
+    return (data || []).find((produto) =>
+      String(produto.id) !== String(ignorarId || '') &&
+      normalizarCodigo(produto.codigo_interno) === codigoNormalizado
+    ) || null;
+  };
+
+  const avisarCodigoDuplicado = (codigo: string, produto: any) => {
+    alert(
+      `ATENÇÃO: o código ${codigo} já está cadastrado para o produto "${produto.item}".\n\n` +
+      'Informe outro código para continuar.'
+    );
+  };
+  const salvarIdRapido = async (itemIdInterno: string | number) => {
     try {
+      const codigo = novoIdValor.trim();
+      if (!codigo) {
+        alert('Informe um código interno.');
+        return;
+      }
+      const produtoDuplicado = await encontrarProdutoComCodigo(codigo, String(itemIdInterno));
+      if (produtoDuplicado) {
+        avisarCodigoDuplicado(codigo, produtoDuplicado);
+        return;
+      }
+
       const { error } = await db
         .from('estoque')
-        .update({ codigo_interno: novoIdValor }) 
+        .update({ codigo_interno: codigo })
         .eq('id', itemIdInterno);
-
       if (error) throw error;
 
       setEditandoIdRapido(null);
-      fetchEstoque(); 
+      fetchEstoque();
     } catch (err: any) {
-      alert("Erro ao salvar código no banco: " + err.message);
+      alert('Erro ao salvar código no banco: ' + err.message);
     }
   };
-
   const itensFiltrados = itens.filter(item => 
     item.item.toLowerCase().includes(busca.toLowerCase()) || 
     (item.codigo_interno && item.codigo_interno.toLowerCase().includes(busca.toLowerCase()))
@@ -120,48 +155,73 @@ const InventoryDashboard: React.FC = () => {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await db
-      .from('estoque')
-      .update({
-        item: editingItem.item,
-        codigo_interno: editingItem.codigo_interno,
-        disponivel: parseInt(editingItem.disponivel),
-        alugado: parseInt(editingItem.alugado || 0),
-        reservado: parseInt(editingItem.reservado || 0), 
-        preco: parseFloat(editingItem.preco)
-      })
-      .eq('id', editingItem.id);
+    const codigo = String(editingItem.codigo_interno || '').trim();
 
-    if (error) {
-      alert("Erro ao atualizar item!");
-    } else {
+    try {
+      if (!codigo) {
+        alert('Informe um código interno.');
+        return;
+      }
+      const produtoDuplicado = await encontrarProdutoComCodigo(codigo, String(editingItem.id));
+      if (produtoDuplicado) {
+        avisarCodigoDuplicado(codigo, produtoDuplicado);
+        return;
+      }
+
+      const { error } = await db
+        .from('estoque')
+        .update({
+          item: editingItem.item,
+          codigo_interno: codigo,
+          disponivel: parseInt(editingItem.disponivel),
+          alugado: parseInt(editingItem.alugado || 0),
+          reservado: parseInt(editingItem.reservado || 0),
+          preco: parseFloat(editingItem.preco)
+        })
+        .eq('id', editingItem.id);
+      if (error) throw error;
+
       setIsEditModalOpen(false);
       fetchEstoque();
+    } catch (err: any) {
+      alert('Erro ao atualizar item: ' + err.message);
     }
   };
-
   const adicionarNovoItem = async () => {
-    const nome = prompt("Nome do novo material:");
+    const nome = prompt('Nome do novo material:');
     if (!nome) return;
-    const codigo = prompt(`Código interno para ${nome}:`);
-    const quantidade = prompt(`Quantidade de ${nome}:`, "100");
-    const preco = prompt(`Preço de ${nome}:`, "10.00");
+    const codigoInformado = prompt(`Código interno para ${nome}:`);
+    if (!codigoInformado?.trim()) {
+      alert('Informe um código interno para cadastrar o produto.');
+      return;
+    }
 
-    if (nome && quantidade && preco) {
-      const { error } = await db.from('estoque').insert([{ 
-        item: nome, 
+    try {
+      const codigo = codigoInformado.trim();
+      const produtoDuplicado = await encontrarProdutoComCodigo(codigo);
+      if (produtoDuplicado) {
+        avisarCodigoDuplicado(codigo, produtoDuplicado);
+        return;
+      }
+
+      const quantidade = prompt(`Quantidade de ${nome}:`, '100');
+      const preco = prompt(`Preço de ${nome}:`, '10.00');
+      if (!quantidade || !preco) return;
+
+      const { error } = await db.from('estoque').insert([{
+        item: nome.trim(),
         codigo_interno: codigo,
-        disponivel: parseInt(quantidade), 
-        reservado: 0, 
+        disponivel: parseInt(quantidade),
+        reservado: 0,
         alugado: 0,
-        preco: parseFloat(preco) 
+        preco: parseFloat(preco)
       }]);
-      
-      if (error) alert("Erro ao inserir: " + error.message);
+      if (error) throw error;
       fetchEstoque();
+    } catch (err: any) {
+      alert('Erro ao inserir produto: ' + err.message);
     }
   };
-
   const handleDeleteItem = async (id: number) => {
     if (window.confirm("Tem certeza que deseja excluir este item do estoque?")) {
       try {

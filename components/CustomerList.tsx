@@ -465,7 +465,14 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {clientesExibidos.map((item) => (
-                    <tr key={item.id} className="hover:bg-orange-50/30 transition-all group">
+                    <tr
+                      key={item.id}
+                      className={`transition-all group ${
+                        item.lista_negra
+                          ? 'bg-red-50/80 border-l-[8px] border-l-red-600 hover:bg-red-100/80'
+                          : 'hover:bg-orange-50/30'
+                      }`}
+                    >
                       <td className="p-5 md:p-8">
                         <button 
                           onClick={() => setClienteDetalhado({...item, historico: reservas.filter(r => r.cliente_id === item.id)})} 
@@ -473,6 +480,12 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         >
                           {item.cliente}
                         </button>
+                        {item.lista_negra && (
+                          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white shadow-md">
+                            <i className="fa-solid fa-triangle-exclamation"></i>
+                            Negativado por dívida
+                          </div>
+                        )}
                         <p className="sm:hidden text-[8px] font-bold text-gray-600 mt-1">ID: {item['id-client'] || '---'}</p>
                       </td>
                       <td className="p-5 md:p-8 hidden md:table-cell">
