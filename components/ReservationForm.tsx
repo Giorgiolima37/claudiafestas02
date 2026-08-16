@@ -78,6 +78,7 @@ const ReservationForm: React.FC = () => {
   const obterOpcoesMateriais = (indiceAtual: number) => estoque.map((produto) => ({
     value: produto.item,
     label: `[${produto.codigo_interno || 'S/C'}] ${produto.item} (Disp: ${produto.disponivel})`,
+    codigo: String(produto.codigo_interno || '').trim(),
     indisponivel: itensSelecionados.some((selecionado, indice) =>
       selecionado.item === produto.item && indice !== indiceAtual
     )
@@ -340,8 +341,18 @@ const ReservationForm: React.FC = () => {
                     })
                   }}
                   filterOption={(opcao, texto) => {
-                    const termo = texto.toLowerCase().trim();
-                    return !termo || opcao.label.toLowerCase().includes(termo);
+                    const termo = texto.trim();
+                    if (!termo) return true;
+
+                    if (/^\d+$/.test(termo)) {
+                      const codigoDigitado = String(Number(termo));
+                      const codigoProduto = /^\d+$/.test(opcao.data.codigo)
+                        ? String(Number(opcao.data.codigo))
+                        : opcao.data.codigo;
+                      return codigoProduto === codigoDigitado;
+                    }
+
+                    return opcao.data.value.toLowerCase().includes(termo.toLowerCase());
                   }}
                 />
               </div>
