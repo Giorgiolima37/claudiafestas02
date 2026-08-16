@@ -7,7 +7,8 @@ const InventoryDashboard: React.FC = () => {
   const [reservasFuturasLista, setReservasFuturasLista] = useState<any[]>([]); // Novo estado
   const [clientes, setClientes] = useState<any[]>([]); // Novo estado para nomes
   const [loading, setLoading] = useState(true);
-  const [busca, setBusca] = useState(''); 
+  const [busca, setBusca] = useState('');
+  const [dataConsulta, setDataConsulta] = useState(() => new Date().toLocaleDateString('en-CA')); 
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -48,29 +49,49 @@ const InventoryDashboard: React.FC = () => {
   useEffect(() => { fetchEstoque(); }, []);
 
   // --- LOGICA AJUSTADA PARA MAUPEAR AS COLUNAS REAIS DO SUPABASE ---
+  const normalizarNome = (valor: string) =>
+    String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
   const calcularStatus = (item: any) => {
+    const reservasDoItem = reservasAtivas.filter(
+      (reserva) => normalizarNome(reserva.item) === normalizarNome(item.item)
+    );
+    const ocupadasNaData = reservasDoItem
+      .filter((reserva) => {
+        const inicio = String(reserva.data_evento || '').slice(0, 10);
+        const fim = String(reserva.data_devolucao || '').slice(0, 10);
+        return inicio && fim && inicio <= dataConsulta && fim >= dataConsulta;
+      })
+      .reduce((total, reserva) => total + Number(reserva.quantidade || 0), 0);
+    const reservasDepoisDaData = reservasDoItem
+      .filter((reserva) => String(reserva.data_evento || '').slice(0, 10) > dataConsulta)
+      .reduce((total, reserva) => total + Number(reserva.quantidade || 0), 0);
+    const totalFisico = Number(item.disponivel || 0) + Number(item.alugado || 0);
+
     return {
-        livreHoje: Number(item.disponivel || 0),
-        alugadoHoje: Number(item.alugado || 0),
-        reservadoFuturo: Number(item.reservado || 0)
+      livreHoje: Math.max(0, totalFisico - ocupadasNaData),
+      alugadoHoje: ocupadasNaData,
+      reservadoFuturo: reservasDepoisDaData
     };
   };
-
   const abrirModalReservas = (item: any) => {
-    const detalhes = reservasFuturasLista
-      .filter(rf => rf.item_id === item.id)
-      .map(rf => ({
-        ...rf,
-        nomeCliente: clientes.find(c => c.id === rf.cliente_id)?.cliente || "Cliente não identificado"
-      }));
-    
+    const detalhes = reservasAtivas
+      .filter((reserva) =>
+        normalizarNome(reserva.item) === normalizarNome(item.item) &&
+        String(reserva.data_evento || '').slice(0, 10) > dataConsulta
+      )
+      .map((reserva) => ({
+        ...reserva,
+        nomeCliente: clientes.find((cliente) => cliente.id === reserva.cliente_id)?.cliente || 'Cliente não identificado'
+      }))
+      .sort((a, b) => String(a.data_evento).localeCompare(String(b.data_evento)));
+
     setItemSelecionadoReservas({
       nome: item.item,
       reservas: detalhes
     });
     setIsReservaModalOpen(true);
   };
-
   const salvarIdRapido = async (itemIdInterno: number) => {
     try {
       const { error } = await db
@@ -182,6 +203,21 @@ const InventoryDashboard: React.FC = () => {
         </div>
       </header>
 
+      <div className="mb-10 flex flex-col sm:flex-row items-center justify-center gap-4 rounded-[30px] border border-orange-100 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-3 text-[#b24a2b]">
+          <i className="fa-solid fa-calendar-days text-xl"></i>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Consultar disponibilidade</p>
+            <p className="text-xs font-black uppercase">Escolha uma data</p>
+          </div>
+        </div>
+        <input
+          type="date"
+          value={dataConsulta}
+          onChange={(e) => setDataConsulta(e.target.value)}
+          className="rounded-full border-2 border-orange-100 bg-orange-50/50 px-6 py-3 text-sm font-black text-gray-800 outline-none focus:border-[#b24a2b]"
+        />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
         {itensFiltrados.map((item) => {
           const status = calcularStatus(item);
@@ -240,11 +276,11 @@ const InventoryDashboard: React.FC = () => {
             
             <div className="space-y-4">
               <div className="w-full flex justify-between items-center p-6 bg-emerald-50/40 rounded-[30px] border border-emerald-100/30">
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Livre Hoje</span>
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{dataConsulta === new Date().toLocaleDateString('en-CA') ? 'Livre Hoje' : `Livre em ${dataConsulta.split('-').reverse().join('/')}`}</span>
                 <span className="text-3xl font-black text-emerald-600 leading-none">{status.livreHoje}</span>
               </div>
               <div className="flex justify-between items-center p-6 bg-indigo-50/40 rounded-[30px] border border-indigo-100/30">
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Em Aluguel (Hoje)</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{dataConsulta === new Date().toLocaleDateString('en-CA') ? 'Em Aluguel (Hoje)' : `Alugado em ${dataConsulta.split('-').reverse().join('/')}`}</span>
                 <span className="text-3xl font-black text-indigo-600 leading-none">{status.alugadoHoje}</span>
               </div>
               
@@ -253,7 +289,7 @@ const InventoryDashboard: React.FC = () => {
                 onClick={() => abrirModalReservas(item)}
                 className="w-full flex justify-between items-center p-6 bg-orange-50/40 rounded-[30px] border border-orange-100/30 hover:bg-orange-100/60 transition-colors"
               >
-                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Reservas Futuras</span>
+                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Reservas Após a Data</span>
                 <span className="text-3xl font-black text-orange-600 leading-none">{status.reservadoFuturo}</span>
               </button>
             </div>

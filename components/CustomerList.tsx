@@ -105,7 +105,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             const { error: erroEstoque } = await db
                 .from('estoque')
                 .update({
-                    disponivel: Number(produtoEstoque.disponivel || 0) + quantidade,
+                    disponivel: Number(produtoEstoque.disponivel || 0) + Math.min(quantidade, Number(produtoEstoque.reservado || 0)),
                     reservado: Math.max(0, Number(produtoEstoque.reservado || 0) - quantidade)
                 })
                 .eq('id', produtoEstoque.id);
@@ -328,7 +328,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
             if (item._deleted) {
                 await db.from('estoque').update({
-                    disponivel: produtoEstoque.disponivel + item._originalQty,
+                    disponivel: Number(produtoEstoque.disponivel || 0) + Math.min(Number(item._originalQty || 0), Number(produtoEstoque.reservado || 0)),
                     reservado: Math.max(0, produtoEstoque.reservado - item._originalQty)
                 }).eq('id', produtoEstoque.id);
                 await db.from('reservas').delete().eq('id', item.id);

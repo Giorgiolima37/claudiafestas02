@@ -280,7 +280,7 @@ const OrderManagement: React.FC = () => {
         if (!produtoEstoque) continue;
         if (item._deleted) {
           await db.from('estoque').update({
-            disponivel: produtoEstoque.disponivel + item._originalQty,
+            disponivel: Number(produtoEstoque.disponivel || 0) + Math.min(Number(item._originalQty || 0), Number(produtoEstoque.reservado || 0)),
             reservado: Math.max(0, produtoEstoque.reservado - item._originalQty)
           }).eq('id', produtoEstoque.id);
           await db.from('reservas').delete().eq('id', item.id);
@@ -862,9 +862,14 @@ const OrderManagement: React.FC = () => {
           const deOndeRetirar = item.status?.toLowerCase() === 'em aluguel' ? 'alugado' : 'reservado';
           const valorAtualDeOndeRetirar = est[deOndeRetirar] || 0;
 
+          const quantidadeRealmenteRetirada = Math.min(
+            Number(item.quantidade || 0),
+            Number(valorAtualDeOndeRetirar || 0)
+          );
+
           await db.from('estoque').update({
-            disponivel: est.disponivel + item.quantidade,
-            [deOndeRetirar]: Math.max(0, valorAtualDeOndeRetirar - item.quantidade)
+            disponivel: Number(est.disponivel || 0) + quantidadeRealmenteRetirada,
+            [deOndeRetirar]: Math.max(0, Number(valorAtualDeOndeRetirar || 0) - quantidadeRealmenteRetirada)
           }).eq('item', item.item);
         }
         await db.from('reservas').delete().eq('id', item.id);
@@ -897,9 +902,14 @@ const OrderManagement: React.FC = () => {
           const deOndeRetirar = item.status?.toLowerCase() === 'em aluguel' ? 'alugado' : 'reservado';
           const valorAtualDeOndeRetirar = est[deOndeRetirar] || 0;
 
+          const quantidadeRealmenteRetirada = Math.min(
+            Number(item.quantidade || 0),
+            Number(valorAtualDeOndeRetirar || 0)
+          );
+
           await db.from('estoque').update({
-            disponivel: est.disponivel + item.quantidade,
-            [deOndeRetirar]: Math.max(0, valorAtualDeOndeRetirar - item.quantidade)
+            disponivel: Number(est.disponivel || 0) + quantidadeRealmenteRetirada,
+            [deOndeRetirar]: Math.max(0, Number(valorAtualDeOndeRetirar || 0) - quantidadeRealmenteRetirada)
           }).eq('item', item.item);
         }
       }
