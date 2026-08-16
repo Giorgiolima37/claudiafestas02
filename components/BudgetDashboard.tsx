@@ -23,6 +23,7 @@ const BudgetDashboard: React.FC = () => {
   const [buscaCliente, setBuscaCliente] = useState('');
   const [buscaProduto, setBuscaProduto] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
+  const [orcamentoEmEdicaoId, setOrcamentoEmEdicaoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
   const [buscandoCep, setBuscandoCep] = useState(false);
   const [clienteAvulsoAtivo, setClienteAvulsoAtivo] = useState(false);
@@ -277,22 +278,32 @@ const BudgetDashboard: React.FC = () => {
     };
 
     try {
-      const { data: orcamentoSalvo, error: erroOrcamento } = await db
-        .from('orcamentos')
-        .insert([{
-          cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
-          cliente_nome: item.cliente,
-          data_reserva: item.reserva,
-          data_retirada: item.retirada,
-          valor_total: item.valor,
-          adiantamento: item.adiantamento,
-          saldo_restante: item.saldoRestante,
-          observacoes: item.observacoes
-        }])
-        .select('*')
-        .single();
+      const dadosOrcamento = {
+        cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
+        cliente_nome: item.cliente,
+        data_reserva: item.reserva,
+        data_retirada: item.retirada,
+        valor_total: item.valor,
+        adiantamento: item.adiantamento,
+        saldo_restante: item.saldoRestante,
+        observacoes: item.observacoes
+      };
+
+      const resultadoOrcamento = orcamentoEmEdicaoId
+        ? await db.from('orcamentos').update(dadosOrcamento).eq('id', orcamentoEmEdicaoId).select('*').single()
+        : await db.from('orcamentos').insert([dadosOrcamento]).select('*').single();
+      const orcamentoSalvo = resultadoOrcamento.data;
+      const erroOrcamento = resultadoOrcamento.error;
 
       if (erroOrcamento) throw erroOrcamento;
+
+      if (orcamentoEmEdicaoId) {
+        const { error: erroRemoverItens } = await db
+          .from('orcamento_itens')
+          .delete()
+          .eq('orcamento_id', orcamentoEmEdicaoId);
+        if (erroRemoverItens) throw erroRemoverItens;
+      }
 
       const itensParaSalvar = produtos.map((produto) => ({
         orcamento_id: orcamentoSalvo.id,
@@ -316,7 +327,10 @@ const BudgetDashboard: React.FC = () => {
         criadoEm: orcamentoSalvo.created_at
       };
 
-      setOrcamentos((prev) => [itemSalvo, ...prev]);
+      setOrcamentos((prev) => orcamentoEmEdicaoId
+        ? prev.map((orcamento) => orcamento.id === orcamentoEmEdicaoId ? itemSalvo : orcamento)
+        : [itemSalvo, ...prev]
+      );
       setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
       setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
       setClienteAvulsoAtivo(false);
@@ -324,7 +338,8 @@ const BudgetDashboard: React.FC = () => {
       setBuscaCliente('');
       setBuscaProduto('');
       setModalAberto(false);
-      alert('Orçamento salvo no Supabase com sucesso!');
+      alert(orcamentoEmEdicaoId ? 'Orçamento atualizado com sucesso!' : 'Orçamento salvo no Supabase com sucesso!');
+      setOrcamentoEmEdicaoId(null);
     } catch (err: any) {
       console.error('Erro ao salvar orçamento:', err);
       alert(`Erro ao salvar orçamento: ${err.message || 'verifique o console.'}`);
@@ -361,6 +376,61 @@ const BudgetDashboard: React.FC = () => {
     };
   };
 
+  const limparFormularioOrcamento = () => {
+    setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
+    setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
+    setClienteAvulsoAtivo(false);
+    setProdutosSelecionados([{ item: '', quantidade: 1 }]);
+    setBuscaCliente('');
+    setBuscaProduto('');
+    setOrcamentoEmEdicaoId(null);
+  };
+
+  const abrirNovoOrcamento = () => {
+    limparFormularioOrcamento();
+    setModalAberto(true);
+  };
+
+  const abrirEdicaoOrcamento = (orcamento: BudgetItem) => {
+    const clienteCadastrado = clientes.some((cliente) => cliente.cliente === orcamento.cliente);
+    let observacoes = orcamento.observacoes || '';
+    const avulso = { nome: orcamento.cliente, telefone: '', documento: '', cep: '', endereco: '', complemento: '' };
+
+    if (!clienteCadastrado && observacoes.startsWith('DADOS DO CLIENTE AVULSO:')) {
+      const conteudo = observacoes.replace('DADOS DO CLIENTE AVULSO:', '').trim();
+      const [dados, ...restante] = conteudo.split('\n\n');
+      dados.split('\n').forEach((linha) => {
+        const separador = linha.indexOf(':');
+        if (separador < 0) return;
+        const chave = linha.slice(0, separador).trim().toLowerCase();
+        const valor = linha.slice(separador + 1).trim();
+        if (chave === 'telefone') avulso.telefone = valor;
+        if (chave === 'documento') avulso.documento = valor;
+        if (chave === 'cep') avulso.cep = valor;
+        if (chave === 'endereco') avulso.endereco = valor;
+        if (chave === 'complemento') avulso.complemento = valor;
+      });
+      observacoes = restante.join('\n\n').trim();
+    }
+
+    setOrcamentoEmEdicaoId(orcamento.id);
+    setClienteAvulsoAtivo(!clienteCadastrado);
+    setClienteAvulso(avulso);
+    setNovoOrcamento({
+      cliente: clienteCadastrado ? orcamento.cliente : '',
+      reserva: orcamento.reserva,
+      retirada: orcamento.retirada,
+      adiantamento: orcamento.adiantamento ? String(orcamento.adiantamento) : '',
+      observacoes
+    });
+    setProdutosSelecionados(orcamento.produtos.map((produto) => ({
+      item: produto.item,
+      quantidade: produto.quantidade
+    })));
+    setBuscaCliente('');
+    setBuscaProduto('');
+    setModalAberto(true);
+  };
   const gerarDocumentoOrcamento = (orcamento: BudgetItem) => {
     const cliente = clientes.find((item) => item.cliente === orcamento.cliente) || {};
     const { dadosCliente, observacoesLimpas } = separarDadosClienteAvulso(orcamento.observacoes);
@@ -528,7 +598,7 @@ const BudgetDashboard: React.FC = () => {
         />
         <button
           type="button"
-          onClick={() => setModalAberto(true)}
+          onClick={abrirNovoOrcamento}
           className="w-full md:w-auto px-6 py-4 bg-[#b24a2b] text-white rounded-full font-black uppercase text-xs tracking-widest shadow-lg hover:bg-[#943a20] active:scale-95 transition-all"
         >
           <i className="fa-solid fa-plus mr-2"></i>
@@ -562,6 +632,14 @@ const BudgetDashboard: React.FC = () => {
                   title="Abrir orçamento"
                 >
                   <i className="fa-solid fa-file-contract text-xs"></i>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => abrirEdicaoOrcamento(orcamento)}
+                  className="w-9 h-9 rounded-full bg-amber-500 text-white shadow-sm hover:scale-105 transition-transform"
+                  title="Editar orçamento"
+                >
+                  <i className="fa-solid fa-pen-to-square text-xs"></i>
                 </button>
                 <button
                   type="button"
@@ -609,7 +687,7 @@ const BudgetDashboard: React.FC = () => {
         <div className="fixed inset-0 z-[100] bg-black/60 backdrop-blur-sm flex items-center justify-center p-4">
           <form onSubmit={salvarOrcamento} className="bg-white rounded-[36px] p-8 w-full max-w-2xl max-h-[90vh] overflow-y-auto shadow-2xl border border-orange-100 animate-in zoom-in duration-200">
             <div className="text-center mb-6">
-              <h2 className="text-xl font-black text-gray-800 uppercase italic">Novo Orçamento</h2>
+              <h2 className="text-xl font-black text-gray-800 uppercase italic">{orcamentoEmEdicaoId ? 'Editar Orçamento' : 'Novo Orçamento'}</h2>
               <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">Preencha os dados principais</p>
             </div>
 
@@ -828,7 +906,7 @@ const BudgetDashboard: React.FC = () => {
             <div className="flex gap-3 mt-6">
               <button
                 type="button"
-                onClick={() => setModalAberto(false)}
+                onClick={() => { setModalAberto(false); limparFormularioOrcamento(); }}
                 className="flex-1 p-4 bg-gray-100 text-gray-600 rounded-2xl font-black uppercase text-[10px] tracking-widest hover:bg-gray-200"
               >
                 Voltar
@@ -838,7 +916,7 @@ const BudgetDashboard: React.FC = () => {
                 disabled={salvando}
                 className="flex-1 p-4 bg-[#b24a2b] text-white rounded-2xl font-black uppercase text-[10px] tracking-widest shadow-lg hover:bg-[#943a20] disabled:opacity-60 disabled:cursor-not-allowed"
               >
-                {salvando ? 'Salvando...' : 'Salvar'}
+                {salvando ? 'Salvando...' : orcamentoEmEdicaoId ? 'Atualizar' : 'Salvar'}
               </button>
             </div>
           </form>
