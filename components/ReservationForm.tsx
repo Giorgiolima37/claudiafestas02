@@ -267,6 +267,11 @@ const ReservationForm: React.FC = () => {
                   c.id.toString().includes(filtroCliente) ||
                   String(c['id-client'] || '').includes(filtroCliente)
                 )
+                .sort((a, b) => {
+                  const nomeA = String(a.cliente || '').trim().normalize('NFKC');
+                  const nomeB = String(b.cliente || '').trim().normalize('NFKC');
+                  return nomeA.localeCompare(nomeB, 'pt-BR', { sensitivity: 'base' });
+                })
                 .map(c => <option key={c.id} value={c.id}>ID: {c['id-client'] || c.id} - {c.cliente}</option>)
               }
             </select>
