@@ -32,6 +32,8 @@ const OrderManagement: React.FC = () => {
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
   const [novaQtdItem, setNovaQtdItem] = useState(1);
   const [adiantamentoEdicao, setAdiantamentoEdicao] = useState(0);
+  const [taxaEntregaEdicao, setTaxaEntregaEdicao] = useState(0);
+  const [descontoEdicao, setDescontoEdicao] = useState(0);
   const [observacoesBaseEdicao, setObservacoesBaseEdicao] = useState('');
   
   // NOVO ESTADO: Armazena a data original para garantir que o update encontre o registro certo
@@ -198,9 +200,7 @@ const OrderManagement: React.FC = () => {
   };
 
   const calcularTotalEdicao = () => {
-    const frete = Number(pedidoEmEdicao.find(item => !item._deleted)?.taxa_entrega || 0);
-    const desconto = Number(pedidoEmEdicao.find(item => !item._deleted)?.desconto || 0);
-    return calcularSubtotalEdicao() + frete - desconto;
+    return Math.max(0, calcularSubtotalEdicao() + taxaEntregaEdicao - descontoEdicao);
   };
 
   const calcularSaldoEdicao = () => Math.max(0, calcularTotalEdicao() - adiantamentoEdicao);
@@ -217,6 +217,8 @@ const OrderManagement: React.FC = () => {
     const financeiro = extrairFinanceiroDasObservacoes(pedidoAgrupado.observacoes || pedidoAgrupado.itens[0]?.observacoes || '');
     setPedidoEmEdicao(itensFormatados);
     setAdiantamentoEdicao(financeiro.adiantamento);
+    setTaxaEntregaEdicao(Number(pedidoAgrupado.itens[0]?.taxa_entrega || 0));
+    setDescontoEdicao(Number(pedidoAgrupado.itens[0]?.desconto || 0));
     setObservacoesBaseEdicao(financeiro.observacoesBase);
     setDataEventoOriginal(pedidoAgrupado.itens[0].data_evento);
     setDadosPedidoFixo({
@@ -270,7 +272,9 @@ const OrderManagement: React.FC = () => {
         .update({ 
             data_devolucao: dadosPedidoFixo.data_devolucao,
             data_evento: dadosPedidoFixo.data_evento,
-            observacoes: observacoesAtualizadas
+            observacoes: observacoesAtualizadas,
+            taxa_entrega: taxaEntregaEdicao,
+            desconto: descontoEdicao
         })
         .eq('cliente_id', dadosPedidoFixo.cliente_id)
         .eq('data_evento', dataEventoOriginal);
@@ -304,8 +308,8 @@ const OrderManagement: React.FC = () => {
             status: 'Pendente',
             forma_pagamento: 'Ajuste',
             valor_total: item.valor_total,
-            taxa_entrega: Number(pedidoEmEdicao.find(i => !i._deleted)?.taxa_entrega || 0),
-            desconto: Number(pedidoEmEdicao.find(i => !i._deleted)?.desconto || 0),
+            taxa_entrega: taxaEntregaEdicao,
+            desconto: descontoEdicao,
             codigo_item: item.codigo_item,
             observacoes: observacoesAtualizadas
           }]);
@@ -1153,6 +1157,28 @@ const OrderManagement: React.FC = () => {
             <div className="bg-gray-50 rounded-3xl p-6 mb-8 border border-gray-100">
               <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-4">Ajuste de Pagamento</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-gray-600 uppercase mb-2 block">Taxa de entrega (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl text-center font-black text-xl text-gray-700 outline-none focus:border-[#b24a2b]"
+                    value={taxaEntregaEdicao}
+                    onChange={(e) => setTaxaEntregaEdicao(Math.max(0, parseFloat(e.target.value) || 0))}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-red-500 uppercase mb-2 block">Desconto (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full p-4 bg-red-50 border-2 border-red-200 rounded-2xl text-center font-black text-xl text-red-500 outline-none"
+                    value={descontoEdicao}
+                    onChange={(e) => setDescontoEdicao(Math.max(0, parseFloat(e.target.value) || 0))}
+                  />
+                </div>
                 <div>
                   <label className="text-[9px] font-black text-blue-600 uppercase mb-2 block">Adiantamento (R$)</label>
                   <input

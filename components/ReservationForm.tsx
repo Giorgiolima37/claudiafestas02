@@ -296,10 +296,10 @@ const ReservationForm: React.FC = () => {
 
         <div className="grid grid-cols-1 gap-6">
           <div className="flex flex-col">
-            <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">Complemento do EndereÃ§o</label>
+            <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">{'Complemento do Endere\u00e7o'}</label>
             <input
               type="text"
-              placeholder="Ex: casa 1, creche, auditoria, salÃ£o 4..."
+              placeholder={'Ex: casa 1, creche, audit\u00f3rio, sal\u00e3o 4...'}
               className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all"
               value={reservaGeral.complemento}
               onChange={(e) => setReservaGeral({...reservaGeral, complemento: e.target.value})}
