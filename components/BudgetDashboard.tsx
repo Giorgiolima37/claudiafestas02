@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import Select from 'react-select';
 import { db } from '../services/supabase';
 import logoImg from '../logo.png';
 
@@ -9,6 +10,8 @@ interface BudgetItem {
   retirada: string;
   observacoes: string;
   valor: number;
+  taxaEntrega: number;
+  desconto: number;
   adiantamento: number;
   saldoRestante: number;
   produtos: Array<{ item: string; quantidade: number; preco: number; codigo: string; estoqueId?: string }>;
@@ -21,7 +24,6 @@ const BudgetDashboard: React.FC = () => {
   const [estoque, setEstoque] = useState<any[]>([]);
   const [busca, setBusca] = useState('');
   const [buscaCliente, setBuscaCliente] = useState('');
-  const [buscaProduto, setBuscaProduto] = useState('');
   const [modalAberto, setModalAberto] = useState(false);
   const [orcamentoEmEdicaoId, setOrcamentoEmEdicaoId] = useState<string | null>(null);
   const [salvando, setSalvando] = useState(false);
@@ -39,6 +41,8 @@ const BudgetDashboard: React.FC = () => {
     cliente: '',
     reserva: '',
     retirada: '',
+    taxaEntrega: '',
+    desconto: '',
     adiantamento: '',
     observacoes: ''
   });
@@ -61,6 +65,8 @@ const BudgetDashboard: React.FC = () => {
         retirada: orcamento.data_retirada,
         observacoes: orcamento.observacoes || '',
         valor: Number(orcamento.valor_total || 0),
+        taxaEntrega: Number(orcamento.taxa_entrega || 0),
+        desconto: Number(orcamento.desconto || 0),
         adiantamento: Number(orcamento.adiantamento || 0),
         saldoRestante: Number(orcamento.saldo_restante || 0),
         criadoEm: orcamento.created_at,
@@ -184,15 +190,14 @@ const BudgetDashboard: React.FC = () => {
     );
   }, [buscaCliente, clientes]);
 
-  const produtosFiltrados = useMemo(() => {
-    const termo = buscaProduto.trim().toLowerCase();
-    if (!termo) return estoque;
-    return estoque.filter((produto) =>
-      String(produto.item || '').toLowerCase().includes(termo) ||
-      String(produto.codigo_interno || '').toLowerCase().includes(termo) ||
-      String(produto.id || '').toLowerCase().includes(termo)
-    );
-  }, [buscaProduto, estoque]);
+  const obterOpcoesProdutos = (indiceAtual: number) => estoque.map((produto) => ({
+    value: produto.item,
+    label: `[${produto.codigo_interno || 'S/C'}] ${produto.item} (Disp: ${produto.disponivel})`,
+    codigo: String(produto.codigo_interno || '').trim(),
+    indisponivel: produtosSelecionados.some((selecionado, indice) =>
+      selecionado.item === produto.item && indice !== indiceAtual
+    )
+  }));
 
   const calcularTotalProdutos = () => {
     return produtosSelecionados.reduce((acc, produtoSelecionado) => {
@@ -201,8 +206,11 @@ const BudgetDashboard: React.FC = () => {
     }, 0);
   };
 
+  const calcularTaxaEntrega = () => Number.parseFloat(novoOrcamento.taxaEntrega) || 0;
+  const calcularDesconto = () => Number.parseFloat(novoOrcamento.desconto) || 0;
+  const calcularTotalOrcamento = () => Math.max(0, calcularTotalProdutos() + calcularTaxaEntrega() - calcularDesconto());
   const calcularAdiantamento = () => Number.parseFloat(novoOrcamento.adiantamento) || 0;
-  const calcularSaldoRestante = () => Math.max(0, calcularTotalProdutos() - calcularAdiantamento());
+  const calcularSaldoRestante = () => Math.max(0, calcularTotalOrcamento() - calcularAdiantamento());
 
   const atualizarProduto = (index: number, campo: 'item' | 'quantidade', valor: string | number) => {
     const lista = [...produtosSelecionados];
@@ -270,7 +278,9 @@ const BudgetDashboard: React.FC = () => {
       reserva: novoOrcamento.reserva,
       retirada: novoOrcamento.retirada,
       observacoes: observacoesComClienteAvulso,
-      valor: calcularTotalProdutos(),
+      valor: calcularTotalOrcamento(),
+      taxaEntrega: calcularTaxaEntrega(),
+      desconto: calcularDesconto(),
       adiantamento: calcularAdiantamento(),
       saldoRestante: calcularSaldoRestante(),
       produtos,
@@ -284,6 +294,8 @@ const BudgetDashboard: React.FC = () => {
         data_reserva: item.reserva,
         data_retirada: item.retirada,
         valor_total: item.valor,
+        taxa_entrega: item.taxaEntrega,
+        desconto: item.desconto,
         adiantamento: item.adiantamento,
         saldo_restante: item.saldoRestante,
         observacoes: item.observacoes
@@ -331,12 +343,11 @@ const BudgetDashboard: React.FC = () => {
         ? prev.map((orcamento) => orcamento.id === orcamentoEmEdicaoId ? itemSalvo : orcamento)
         : [itemSalvo, ...prev]
       );
-      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
+      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', taxaEntrega: '', desconto: '', adiantamento: '', observacoes: '' });
       setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
       setClienteAvulsoAtivo(false);
       setProdutosSelecionados([{ item: '', quantidade: 1 }]);
       setBuscaCliente('');
-      setBuscaProduto('');
       setModalAberto(false);
       alert(orcamentoEmEdicaoId ? 'Orçamento atualizado com sucesso!' : 'Orçamento salvo no Supabase com sucesso!');
       setOrcamentoEmEdicaoId(null);
@@ -377,12 +388,11 @@ const BudgetDashboard: React.FC = () => {
   };
 
   const limparFormularioOrcamento = () => {
-    setNovoOrcamento({ cliente: '', reserva: '', retirada: '', adiantamento: '', observacoes: '' });
+    setNovoOrcamento({ cliente: '', reserva: '', retirada: '', taxaEntrega: '', desconto: '', adiantamento: '', observacoes: '' });
     setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
     setClienteAvulsoAtivo(false);
     setProdutosSelecionados([{ item: '', quantidade: 1 }]);
     setBuscaCliente('');
-    setBuscaProduto('');
     setOrcamentoEmEdicaoId(null);
   };
 
@@ -420,6 +430,8 @@ const BudgetDashboard: React.FC = () => {
       cliente: clienteCadastrado ? orcamento.cliente : '',
       reserva: orcamento.reserva,
       retirada: orcamento.retirada,
+      taxaEntrega: orcamento.taxaEntrega ? String(orcamento.taxaEntrega) : '',
+      desconto: orcamento.desconto ? String(orcamento.desconto) : '',
       adiantamento: orcamento.adiantamento ? String(orcamento.adiantamento) : '',
       observacoes
     });
@@ -428,7 +440,6 @@ const BudgetDashboard: React.FC = () => {
       quantidade: produto.quantidade
     })));
     setBuscaCliente('');
-    setBuscaProduto('');
     setModalAberto(true);
   };
   const gerarDocumentoOrcamento = (orcamento: BudgetItem) => {
@@ -514,6 +525,8 @@ const BudgetDashboard: React.FC = () => {
                     <td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(produto.quantidade * produto.preco)}</span></span></td>
                   </tr>
                 `).join('')}
+                ${orcamento.taxaEntrega > 0 ? `<tr class=totals><td colspan=3 style=text-align:right;>TAXA DE ENTREGA</td><td><span class=money><span class=currency>R$</span><span class=amount>${formatarNumeroMoeda(orcamento.taxaEntrega)}</span></span></td></tr>` : ''}
+                ${orcamento.desconto > 0 ? `<tr class=totals><td colspan=3 style=text-align:right;color:red;>DESCONTO</td><td style=color:red;><span class=money><span class=currency>- R$</span><span class=amount>${formatarNumeroMoeda(orcamento.desconto)}</span></span></td></tr>` : ''}
                 ${orcamento.adiantamento > 0 ? `
                   <tr class="totals blue"><td colspan="3" style="text-align:right;">ADIANTAMENTO</td><td><span class="money"><span class="currency">- R$</span><span class="amount">${formatarNumeroMoeda(orcamento.adiantamento)}</span></span></td></tr>
                   <tr class="totals blue"><td colspan="3" style="text-align:right;">SALDO RESTANTE</td><td><span class="money"><span class="currency">R$</span><span class="amount">${formatarNumeroMoeda(orcamento.saldoRestante)}</span></span></td></tr>
@@ -785,30 +798,49 @@ const BudgetDashboard: React.FC = () => {
                 </>
               )}
 
-              <input
-                type="text"
-                placeholder="Pesquisar produto por ID, código ou nome..."
-                value={buscaProduto}
-                onChange={(e) => setBuscaProduto(e.target.value)}
-                className="w-full p-3 bg-white border-2 border-gray-100 rounded-2xl outline-none font-bold text-xs text-gray-600 focus:border-[#b24a2b]"
-              />
-
               <div className="space-y-3">
                 {produtosSelecionados.map((linha, index) => (
                   <div key={index} className="flex flex-col md:flex-row gap-3 rounded-2xl bg-gray-50 p-3 border border-gray-100">
-                    <select
-                      required
-                      value={linha.item}
-                      onChange={(e) => atualizarProduto(index, 'item', e.target.value)}
-                      className="flex-1 p-3 bg-white border-2 border-gray-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
-                    >
-                      <option value="">Selecione o produto...</option>
-                      {produtosFiltrados.map((produto) => (
-                        <option key={produto.id} value={produto.item}>
-                          [{produto.codigo_interno || produto.id}] {produto.item} - Disp: {produto.disponivel}
-                        </option>
-                      ))}
-                    </select>
+                    <Select
+                      options={obterOpcoesProdutos(index)}
+                      value={obterOpcoesProdutos(index).find((opcao) => opcao.value === linha.item) || null}
+                      onChange={(opcao) => atualizarProduto(index, 'item', opcao?.value || '')}
+                      isOptionDisabled={(opcao) => opcao.indisponivel}
+                      placeholder={'Digite o nome ou c\u00f3digo do produto...'}
+                      noOptionsMessage={() => 'Nenhum produto encontrado'}
+                      isClearable
+                      openMenuOnFocus
+                      className="flex-1 text-xs font-bold"
+                      styles={{
+                        control: (base, estado) => ({
+                          ...base,
+                          minHeight: '48px',
+                          borderRadius: '12px',
+                          borderWidth: '2px',
+                          borderColor: estado.isFocused ? '#b24a2b' : '#f3f4f6',
+                          boxShadow: 'none'
+                        }),
+                        menu: (base) => ({ ...base, zIndex: 60 }),
+                        option: (base, estado) => ({
+                          ...base,
+                          fontWeight: 700,
+                          backgroundColor: estado.isSelected ? '#b24a2b' : estado.isFocused ? '#fff1eb' : '#ffffff',
+                          color: estado.isSelected ? '#ffffff' : '#374151'
+                        })
+                      }}
+                      filterOption={(opcao, texto) => {
+                        const termo = texto.trim();
+                        if (!termo) return true;
+                        if (/^\d+$/.test(termo)) {
+                          const codigoDigitado = String(Number(termo));
+                          const codigoProduto = /^\d+$/.test(opcao.data.codigo)
+                            ? String(Number(opcao.data.codigo))
+                            : opcao.data.codigo;
+                          return codigoProduto === codigoDigitado;
+                        }
+                        return opcao.data.value.toLowerCase().includes(termo.toLowerCase());
+                      }}
+                    />
                     <input
                       type="number"
                       required
@@ -861,10 +893,20 @@ const BudgetDashboard: React.FC = () => {
                 </div>
               </div>
 
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-3 mb-2 block">Taxa de entrega</label>
+                  <input type="number" step="0.01" min="0" value={novoOrcamento.taxaEntrega} onChange={(e) => setNovoOrcamento({ ...novoOrcamento, taxaEntrega: e.target.value })} className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl outline-none font-black text-xl text-gray-700 focus:border-[#b24a2b]" placeholder="R$ 0,00" />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-red-500 uppercase tracking-widest ml-3 mb-2 block">Desconto</label>
+                  <input type="number" step="0.01" min="0" value={novoOrcamento.desconto} onChange={(e) => setNovoOrcamento({ ...novoOrcamento, desconto: e.target.value })} className="w-full p-4 bg-red-50 border-2 border-red-100 rounded-2xl outline-none font-black text-xl text-red-500 focus:border-red-300" placeholder="R$ 0,00" />
+                </div>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div className="w-full p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl text-[#b24a2b]">
                   <span className="block text-[9px] font-black uppercase tracking-widest text-orange-400">Valor total</span>
-                  <strong className="text-xl font-black">{formatarMoeda(calcularTotalProdutos())}</strong>
+                  <strong className="text-xl font-black">{formatarMoeda(calcularTotalOrcamento())}</strong>
                 </div>
                 <div>
                   <label className="text-[9px] font-black text-blue-600 uppercase tracking-widest ml-3 mb-2 block">Adiantamento</label>
@@ -887,7 +929,7 @@ const BudgetDashboard: React.FC = () => {
                     value={calcularSaldoRestante()}
                     onChange={(e) => {
                       const novoSaldo = Number.parseFloat(e.target.value) || 0;
-                      const novoAdiantamento = Math.max(0, calcularTotalProdutos() - novoSaldo);
+                      const novoAdiantamento = Math.max(0, calcularTotalOrcamento() - novoSaldo);
                       setNovoOrcamento({ ...novoOrcamento, adiantamento: String(novoAdiantamento) });
                     }}
                     className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-black text-xl text-gray-700 focus:border-[#b24a2b]"
