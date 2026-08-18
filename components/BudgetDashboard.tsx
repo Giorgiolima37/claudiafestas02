@@ -48,6 +48,16 @@ const BudgetDashboard: React.FC = () => {
   });
   const [produtosSelecionados, setProdutosSelecionados] = useState([{ item: '', quantidade: 1 }]);
 
+  const extrairFinanceiroOrcamento = (observacoes: string) => {
+    const texto = observacoes || '';
+    const match = texto.match(/__FINANCEIRO_ORCAMENTO__:taxa=([\d.]+);desconto=([\d.]+)/);
+    return {
+      taxaEntrega: match ? Number(match[1]) || 0 : 0,
+      desconto: match ? Number(match[2]) || 0 : 0,
+      observacoes: texto.replace(/\n?__FINANCEIRO_ORCAMENTO__:taxa=[\d.]+;desconto=[\d.]+/, '').trim()
+    };
+  };
+
   useEffect(() => {
     const carregarDados = async () => {
       const [resClientes, resEstoque, resOrcamentos] = await Promise.all([
@@ -63,10 +73,10 @@ const BudgetDashboard: React.FC = () => {
         cliente: orcamento.cliente_nome,
         reserva: orcamento.data_reserva,
         retirada: orcamento.data_retirada,
-        observacoes: orcamento.observacoes || '',
+        observacoes: extrairFinanceiroOrcamento(orcamento.observacoes || '').observacoes,
         valor: Number(orcamento.valor_total || 0),
-        taxaEntrega: Number(orcamento.taxa_entrega || 0),
-        desconto: Number(orcamento.desconto || 0),
+        taxaEntrega: Number(orcamento.taxa_entrega || extrairFinanceiroOrcamento(orcamento.observacoes || '').taxaEntrega),
+        desconto: Number(orcamento.desconto || extrairFinanceiroOrcamento(orcamento.observacoes || '').desconto),
         adiantamento: Number(orcamento.adiantamento || 0),
         saldoRestante: Number(orcamento.saldo_restante || 0),
         criadoEm: orcamento.created_at,
@@ -242,6 +252,7 @@ const BudgetDashboard: React.FC = () => {
     const observacoesComClienteAvulso = clienteAvulsoAtivo && dadosClienteAvulso.length > 0
       ? `DADOS DO CLIENTE AVULSO:\n${dadosClienteAvulso.join('\n')}${novoOrcamento.observacoes ? `\n\n${novoOrcamento.observacoes}` : ''}`
       : novoOrcamento.observacoes;
+    const observacoesParaSalvar = `${observacoesComClienteAvulso ? `${observacoesComClienteAvulso}\n` : ''}__FINANCEIRO_ORCAMENTO__:taxa=${calcularTaxaEntrega()};desconto=${calcularDesconto()}`;
     const produtos = produtosSelecionados
       .filter((produto) => produto.item)
       .map((produtoSelecionado) => {
@@ -294,11 +305,9 @@ const BudgetDashboard: React.FC = () => {
         data_reserva: item.reserva,
         data_retirada: item.retirada,
         valor_total: item.valor,
-        taxa_entrega: item.taxaEntrega,
-        desconto: item.desconto,
         adiantamento: item.adiantamento,
         saldo_restante: item.saldoRestante,
-        observacoes: item.observacoes
+        observacoes: observacoesParaSalvar
       };
 
       const resultadoOrcamento = orcamentoEmEdicaoId
