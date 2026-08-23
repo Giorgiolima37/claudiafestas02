@@ -27,6 +27,11 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   // --- NOVOS ESTADOS PARA EDIÇÃO DE CLIENTE ---
   const [modalEdicaoClienteAberto, setModalEdicaoClienteAberto] = useState(false);
   const [dadosClienteEdicao, setDadosClienteEdicao] = useState<any>({});
+
+  const formatarCep = (valor: string) => {
+    const numeros = valor.replace(/\D/g, '').slice(0, 8);
+    return numeros.replace(/^(\d{5})(\d)/, '$1-$2');
+  };
   
   // --- ESTADOS PARA O MODAL DE MOTIVO ---
   const [modalMotivoAberto, setModalMotivoAberto] = useState(false);
@@ -243,6 +248,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             telefone: dadosClienteEdicao.telefone,
             identificação: dadosClienteEdicao.identificação, 
             endereco: dadosClienteEdicao.endereco,
+            cep: dadosClienteEdicao.cep,
+            numero: dadosClienteEdicao.numero,
+            complemento: dadosClienteEdicao.complemento,
             bairro: dadosClienteEdicao.bairro,
             municipio: dadosClienteEdicao.municipio
         }).eq('id', dadosClienteEdicao.id);
@@ -673,6 +681,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Endereço Completo</span>
                         <span className="font-bold text-xs text-gray-600 italic leading-relaxed">
                           {clienteDetalhado.endereco || 'Sem endereço cadastrado.'}
+                          {clienteDetalhado.numero ? `, ${clienteDetalhado.numero}` : ''}
+                          {clienteDetalhado.complemento ? ` - ${clienteDetalhado.complemento}` : ''}
+                          {clienteDetalhado.cep ? ` | CEP: ${clienteDetalhado.cep}` : ''}
                         </span>
                       </div>
                     </div>
@@ -861,6 +872,36 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             value={dadosClienteEdicao.identificação || ''}
                             onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, identificação: e.target.value})}
                         />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">CEP</label>
+                            <input
+                                inputMode="numeric"
+                                maxLength={9}
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.cep || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, cep: formatarCep(e.target.value)})}
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Número da Casa</label>
+                            <input
+                                maxLength={20}
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.numero || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, numero: e.target.value})}
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Complemento</label>
+                            <input
+                                maxLength={100}
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.complemento || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, complemento: e.target.value})}
+                            />
+                        </div>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4">
                         <div className="flex flex-col flex-1">
