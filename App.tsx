@@ -631,6 +631,7 @@ const App: React.FC = () => {
           activeUserDetails={activeUserDetails}
           currentPresenceSessionId={presenceSessionId}
           onLogoutSession={handleLogoutSession}
+          onLogout={() => handleLogout('Sessao encerrada. Faca login novamente.')}
           onOpenAdmin={handleOpenAdmin}
         />
       </div>

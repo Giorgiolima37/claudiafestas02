@@ -11,6 +11,7 @@ interface SidebarProps {
   activeUserDetails?: ActiveUserPresence[];
   currentPresenceSessionId?: string;
   onLogoutSession?: (sessionId: string) => void;
+  onLogout?: () => void;
   onOpenAdmin?: () => void;
 }
 
@@ -89,6 +90,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   activeUserDetails = [],
   currentPresenceSessionId,
   onLogoutSession,
+  onLogout,
   onOpenAdmin
 }) => {
   const currentTheme = getSidebarTheme();
@@ -196,7 +198,7 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Cabeçalho / Logo */}
       <div className="mb-0 mt-4 text-center">
-        <div className="relative mb-3 inline-block">
+        <div className="relative mb-3 inline-flex items-center gap-2">
           <button
             type="button"
             onClick={() => setIsPresenceOpen(!isPresenceOpen)}
@@ -205,6 +207,19 @@ const Sidebar: React.FC<SidebarProps> = ({
           >
             <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
             <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={() => {
+              if (window.confirm('Deseja sair do sistema?')) onLogout?.();
+            }}
+            className="inline-flex items-center justify-center gap-1.5 rounded-full bg-red-50 px-3 py-1.5 text-[9px] font-black uppercase tracking-widest text-red-600 shadow-sm transition-all hover:bg-red-600 hover:text-white active:scale-95"
+            title="Sair do sistema"
+            aria-label="Sair do sistema"
+          >
+            <i className="fa-solid fa-right-from-bracket"></i>
+            <span>Sair</span>
           </button>
 
           {isPresenceOpen && (
