@@ -18,6 +18,34 @@ const LOGOUT_PASSWORD_STORAGE_KEY = 'claudia_logout_password';
 const DEFAULT_ACCESS_PASSWORD = '123456';
 const DEFAULT_LOGOUT_PASSWORD = '123456';
 
+const formatarTextoComoNomeProprio = (valor: string) =>
+  valor
+    .toLocaleLowerCase('pt-BR')
+    .replace(/(^|\s)(\p{L})/gu, (_, separador: string, letra: string) =>
+      separador + letra.toLocaleUpperCase('pt-BR')
+    );
+
+const deveManterDigitacaoOriginal = (campo: HTMLInputElement | HTMLTextAreaElement) => {
+  if (campo instanceof HTMLTextAreaElement) return false;
+
+  const tiposTecnicos = new Set([
+    'password', 'email', 'tel', 'number', 'date', 'datetime-local', 'time',
+    'month', 'week', 'range', 'color', 'file', 'checkbox', 'radio', 'hidden'
+  ]);
+
+  if (tiposTecnicos.has(campo.type)) return true;
+  if (['numeric', 'decimal', 'tel', 'email', 'url'].includes(campo.inputMode)) return true;
+
+  const identificacaoDoCampo = [
+    campo.id,
+    campo.name,
+    campo.placeholder,
+    campo.getAttribute('aria-label') || ''
+  ].join(' ').toLocaleLowerCase('pt-BR');
+
+  return /senha|password|telefone|whatsapp|cpf|cnpj|document|identifica|cep|código|codigo|\bqtd\b|quantidade|id personalizado/.test(identificacaoDoCampo);
+};
+
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('PEDIDOS');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
@@ -58,6 +86,33 @@ const App: React.FC = () => {
     return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
   });
   const currentTheme = getSidebarTheme();
+
+  useEffect(() => {
+    const aplicarCapitalizacaoGlobal = (event: Event) => {
+      const campo = event.target;
+      if (!(campo instanceof HTMLInputElement || campo instanceof HTMLTextAreaElement)) return;
+      if (deveManterDigitacaoOriginal(campo)) return;
+
+      const valorFormatado = formatarTextoComoNomeProprio(campo.value);
+      if (valorFormatado === campo.value) return;
+
+      const inicioSelecao = campo.selectionStart;
+      const fimSelecao = campo.selectionEnd;
+      const prototipo = campo instanceof HTMLTextAreaElement
+        ? HTMLTextAreaElement.prototype
+        : HTMLInputElement.prototype;
+      const definicaoDoValor = Object.getOwnPropertyDescriptor(prototipo, 'value');
+
+      definicaoDoValor?.set?.call(campo, valorFormatado);
+
+      if (inicioSelecao !== null && fimSelecao !== null) {
+        campo.setSelectionRange(inicioSelecao, fimSelecao);
+      }
+    };
+
+    document.addEventListener('input', aplicarCapitalizacaoGlobal, true);
+    return () => document.removeEventListener('input', aplicarCapitalizacaoGlobal, true);
+  }, []);
 
   const isCatalogRoute = window.location.pathname === '/catalogo';
   const isLocalProgrammerAccess =
