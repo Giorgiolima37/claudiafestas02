@@ -384,6 +384,27 @@ const FormInput: React.FC<{ label: string; id: string; value: string; onChange: 
       id={id}
       value={value}
       onChange={onChange}
+      onKeyDown={(e) => {
+        if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1 || !/\p{L}/u.test(e.key)) return;
+
+        e.preventDefault();
+        const inicio = e.currentTarget.selectionStart ?? value.length;
+        const fim = e.currentTarget.selectionEnd ?? inicio;
+        const letra = e.getModifierState('CapsLock')
+          ? e.key.toLocaleUpperCase('pt-BR')
+          : e.key.toLocaleLowerCase('pt-BR');
+        const novoValor = value.slice(0, inicio) + letra + value.slice(fim);
+
+        e.currentTarget.value = novoValor;
+        onChange(e as unknown as React.ChangeEvent<HTMLInputElement>);
+
+        requestAnimationFrame(() => {
+          e.currentTarget.setSelectionRange(inicio + letra.length, inicio + letra.length);
+        });
+      }}
+      autoCapitalize="none"
+      autoCorrect="off"
+      spellCheck={false}
       required={required}
       maxLength={maxLength}
       className="w-full p-3.5 bg-gray-50 border-2 border-gray-100 rounded-xl focus:border-[#f2c6b4] focus:bg-white outline-none transition-all text-sm"

@@ -61,7 +61,7 @@ const BudgetDashboard: React.FC = () => {
   useEffect(() => {
     const carregarDados = async () => {
       const [resClientes, resEstoque, resOrcamentos] = await Promise.all([
-        db.from('cadastro').select('id, cliente, id-client').order('cliente', { ascending: true }),
+        db.from('cadastro').select('id, cliente, id-client, identificação, telefone, endereco, complemento, bairro, municipio').order('cliente', { ascending: true }),
         db.from('estoque').select('id, item, disponivel, preco, codigo_interno').order('item', { ascending: true }),
         db.from('orcamentos').select('*, orcamento_itens(*)').order('created_at', { ascending: false })
       ]);
@@ -519,6 +519,10 @@ const BudgetDashboard: React.FC = () => {
             <div class="intro">
               Orçamento emitido para <strong>${orcamento.cliente.toUpperCase()}</strong>
               ${cliente?.['id-client'] ? ` - ID: <strong>${cliente['id-client']}</strong>` : ''},
+              ${cliente?.['identificação'] ? ` IDENTIFICAÇÃO: <strong>${cliente['identificação']}</strong>,` : ''}
+              ${cliente?.endereco ? ` com endereço em <strong>${cliente.endereco.toUpperCase()}${cliente.complemento ? ` - ${cliente.complemento.toUpperCase()}` : ''}</strong>,` : ''}
+              ${cliente?.bairro ? ` Bairro: <strong>${cliente.bairro.toUpperCase()}</strong>` : ''}
+              ${cliente?.municipio ? ` - Município: <strong>${cliente.municipio.toUpperCase()}</strong>,` : ''}
               referente aos artigos para festas listados abaixo.
               ${cliente?.telefone ? `<br><strong>Telefone do cliente:</strong> ${cliente.telefone}` : ''}
               ${dadosCliente ? `<br><strong>Dados do cliente:</strong> ${dadosCliente}` : ''}
