@@ -305,9 +305,8 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
              <FormInput label="MUNICÍPIO" id="municipio" value={formData.municipio} onChange={handleChange} required />
         </div>
 
-        {/* LINHA 5: CEP, número e complemento */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-          <FormInput label={buscandoCep ? "CEP (BUSCANDO ENDEREÇO...)" : "CEP"} id="cep" value={formData.cep} onChange={handleChange} required maxLength={9} />
+        {/* LINHA 5: número e complemento */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
           <FormInput label="NÚMERO DA CASA" id="numero" value={formData.numero} onChange={handleChange} required maxLength={20} />
           <FormInput label="COMPLEMENTO" id="complemento" value={formData.complemento} onChange={handleChange} maxLength={100} />
         </div>

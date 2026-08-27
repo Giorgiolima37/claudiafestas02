@@ -1155,6 +1155,17 @@ const OrderManagement: React.FC = () => {
               </div>
             </div>
             <div className="bg-gray-50 rounded-3xl p-6 mb-8 border border-gray-100">
+              <label htmlFor="observacoes-edicao" className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest mb-3 block">OBS:</label>
+              <textarea
+                id="observacoes-edicao"
+                rows={4}
+                className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-700 outline-none focus:border-[#b24a2b] resize-y"
+                placeholder="Digite as observações do pedido..."
+                value={observacoesBaseEdicao}
+                onChange={(e) => setObservacoesBaseEdicao(e.target.value)}
+              />
+            </div>
+            <div className="bg-gray-50 rounded-3xl p-6 mb-8 border border-gray-100">
               <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-4">Ajuste de Pagamento</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <div>
