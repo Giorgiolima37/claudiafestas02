@@ -1,0 +1,5 @@
+Tool: built-in image_gen
+Asset: logo-login-faixa-branca.png
+The login CSS clips the exterior to the circular logo because the generated asset contains a checkerboard background.
+
+Edit only the ribbon/banner background behind the red text CLAUDIA FESTAS in the supplied logo: change the black ribbon fill to pure white including its folded tails, preserving a thin dark outline. Keep the text exactly CLAUDIA FESTAS in red, unchanged lettering, shape, placement and proportions. Preserve the woman, wine glass, yellow circle, navy circular border and all other details and original composition and margins. Transparent outer background with genuine alpha, no new elements. This is a precise small logo color edit, not a redesign.

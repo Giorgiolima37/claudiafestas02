@@ -1,0 +1,5 @@
+Tool: built-in image_gen
+Asset: login-recepcao-hd.png
+Actual resolution: 1536 x 1024 pixels
+
+Use case: photorealistic-natural. Asset type: high definition photographic background for Claudia Festas party rental login website. Create a premium editorial photograph of an elegant Brazilian evening wedding reception: beautifully arranged round table in foreground right with ivory linen, fine crystal glasses, white ceramic plates, gold cutlery, abundant delicate ivory and soft peach flowers; elegant white Chiavari chairs and warm suspended fairy lights in background. Sophisticated warm amber light mixed with subtle deep midnight blue evening atmosphere. Wide landscape composition 3:2, full bleed, extremely detailed crisp glass and flowers, natural photographic textures, realistic proportions, no people. Left half quieter, dark atmospheric space for webpage text overlay, primary table and flowers on right. No text, no typography, no logo, no watermarks, no UI, no borders. Highest available resolution, aim 3072x2048.

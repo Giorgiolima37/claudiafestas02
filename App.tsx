@@ -12,8 +12,8 @@ import Catalog from './components/Catalog';
 import BudgetDashboard from './components/BudgetDashboard';
 import { db } from './services/supabase';
 import logo2 from './logo-2.png';
-import loginLogo from './logo.png';
-import loginBackground from './TELA_PRINCIPAL_LARANJA.png';
+import loginLogo from './logo-login-faixa-branca.png';
+import loginBackground from './login-recepcao-hd.png';
 
 const ACCESS_PASSWORD_STORAGE_KEY = 'claudia_access_password';
 const LOGOUT_PASSWORD_STORAGE_KEY = 'claudia_logout_password';
@@ -494,45 +494,60 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <main className="login-page" style={{ '--login-background': `url(${loginBackground})` } as React.CSSProperties}>
-        <div
-          className={`login-scene${isZooming ? ' login-scene--entering' : ''}`}
-          style={{ backgroundImage: `url(${loginBackground})` }}
-        >
-          <div className="login-company-logo"><img src={loginLogo} alt="Claudia Festas" /></div>
-          <form className="login-form" onSubmit={handleLogin}>
-            <h1 className="login-heading">Login</h1>
-            <label className="login-label" htmlFor="login-password">Senha</label>
-            <div className="login-password-wrap">
-              <input
-                id="login-password"
-                className="login-password"
-                type={showPassword ? 'text' : 'password'}
-                value={passwordInput}
-                onChange={(event) => { setPasswordInput(event.target.value); setError(false); }}
-                autoComplete="current-password"
-                aria-invalid={error}
-                aria-describedby={error || logoutMessage ? 'login-message' : undefined}
-                required
-              />
-              <button
-                className="login-password-toggle"
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
-                aria-pressed={showPassword}
-              >
-                <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
-              </button>
+      <main className={`login-page${isZooming ? ' login-page--entering' : ''}`}>
+        <section className="login-story" aria-label="Claudia Festas e Locações">
+          <img className="login-photo" src={loginBackground} alt="" fetchPriority="high" />
+          <div className="login-story-shade" />
+          <header className="login-brand">
+            <img src={loginLogo} alt="" width="72" height="72" />
+            <div><strong>CLAUDIA FESTAS</strong><span>Festas &amp; locações</span></div>
+          </header>
+          <div className="login-story-copy">
+            <span className="login-eyebrow"><span /> SUA FESTA, NOSSO COMPROMISSO</span>
+            <h1>O começo de<br />momentos <em>especiais.</em></h1>
+            <p>Cada detalhe preparado com carinho.<br />Tudo para a sua celebração acontecer.</p>
+          </div>
+          <footer className="login-story-footer">
+            <span className="login-services-label">PARA CELEBRAR DO SEU JEITO</span>
+            <div className="login-services">
+              <span>Mesas &amp; cadeiras</span><span>Louças &amp; taças</span><span>Tendas &amp; muito mais</span>
             </div>
-            <button className="login-submit" type="submit" disabled={isZooming}>Logar</button>
-            {(error || logoutMessage) && (
-              <p id="login-message" className="login-message" role={error ? 'alert' : 'status'}>
-                {error ? 'Senha incorreta. Tente novamente.' : logoutMessage}
-              </p>
-            )}
-          </form>
-        </div>
+          </footer>
+        </section>
+        <section className="login-access" aria-labelledby="login-heading">
+          <div className="login-access-top"><span className="login-small-mark">CF<span>.</span></span><span>ÁREA DE GESTÃO</span></div>
+          <div className="login-form-container">
+            <div className="login-welcome-icon" aria-hidden="true">
+              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
+            </div>
+            <span className="login-form-eyebrow">BEM-VINDO DE VOLTA</span>
+            <h2 id="login-heading">Sua próxima festa<br />começa aqui.</h2>
+            <p className="login-description">Acesse o sistema para cuidar de cada detalhe.</p>
+            <form className="login-form" onSubmit={handleLogin}>
+              <label className="login-label" htmlFor="login-password">Senha de acesso</label>
+              <div className="login-password-wrap">
+                <input id="login-password" className="login-password" type={showPassword ? 'text' : 'password'} value={passwordInput}
+                  onChange={(event) => { setPasswordInput(event.target.value); setError(false); }}
+                  placeholder="Digite sua senha" autoComplete="current-password" aria-invalid={error}
+                  aria-describedby={error || logoutMessage ? 'login-message' : undefined} required />
+                <button className="login-password-toggle" type="button" onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'} aria-pressed={showPassword}>
+                  <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                    <path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12Z" /><circle cx="12" cy="12" r="3" />
+                    {showPassword && <path d="m3 3 18 18" />}
+                  </svg>
+                </button>
+              </div>
+              {(error || logoutMessage) && <p id="login-message" className={`login-message${error ? ' login-message--error' : ''}`} role={error ? 'alert' : 'status'}>{error ? 'Senha incorreta. Tente novamente.' : logoutMessage}</p>}
+              <button className="login-submit" type="submit" disabled={isZooming}>
+                <span>{isZooming ? 'Entrando…' : 'Entrar no sistema'}</span>
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12h16m-6-6 6 6-6 6" /></svg>
+              </button>
+              <p className="login-access-note">Acesso exclusivo à equipe Claudia Festas.</p>
+            </form>
+          </div>
+          <footer className="login-access-footer"><span>Feito para organizar. Pensado para celebrar.</span><strong>CLAUDIA FESTAS &amp; LOCAÇÕES</strong></footer>
+        </section>
       </main>
     );
   }
