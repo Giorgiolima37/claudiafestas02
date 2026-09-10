@@ -12,6 +12,8 @@ import Catalog from './components/Catalog';
 import BudgetDashboard from './components/BudgetDashboard';
 import { db } from './services/supabase';
 import logo2 from './logo-2.png';
+import loginLogo from './logo.png';
+import loginBackground from './TELA_PRINCIPAL_LARANJA.png';
 
 const ACCESS_PASSWORD_STORAGE_KEY = 'claudia_access_password';
 const LOGOUT_PASSWORD_STORAGE_KEY = 'claudia_logout_password';
@@ -437,121 +439,46 @@ const App: React.FC = () => {
 
   if (!isAuthenticated) {
     return (
-      <div
-        className="min-h-screen flex flex-col items-center justify-center bg-[#fdf8f6] p-4 overflow-hidden"
-        style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
-      >
-        <div className={`w-full max-w-md bg-white rounded-[40px] p-10 shadow-2xl border border-orange-100 text-center transition-all duration-300 ${isZooming ? 'opacity-0 scale-95 pointer-events-none' : 'animate-in zoom-in duration-500'}`}>
-          <div className="relative mb-5 inline-block">
-            <button
-              type="button"
-              onClick={() => setIsLoginPresenceOpen(!isLoginPresenceOpen)}
-              className="inline-flex items-center justify-center gap-2 rounded-full bg-emerald-50 px-4 py-2 text-[10px] font-black uppercase tracking-widest text-emerald-700 shadow-sm transition-all hover:bg-emerald-100 active:scale-95"
-              title="Ver dispositivos conectados"
-            >
-              <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_0_3px_rgba(16,185,129,0.18)]"></span>
-              <span>{activeUsers || 0} {activeUsers === 1 ? 'usuario online' : 'usuarios online'}</span>
-            </button>
-
-            {isLoginPresenceOpen && (
-              <div className="absolute left-1/2 top-full z-30 mt-2 w-60 -translate-x-1/2 rounded-2xl bg-white p-3 text-left text-gray-800 shadow-xl border border-orange-100">
-                <p className="mb-2 text-[9px] font-black uppercase tracking-widest text-gray-600">Conectados agora</p>
-                <div className="space-y-2">
-                  {activeUserDetails.length > 0 ? (
-                    activeUserDetails.map((user, index) => (
-                      <div key={`${user.sessionId}-${index}`} className="flex items-center justify-between gap-3 rounded-xl bg-gray-50 px-3 py-2">
-                        <div className="flex items-center gap-2">
-                          <i className={`fa-solid ${user.device === 'Celular' ? 'fa-mobile-screen-button' : 'fa-desktop'} text-[#B24D2D] text-xs`}></i>
-                          <div>
-                            <p className="text-[10px] font-black uppercase leading-tight">{user.device}</p>
-                            <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">{user.platform}</p>
-                            {user.city && (
-                              <p className="text-[9px] font-bold uppercase text-gray-600 leading-tight">
-                                <i className="fa-solid fa-location-dot mr-1 text-[8px]"></i>{user.city}
-                              </p>
-                            )}
-                          </div>
-                        </div>
-                        <div className="flex items-center gap-2">
-                          <span className="h-2 w-2 rounded-full bg-emerald-500"></span>
-                          <button
-                            type="button"
-                            onClick={() => handleLogoutSession(user.sessionId)}
-                            className="w-7 h-7 rounded-full bg-red-50 text-red-500 flex items-center justify-center transition-all hover:bg-red-500 hover:text-white active:scale-95"
-                            title={user.sessionId === presenceSessionId ? 'Deslogar esta sessao' : 'Deslogar esta pessoa'}
-                          >
-                            <i className="fa-solid fa-right-from-bracket text-[10px]"></i>
-                          </button>
-                        </div>
-                      </div>
-                    ))
-                  ) : (
-                    <p className="py-3 text-center text-[10px] font-black uppercase tracking-widest text-gray-600">Nenhuma sessao ativa.</p>
-                  )}
-                </div>
-              </div>
-            )}
-          </div>
-          <div className={`w-56 h-56 flex items-center justify-center mx-auto mb-6 shadow-lg overflow-hidden rounded-full bg-white transition-all duration-200 ease-in-out ${isZooming ? 'fixed z-50 top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 scale-[5] opacity-0 shadow-none' : ''}`}>
-              <img src={logo2} alt="Logo" className="w-full h-full object-contain scale-150" />
-          </div>
-          <h1 className="text-2xl font-black text-gray-800 mb-2 italic">Acesso Restrito</h1>
-          <p className="text-gray-600 text-sm mb-4 font-bold uppercase tracking-widest">Claudia Festas</p>
-          {logoutMessage && (
-            <p className="mb-4 rounded-2xl bg-red-50 px-4 py-3 text-[10px] font-black uppercase tracking-widest text-red-600">
-              {logoutMessage}
-            </p>
-          )}
-          <button
-            type="button"
-            onClick={() => window.open(`https://www.google.com/search?q=${encodeURIComponent(`${currentTheme.name} significado`)}`, '_blank', 'noopener,noreferrer')}
-            className="mb-8 mx-auto inline-flex items-center gap-2 rounded-full px-3 py-1.5 text-[9px] font-black uppercase tracking-widest shadow-sm transition-transform hover:scale-105 active:scale-95"
-            style={{ backgroundColor: currentTheme.badgeBackground, color: currentTheme.badgeText }}
-            title={`Pesquisar significado de ${currentTheme.name}`}
-          >
-            <i className="fa-solid fa-ribbon"></i>
-            <span>{currentTheme.name}</span>
-          </button>
-          
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div className="relative w-full">
-              <input 
-                type={showPassword ? "text" : "password"} 
-                placeholder="Digite a senha de admin"
-                className={`w-full p-5 pr-14 bg-gray-50 border-2 rounded-2xl outline-none font-bold text-center transition-all ${error ? 'border-red-500 animate-shake' : 'border-gray-100 focus:border-[#B24D2D]'}`}
+      <main className="login-page" style={{ '--login-background': `url(${loginBackground})` } as React.CSSProperties}>
+        <div
+          className={`login-scene${isZooming ? ' login-scene--entering' : ''}`}
+          style={{ backgroundImage: `url(${loginBackground})` }}
+        >
+          <div className="login-company-logo"><img src={loginLogo} alt="Claudia Festas" /></div>
+          <form className="login-form" onSubmit={handleLogin}>
+            <h1 className="login-heading">Login</h1>
+            <label className="login-label" htmlFor="login-password">Senha</label>
+            <div className="login-password-wrap">
+              <input
+                id="login-password"
+                className="login-password"
+                type={showPassword ? 'text' : 'password'}
                 value={passwordInput}
-                onChange={(e) => setPasswordInput(e.target.value)}
-                autoFocus
+                onChange={(event) => { setPasswordInput(event.target.value); setError(false); }}
+                autoComplete="current-password"
+                aria-invalid={error}
+                aria-describedby={error || logoutMessage ? 'login-message' : undefined}
+                required
               />
               <button
+                className="login-password-toggle"
                 type="button"
                 onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-5 top-1/2 -translate-y-1/2 text-gray-600 hover:text-[#B24D2D] transition-colors focus:outline-none"
+                aria-label={showPassword ? 'Ocultar senha' : 'Mostrar senha'}
+                aria-pressed={showPassword}
               >
-                <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'} text-lg`}></i>
+                <i className={`fa-solid ${showPassword ? 'fa-eye-slash' : 'fa-eye'}`} aria-hidden="true"></i>
               </button>
             </div>
-            {error && <p className="text-red-500 text-xs font-bold">Senha incorreta. Tente novamente.</p>}
-            <button 
-              type="submit"
-              className="w-full p-5 bg-[#B24D2D] text-white font-black rounded-2xl shadow-lg hover:bg-[#943a20] transition-all active:scale-95"
-            >
-              ENTRAR NO SISTEMA
-            </button>
+            <button className="login-submit" type="submit" disabled={isZooming}>Logar</button>
+            {(error || logoutMessage) && (
+              <p id="login-message" className="login-message" role={error ? 'alert' : 'status'}>
+                {error ? 'Senha incorreta. Tente novamente.' : logoutMessage}
+              </p>
+            )}
           </form>
         </div>
-        
-        <a 
-          href="https://wa.me/5548991347343"
-          target="_blank"
-          rel="noopener noreferrer"
-          className={`mt-6 flex items-center justify-center gap-3 px-6 py-3 bg-[#25D366] text-white rounded-full shadow-lg hover:bg-[#20ba56] hover:scale-105 active:scale-95 transition-all cursor-pointer font-bold text-sm uppercase tracking-wide no-underline ${isZooming ? 'opacity-0 pointer-events-none' : ''}`}
-          title="Suporte via WhatsApp"
-        >
-          <i className="fa-brands fa-whatsapp text-2xl"></i>
-          <span>Suporte do Sistema</span>
-        </a>
-      </div>
+      </main>
     );
   }
 
