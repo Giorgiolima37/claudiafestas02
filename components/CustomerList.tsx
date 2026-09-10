@@ -27,6 +27,11 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
   // --- NOVOS ESTADOS PARA EDIÇÃO DE CLIENTE ---
   const [modalEdicaoClienteAberto, setModalEdicaoClienteAberto] = useState(false);
   const [dadosClienteEdicao, setDadosClienteEdicao] = useState<any>({});
+
+  const formatarCep = (valor: string) => {
+    const numeros = valor.replace(/\D/g, '').slice(0, 8);
+    return numeros.replace(/^(\d{5})(\d)/, '$1-$2');
+  };
   
   // --- ESTADOS PARA O MODAL DE MOTIVO ---
   const [modalMotivoAberto, setModalMotivoAberto] = useState(false);
@@ -105,7 +110,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             const { error: erroEstoque } = await db
                 .from('estoque')
                 .update({
-                    disponivel: Number(produtoEstoque.disponivel || 0) + quantidade,
+                    disponivel: Number(produtoEstoque.disponivel || 0) + Math.min(quantidade, Number(produtoEstoque.reservado || 0)),
                     reservado: Math.max(0, Number(produtoEstoque.reservado || 0) - quantidade)
                 })
                 .eq('id', produtoEstoque.id);
@@ -243,6 +248,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
             telefone: dadosClienteEdicao.telefone,
             identificação: dadosClienteEdicao.identificação, 
             endereco: dadosClienteEdicao.endereco,
+            cep: dadosClienteEdicao.cep,
+            numero: dadosClienteEdicao.numero,
+            complemento: dadosClienteEdicao.complemento,
             bairro: dadosClienteEdicao.bairro,
             municipio: dadosClienteEdicao.municipio
         }).eq('id', dadosClienteEdicao.id);
@@ -328,7 +336,7 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
 
             if (item._deleted) {
                 await db.from('estoque').update({
-                    disponivel: produtoEstoque.disponivel + item._originalQty,
+                    disponivel: Number(produtoEstoque.disponivel || 0) + Math.min(Number(item._originalQty || 0), Number(produtoEstoque.reservado || 0)),
                     reservado: Math.max(0, produtoEstoque.reservado - item._originalQty)
                 }).eq('id', produtoEstoque.id);
                 await db.from('reservas').delete().eq('id', item.id);
@@ -465,7 +473,14 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {clientesExibidos.map((item) => (
-                    <tr key={item.id} className="hover:bg-orange-50/30 transition-all group">
+                    <tr
+                      key={item.id}
+                      className={`transition-all group ${
+                        item.lista_negra
+                          ? 'bg-red-50/80 border-l-[8px] border-l-red-600 hover:bg-red-100/80'
+                          : 'hover:bg-orange-50/30'
+                      }`}
+                    >
                       <td className="p-5 md:p-8">
                         <button 
                           onClick={() => setClienteDetalhado({...item, historico: reservas.filter(r => r.cliente_id === item.id)})} 
@@ -473,6 +488,12 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         >
                           {item.cliente}
                         </button>
+                        {item.lista_negra && (
+                          <div className="mt-3 inline-flex items-center gap-2 rounded-full bg-red-600 px-3 py-2 text-[9px] font-black uppercase tracking-widest text-white shadow-md">
+                            <i className="fa-solid fa-triangle-exclamation"></i>
+                            Negativado por dívida
+                          </div>
+                        )}
                         <p className="sm:hidden text-[8px] font-bold text-gray-600 mt-1">ID: {item['id-client'] || '---'}</p>
                       </td>
                       <td className="p-5 md:p-8 hidden md:table-cell">
@@ -660,6 +681,9 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                         <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest mb-1">Endereço Completo</span>
                         <span className="font-bold text-xs text-gray-600 italic leading-relaxed">
                           {clienteDetalhado.endereco || 'Sem endereço cadastrado.'}
+                          {clienteDetalhado.numero ? `, ${clienteDetalhado.numero}` : ''}
+                          {clienteDetalhado.complemento ? ` - ${clienteDetalhado.complemento}` : ''}
+                          {clienteDetalhado.cep ? ` | CEP: ${clienteDetalhado.cep}` : ''}
                         </span>
                       </div>
                     </div>
@@ -848,6 +872,36 @@ const CustomerList: React.FC<CustomerListProps> = ({ onSelectCustomer }) => {
                             value={dadosClienteEdicao.identificação || ''}
                             onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, identificação: e.target.value})}
                         />
+                    </div>
+                    <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">CEP</label>
+                            <input
+                                inputMode="numeric"
+                                maxLength={9}
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.cep || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, cep: formatarCep(e.target.value)})}
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Número da Casa</label>
+                            <input
+                                maxLength={20}
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.numero || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, numero: e.target.value})}
+                            />
+                        </div>
+                        <div className="flex flex-col">
+                            <label className="text-[10px] font-bold text-gray-600 mb-1 uppercase tracking-widest">Complemento</label>
+                            <input
+                                maxLength={100}
+                                className="w-full p-3 bg-gray-50 border-2 border-gray-100 rounded-xl outline-none font-bold text-sm"
+                                value={dadosClienteEdicao.complemento || ''}
+                                onChange={e => setDadosClienteEdicao({...dadosClienteEdicao, complemento: e.target.value})}
+                            />
+                        </div>
                     </div>
                     <div className="flex flex-col sm:flex-row gap-4">
                         <div className="flex flex-col flex-1">

@@ -32,6 +32,8 @@ const OrderManagement: React.FC = () => {
   const [novoItemSelecionado, setNovoItemSelecionado] = useState('');
   const [novaQtdItem, setNovaQtdItem] = useState(1);
   const [adiantamentoEdicao, setAdiantamentoEdicao] = useState(0);
+  const [taxaEntregaEdicao, setTaxaEntregaEdicao] = useState(0);
+  const [descontoEdicao, setDescontoEdicao] = useState(0);
   const [observacoesBaseEdicao, setObservacoesBaseEdicao] = useState('');
   
   // NOVO ESTADO: Armazena a data original para garantir que o update encontre o registro certo
@@ -198,9 +200,7 @@ const OrderManagement: React.FC = () => {
   };
 
   const calcularTotalEdicao = () => {
-    const frete = Number(pedidoEmEdicao.find(item => !item._deleted)?.taxa_entrega || 0);
-    const desconto = Number(pedidoEmEdicao.find(item => !item._deleted)?.desconto || 0);
-    return calcularSubtotalEdicao() + frete - desconto;
+    return Math.max(0, calcularSubtotalEdicao() + taxaEntregaEdicao - descontoEdicao);
   };
 
   const calcularSaldoEdicao = () => Math.max(0, calcularTotalEdicao() - adiantamentoEdicao);
@@ -217,6 +217,8 @@ const OrderManagement: React.FC = () => {
     const financeiro = extrairFinanceiroDasObservacoes(pedidoAgrupado.observacoes || pedidoAgrupado.itens[0]?.observacoes || '');
     setPedidoEmEdicao(itensFormatados);
     setAdiantamentoEdicao(financeiro.adiantamento);
+    setTaxaEntregaEdicao(Number(pedidoAgrupado.itens[0]?.taxa_entrega || 0));
+    setDescontoEdicao(Number(pedidoAgrupado.itens[0]?.desconto || 0));
     setObservacoesBaseEdicao(financeiro.observacoesBase);
     setDataEventoOriginal(pedidoAgrupado.itens[0].data_evento);
     setDadosPedidoFixo({
@@ -270,7 +272,9 @@ const OrderManagement: React.FC = () => {
         .update({ 
             data_devolucao: dadosPedidoFixo.data_devolucao,
             data_evento: dadosPedidoFixo.data_evento,
-            observacoes: observacoesAtualizadas
+            observacoes: observacoesAtualizadas,
+            taxa_entrega: taxaEntregaEdicao,
+            desconto: descontoEdicao
         })
         .eq('cliente_id', dadosPedidoFixo.cliente_id)
         .eq('data_evento', dataEventoOriginal);
@@ -280,7 +284,7 @@ const OrderManagement: React.FC = () => {
         if (!produtoEstoque) continue;
         if (item._deleted) {
           await db.from('estoque').update({
-            disponivel: produtoEstoque.disponivel + item._originalQty,
+            disponivel: Number(produtoEstoque.disponivel || 0) + Math.min(Number(item._originalQty || 0), Number(produtoEstoque.reservado || 0)),
             reservado: Math.max(0, produtoEstoque.reservado - item._originalQty)
           }).eq('id', produtoEstoque.id);
           await db.from('reservas').delete().eq('id', item.id);
@@ -304,8 +308,8 @@ const OrderManagement: React.FC = () => {
             status: 'Pendente',
             forma_pagamento: 'Ajuste',
             valor_total: item.valor_total,
-            taxa_entrega: Number(pedidoEmEdicao.find(i => !i._deleted)?.taxa_entrega || 0),
-            desconto: Number(pedidoEmEdicao.find(i => !i._deleted)?.desconto || 0),
+            taxa_entrega: taxaEntregaEdicao,
+            desconto: descontoEdicao,
             codigo_item: item.codigo_item,
             observacoes: observacoesAtualizadas
           }]);
@@ -364,6 +368,20 @@ const OrderManagement: React.FC = () => {
     const diaSemanaEnt = getDiaSemana(itensOrdenados[0].data_evento);
     const diaSemanaRec = getDiaSemana(pedido.dataDevolucao);
 
+    const telefoneWhatsApp = String(pedido.telefone || cliente.telefone || '').replace(/\D/g, '');
+    const numeroWhatsApp = telefoneWhatsApp.startsWith('55') ? telefoneWhatsApp : `55${telefoneWhatsApp}`;
+    const resumoItens = itensOrdenados.map((item: any) => `${item.quantidade}x ${item.item}`).join('\n');
+    const mensagemWhatsApp = encodeURIComponent(
+      `Olá, ${pedido.nomeCliente}! Seguem os dados do seu contrato com a Claudia Festas:\n\n` +
+      `${resumoItens}\n\nEntrega: ${dEnt} (${diaSemanaEnt})\nRecolhimento: ${dRec} (${diaSemanaRec})\n` +
+      `Total: R$ ${totalGeral.toFixed(2).replace('.', ',')}\n` +
+      (adiantamento > 0 ? `Adiantamento: R$ ${adiantamento.toFixed(2).replace('.', ',')}\nSaldo restante: R$ ${saldoRestante.toFixed(2).replace('.', ',')}\n` : '') +
+      `\nPara enviar o documento em PDF, use Imprimir > Salvar como PDF e anexe o arquivo nesta conversa.`
+    );
+    const whatsappUrl = telefoneWhatsApp
+      ? `https://wa.me/${numeroWhatsApp}?text=${mensagemWhatsApp}`
+      : `https://wa.me/?text=${mensagemWhatsApp}`;
+
     const printWindow = window.open('', '_blank');
     if (!printWindow) return;
 
@@ -371,6 +389,8 @@ const OrderManagement: React.FC = () => {
       <html>
         <head>
           <title>CONTRATO - ${pedido.nomeCliente}</title>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+          <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
           <style>
             @page { 
                 size: A4; 
@@ -388,6 +408,18 @@ const OrderManagement: React.FC = () => {
                 padding-top: 5mm;
                 padding-bottom: 5mm;
             }
+            .preview-toolbar {
+                position: fixed; top: 16px; right: 20px; z-index: 10;
+                display: flex; gap: 10px; padding: 10px; border-radius: 16px;
+                background: rgba(255,255,255,.96); box-shadow: 0 8px 30px rgba(0,0,0,.18);
+            }
+            .preview-action {
+                border: 0; border-radius: 999px; padding: 11px 16px;
+                color: white; font-weight: 800; cursor: pointer; font-size: 13px;
+            }
+            .preview-action.print { background: #2563eb; }
+            .preview-action.whatsapp { background: #16a34a; }
+            @media print { .preview-toolbar { display: none !important; } }
             .page-container {
                 width: 200mm;
                 padding: 10px;
@@ -511,8 +543,12 @@ const OrderManagement: React.FC = () => {
           </style>
         </head>
         <body>
+          <div class="preview-toolbar">
+            <button class="preview-action print" type="button" onclick="window.print()">Imprimir</button>
+            <button class="preview-action whatsapp" type="button" onclick="enviarContratoPdf(this)">Enviar PDF pelo WhatsApp</button>
+          </div>
           
-          <div class="page-container">
+          <div id="contrato-pdf" class="page-container">
               <div class="header">
                  <div class="company-info">
                     <div class="company-name">LOCAÇÃO DE ARTIGOS PARA FESTAS</div>
@@ -530,7 +566,7 @@ const OrderManagement: React.FC = () => {
 
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
-                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${String(cliente.endereco || '____________________').toUpperCase()}${complementoEndereco ? ` - ${complementoEndereco.toUpperCase()}` : ''}</strong>, Bairro: <strong>${String(cliente.bairro || '_________________').toUpperCase()} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>, 
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}${complementoEndereco ? ` - ${complementoEndereco.toUpperCase()}` : ''}</strong>, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>, 
                 tem ajustado the presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
@@ -622,7 +658,89 @@ const OrderManagement: React.FC = () => {
               </div>
           </div>
 
-          <script>window.onload = () => { setTimeout(() => { window.print(); window.close(); }, 500); }</script>
+          
+          <script>
+            async function enviarContratoPdf(botao) {
+              const textoOriginal = botao.textContent;
+              botao.disabled = true;
+              botao.textContent = 'Gerando PDF...';
+              const elemento = document.getElementById('contrato-pdf');
+              const estiloOriginal = elemento ? elemento.getAttribute('style') : null;
+
+              try {
+
+                if (!elemento) throw new Error('Contrato não encontrado para gerar o PDF.');
+
+                elemento.style.width = '195mm';
+                elemento.style.height = '278mm';
+                elemento.style.minHeight = '278mm';
+                elemento.style.maxHeight = '278mm';
+                elemento.style.overflow = 'hidden';
+
+                if (typeof window.html2canvas !== 'function' || !window.jspdf || !window.jspdf.jsPDF) {
+                  throw new Error('Os recursos de PDF não foram carregados. Verifique sua internet.');
+                }
+
+                const nomeArquivo = 'Contrato_${String(pedido.nomeCliente).replace(/[^a-zA-Z0-9À-ÿ]+/g, '_')}.pdf';
+                const canvas = await window.html2canvas(elemento, {
+                  scale: 2,
+                  useCORS: true,
+                  backgroundColor: '#ffffff',
+                  scrollX: 0,
+                  scrollY: 0,
+                  logging: false
+                });
+
+                const documentoPdf = new window.jspdf.jsPDF({
+                  orientation: 'portrait',
+                  unit: 'mm',
+                  format: 'a4',
+                  compress: true
+                });
+                const margemX = 7.5;
+                const margemY = 9.5;
+                const larguraContrato = 195;
+                const alturaContrato = 278;
+                documentoPdf.addImage(canvas.toDataURL('image/jpeg', 1), 'JPEG', margemX, margemY, larguraContrato, alturaContrato, undefined, 'FAST');
+                documentoPdf.setDrawColor(0, 0, 0);
+                documentoPdf.setLineWidth(0.4);
+                documentoPdf.rect(margemX, margemY, larguraContrato, alturaContrato);
+                documentoPdf.setDisplayMode('fullpage', 'single', 'UseNone');
+
+                const blob = documentoPdf.output('blob');
+                const arquivo = new File([blob], nomeArquivo, { type: 'application/pdf' });
+
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+                  await navigator.share({
+                    files: [arquivo],
+                    title: 'Contrato Claudia Festas',
+                    text: 'Contrato de locação - ${pedido.nomeCliente}'
+                  });
+                } else {
+                  const urlPdf = URL.createObjectURL(blob);
+                  const link = document.createElement('a');
+                  link.href = urlPdf;
+                  link.download = nomeArquivo;
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  setTimeout(function () { URL.revokeObjectURL(urlPdf); }, 30000);
+                  alert('O PDF foi baixado. Abra o WhatsApp e anexe o arquivo na conversa do cliente.');
+                }
+              } catch (erro) {
+                if (erro && erro.name !== 'AbortError') {
+                  alert(erro.message || 'Não foi possível gerar o PDF.');
+                }
+              } finally {
+                if (elemento) {
+                  if (estiloOriginal === null) elemento.removeAttribute('style');
+                  else elemento.setAttribute('style', estiloOriginal);
+                }
+                botao.disabled = false;
+                botao.textContent = textoOriginal;
+              }
+            }
+          </script>
         </body>
       </html>
     `);
@@ -748,9 +866,14 @@ const OrderManagement: React.FC = () => {
           const deOndeRetirar = item.status?.toLowerCase() === 'em aluguel' ? 'alugado' : 'reservado';
           const valorAtualDeOndeRetirar = est[deOndeRetirar] || 0;
 
+          const quantidadeRealmenteRetirada = Math.min(
+            Number(item.quantidade || 0),
+            Number(valorAtualDeOndeRetirar || 0)
+          );
+
           await db.from('estoque').update({
-            disponivel: est.disponivel + item.quantidade,
-            [deOndeRetirar]: Math.max(0, valorAtualDeOndeRetirar - item.quantidade)
+            disponivel: Number(est.disponivel || 0) + quantidadeRealmenteRetirada,
+            [deOndeRetirar]: Math.max(0, Number(valorAtualDeOndeRetirar || 0) - quantidadeRealmenteRetirada)
           }).eq('item', item.item);
         }
         await db.from('reservas').delete().eq('id', item.id);
@@ -783,9 +906,14 @@ const OrderManagement: React.FC = () => {
           const deOndeRetirar = item.status?.toLowerCase() === 'em aluguel' ? 'alugado' : 'reservado';
           const valorAtualDeOndeRetirar = est[deOndeRetirar] || 0;
 
+          const quantidadeRealmenteRetirada = Math.min(
+            Number(item.quantidade || 0),
+            Number(valorAtualDeOndeRetirar || 0)
+          );
+
           await db.from('estoque').update({
-            disponivel: est.disponivel + item.quantidade,
-            [deOndeRetirar]: Math.max(0, valorAtualDeOndeRetirar - item.quantidade)
+            disponivel: Number(est.disponivel || 0) + quantidadeRealmenteRetirada,
+            [deOndeRetirar]: Math.max(0, Number(valorAtualDeOndeRetirar || 0) - quantidadeRealmenteRetirada)
           }).eq('item', item.item);
         }
       }
@@ -1027,8 +1155,41 @@ const OrderManagement: React.FC = () => {
               </div>
             </div>
             <div className="bg-gray-50 rounded-3xl p-6 mb-8 border border-gray-100">
+              <label htmlFor="observacoes-edicao" className="text-[9px] font-black text-[#b24a2b] uppercase tracking-widest mb-3 block">OBS:</label>
+              <textarea
+                id="observacoes-edicao"
+                rows={4}
+                className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl text-sm font-bold text-gray-700 outline-none focus:border-[#b24a2b] resize-y"
+                placeholder="Digite as observações do pedido..."
+                value={observacoesBaseEdicao}
+                onChange={(e) => setObservacoesBaseEdicao(e.target.value)}
+              />
+            </div>
+            <div className="bg-gray-50 rounded-3xl p-6 mb-8 border border-gray-100">
               <h4 className="text-[9px] font-black text-blue-600 uppercase tracking-widest mb-4">Ajuste de Pagamento</h4>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div>
+                  <label className="text-[9px] font-black text-gray-600 uppercase mb-2 block">Taxa de entrega (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full p-4 bg-white border-2 border-gray-200 rounded-2xl text-center font-black text-xl text-gray-700 outline-none focus:border-[#b24a2b]"
+                    value={taxaEntregaEdicao}
+                    onChange={(e) => setTaxaEntregaEdicao(Math.max(0, parseFloat(e.target.value) || 0))}
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-red-500 uppercase mb-2 block">Desconto (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    className="w-full p-4 bg-red-50 border-2 border-red-200 rounded-2xl text-center font-black text-xl text-red-500 outline-none"
+                    value={descontoEdicao}
+                    onChange={(e) => setDescontoEdicao(Math.max(0, parseFloat(e.target.value) || 0))}
+                  />
+                </div>
                 <div>
                   <label className="text-[9px] font-black text-blue-600 uppercase mb-2 block">Adiantamento (R$)</label>
                   <input

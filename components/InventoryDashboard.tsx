@@ -7,7 +7,8 @@ const InventoryDashboard: React.FC = () => {
   const [reservasFuturasLista, setReservasFuturasLista] = useState<any[]>([]); // Novo estado
   const [clientes, setClientes] = useState<any[]>([]); // Novo estado para nomes
   const [loading, setLoading] = useState(true);
-  const [busca, setBusca] = useState(''); 
+  const [busca, setBusca] = useState('');
+  const [dataConsulta, setDataConsulta] = useState(() => new Date().toLocaleDateString('en-CA')); 
   
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
   const [editingItem, setEditingItem] = useState<any>(null);
@@ -48,45 +49,100 @@ const InventoryDashboard: React.FC = () => {
   useEffect(() => { fetchEstoque(); }, []);
 
   // --- LOGICA AJUSTADA PARA MAUPEAR AS COLUNAS REAIS DO SUPABASE ---
+  const normalizarNome = (valor: string) =>
+    String(valor || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').trim().toLowerCase();
+
   const calcularStatus = (item: any) => {
+    const reservasDoItem = reservasAtivas.filter(
+      (reserva) => normalizarNome(reserva.item) === normalizarNome(item.item)
+    );
+    const ocupadasNaData = reservasDoItem
+      .filter((reserva) => {
+        const inicio = String(reserva.data_evento || '').slice(0, 10);
+        const fim = String(reserva.data_devolucao || '').slice(0, 10);
+        return inicio && fim && inicio <= dataConsulta && fim >= dataConsulta;
+      })
+      .reduce((total, reserva) => total + Number(reserva.quantidade || 0), 0);
+    const reservasDepoisDaData = reservasDoItem
+      .filter((reserva) => String(reserva.data_evento || '').slice(0, 10) > dataConsulta)
+      .reduce((total, reserva) => total + Number(reserva.quantidade || 0), 0);
+    const totalFisico = Number(item.disponivel || 0) + Number(item.alugado || 0);
+
     return {
-        livreHoje: Number(item.disponivel || 0),
-        alugadoHoje: Number(item.alugado || 0),
-        reservadoFuturo: Number(item.reservado || 0)
+      livreHoje: Math.max(0, totalFisico - ocupadasNaData),
+      alugadoHoje: ocupadasNaData,
+      reservadoFuturo: reservasDepoisDaData
     };
   };
-
   const abrirModalReservas = (item: any) => {
-    const detalhes = reservasFuturasLista
-      .filter(rf => rf.item_id === item.id)
-      .map(rf => ({
-        ...rf,
-        nomeCliente: clientes.find(c => c.id === rf.cliente_id)?.cliente || "Cliente não identificado"
-      }));
-    
+    const detalhes = reservasAtivas
+      .filter((reserva) =>
+        normalizarNome(reserva.item) === normalizarNome(item.item) &&
+        String(reserva.data_evento || '').slice(0, 10) > dataConsulta
+      )
+      .map((reserva) => ({
+        ...reserva,
+        nomeCliente: clientes.find((cliente) => cliente.id === reserva.cliente_id)?.cliente || 'Cliente não identificado'
+      }))
+      .sort((a, b) => String(a.data_evento).localeCompare(String(b.data_evento)));
+
     setItemSelecionadoReservas({
       nome: item.item,
       reservas: detalhes
     });
     setIsReservaModalOpen(true);
   };
+  const normalizarCodigo = (codigo: string) => {
+    const valor = String(codigo || '').trim().toUpperCase();
+    return /^\d+$/.test(valor) ? String(Number(valor)) : valor;
+  };
 
-  const salvarIdRapido = async (itemIdInterno: number) => {
+  const encontrarProdutoComCodigo = async (codigo: string, ignorarId?: string) => {
+    const codigoNormalizado = normalizarCodigo(codigo);
+    if (!codigoNormalizado) return null;
+
+    const { data, error } = await db
+      .from('estoque')
+      .select('id, item, codigo_interno');
+    if (error) throw error;
+
+    return (data || []).find((produto) =>
+      String(produto.id) !== String(ignorarId || '') &&
+      normalizarCodigo(produto.codigo_interno) === codigoNormalizado
+    ) || null;
+  };
+
+  const avisarCodigoDuplicado = (codigo: string, produto: any) => {
+    alert(
+      `ATENÇÃO: o código ${codigo} já está cadastrado para o produto "${produto.item}".\n\n` +
+      'Informe outro código para continuar.'
+    );
+  };
+  const salvarIdRapido = async (itemIdInterno: string | number) => {
     try {
+      const codigo = novoIdValor.trim();
+      if (!codigo) {
+        alert('Informe um código interno.');
+        return;
+      }
+      const produtoDuplicado = await encontrarProdutoComCodigo(codigo, String(itemIdInterno));
+      if (produtoDuplicado) {
+        avisarCodigoDuplicado(codigo, produtoDuplicado);
+        return;
+      }
+
       const { error } = await db
         .from('estoque')
-        .update({ codigo_interno: novoIdValor }) 
+        .update({ codigo_interno: codigo })
         .eq('id', itemIdInterno);
-
       if (error) throw error;
 
       setEditandoIdRapido(null);
-      fetchEstoque(); 
+      fetchEstoque();
     } catch (err: any) {
-      alert("Erro ao salvar código no banco: " + err.message);
+      alert('Erro ao salvar código no banco: ' + err.message);
     }
   };
-
   const itensFiltrados = itens.filter(item => 
     item.item.toLowerCase().includes(busca.toLowerCase()) || 
     (item.codigo_interno && item.codigo_interno.toLowerCase().includes(busca.toLowerCase()))
@@ -99,48 +155,73 @@ const InventoryDashboard: React.FC = () => {
 
   const handleSaveEdit = async (e: React.FormEvent) => {
     e.preventDefault();
-    const { error } = await db
-      .from('estoque')
-      .update({
-        item: editingItem.item,
-        codigo_interno: editingItem.codigo_interno,
-        disponivel: parseInt(editingItem.disponivel),
-        alugado: parseInt(editingItem.alugado || 0),
-        reservado: parseInt(editingItem.reservado || 0), 
-        preco: parseFloat(editingItem.preco)
-      })
-      .eq('id', editingItem.id);
+    const codigo = String(editingItem.codigo_interno || '').trim();
 
-    if (error) {
-      alert("Erro ao atualizar item!");
-    } else {
+    try {
+      if (!codigo) {
+        alert('Informe um código interno.');
+        return;
+      }
+      const produtoDuplicado = await encontrarProdutoComCodigo(codigo, String(editingItem.id));
+      if (produtoDuplicado) {
+        avisarCodigoDuplicado(codigo, produtoDuplicado);
+        return;
+      }
+
+      const { error } = await db
+        .from('estoque')
+        .update({
+          item: editingItem.item,
+          codigo_interno: codigo,
+          disponivel: parseInt(editingItem.disponivel),
+          alugado: parseInt(editingItem.alugado || 0),
+          reservado: parseInt(editingItem.reservado || 0),
+          preco: parseFloat(editingItem.preco)
+        })
+        .eq('id', editingItem.id);
+      if (error) throw error;
+
       setIsEditModalOpen(false);
       fetchEstoque();
+    } catch (err: any) {
+      alert('Erro ao atualizar item: ' + err.message);
     }
   };
-
   const adicionarNovoItem = async () => {
-    const nome = prompt("Nome do novo material:");
+    const nome = prompt('Nome do novo material:');
     if (!nome) return;
-    const codigo = prompt(`Código interno para ${nome}:`);
-    const quantidade = prompt(`Quantidade de ${nome}:`, "100");
-    const preco = prompt(`Preço de ${nome}:`, "10.00");
+    const codigoInformado = prompt(`Código interno para ${nome}:`);
+    if (!codigoInformado?.trim()) {
+      alert('Informe um código interno para cadastrar o produto.');
+      return;
+    }
 
-    if (nome && quantidade && preco) {
-      const { error } = await db.from('estoque').insert([{ 
-        item: nome, 
+    try {
+      const codigo = codigoInformado.trim();
+      const produtoDuplicado = await encontrarProdutoComCodigo(codigo);
+      if (produtoDuplicado) {
+        avisarCodigoDuplicado(codigo, produtoDuplicado);
+        return;
+      }
+
+      const quantidade = prompt(`Quantidade de ${nome}:`, '100');
+      const preco = prompt(`Preço de ${nome}:`, '10.00');
+      if (!quantidade || !preco) return;
+
+      const { error } = await db.from('estoque').insert([{
+        item: nome.trim(),
         codigo_interno: codigo,
-        disponivel: parseInt(quantidade), 
-        reservado: 0, 
+        disponivel: parseInt(quantidade),
+        reservado: 0,
         alugado: 0,
-        preco: parseFloat(preco) 
+        preco: parseFloat(preco)
       }]);
-      
-      if (error) alert("Erro ao inserir: " + error.message);
+      if (error) throw error;
       fetchEstoque();
+    } catch (err: any) {
+      alert('Erro ao inserir produto: ' + err.message);
     }
   };
-
   const handleDeleteItem = async (id: number) => {
     if (window.confirm("Tem certeza que deseja excluir este item do estoque?")) {
       try {
@@ -182,6 +263,21 @@ const InventoryDashboard: React.FC = () => {
         </div>
       </header>
 
+      <div className="mb-10 flex flex-col sm:flex-row items-center justify-center gap-4 rounded-[30px] border border-orange-100 bg-white p-5 shadow-sm">
+        <div className="flex items-center gap-3 text-[#b24a2b]">
+          <i className="fa-solid fa-calendar-days text-xl"></i>
+          <div>
+            <p className="text-[9px] font-black uppercase tracking-[0.2em] text-gray-500">Consultar disponibilidade</p>
+            <p className="text-xs font-black uppercase">Escolha uma data</p>
+          </div>
+        </div>
+        <input
+          type="date"
+          value={dataConsulta}
+          onChange={(e) => setDataConsulta(e.target.value)}
+          className="rounded-full border-2 border-orange-100 bg-orange-50/50 px-6 py-3 text-sm font-black text-gray-800 outline-none focus:border-[#b24a2b]"
+        />
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-10">
         {itensFiltrados.map((item) => {
           const status = calcularStatus(item);
@@ -240,11 +336,11 @@ const InventoryDashboard: React.FC = () => {
             
             <div className="space-y-4">
               <div className="w-full flex justify-between items-center p-6 bg-emerald-50/40 rounded-[30px] border border-emerald-100/30">
-                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">Livre Hoje</span>
+                <span className="text-[10px] font-black text-emerald-600 uppercase tracking-widest">{dataConsulta === new Date().toLocaleDateString('en-CA') ? 'Livre Hoje' : `Livre em ${dataConsulta.split('-').reverse().join('/')}`}</span>
                 <span className="text-3xl font-black text-emerald-600 leading-none">{status.livreHoje}</span>
               </div>
               <div className="flex justify-between items-center p-6 bg-indigo-50/40 rounded-[30px] border border-indigo-100/30">
-                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">Em Aluguel (Hoje)</span>
+                <span className="text-[10px] font-black text-indigo-600 uppercase tracking-widest">{dataConsulta === new Date().toLocaleDateString('en-CA') ? 'Em Aluguel (Hoje)' : `Alugado em ${dataConsulta.split('-').reverse().join('/')}`}</span>
                 <span className="text-3xl font-black text-indigo-600 leading-none">{status.alugadoHoje}</span>
               </div>
               
@@ -253,7 +349,7 @@ const InventoryDashboard: React.FC = () => {
                 onClick={() => abrirModalReservas(item)}
                 className="w-full flex justify-between items-center p-6 bg-orange-50/40 rounded-[30px] border border-orange-100/30 hover:bg-orange-100/60 transition-colors"
               >
-                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Reservas Futuras</span>
+                <span className="text-[10px] font-black text-orange-600 uppercase tracking-widest">Reservas Após a Data</span>
                 <span className="text-3xl font-black text-orange-600 leading-none">{status.reservadoFuturo}</span>
               </button>
             </div>
