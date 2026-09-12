@@ -304,7 +304,7 @@ const FinanceDashboard: React.FC = () => {
         </div>
       </div>
 
-      <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-hidden">
+      <div className="bg-white rounded-[32px] border border-gray-100 shadow-sm overflow-x-auto">
         <table className="w-full text-left">
           <thead>
             <tr className="text-[9px] font-black text-gray-600 uppercase tracking-widest border-b border-gray-50">

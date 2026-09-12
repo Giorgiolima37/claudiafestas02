@@ -570,18 +570,19 @@ const App: React.FC = () => {
 
   return (
     <div
-      className="flex flex-col md:flex-row min-h-screen h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 overflow-hidden"
+      className="management-app flex flex-col md:flex-row min-h-screen h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 overflow-hidden"
       style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
     >
       
-      <div className="md:hidden flex items-center justify-between p-4 bg-[#B24D2D] text-white shadow-md z-[60]">
+      <div className="management-mobile-header md:hidden flex items-center justify-between p-4 bg-[#B24D2D] text-white shadow-md z-[60]">
         <span className="font-bold tracking-tight">Claudia Festas</span>
-        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-2xl p-2">
+        <button onClick={() => setIsSidebarOpen(!isSidebarOpen)} className="text-2xl p-2" aria-label={isSidebarOpen ? 'Fechar menu' : 'Abrir menu'} aria-expanded={isSidebarOpen}>
           <i className={`fa-solid ${isSidebarOpen ? 'fa-xmark' : 'fa-bars'}`}></i>
         </button>
       </div>
 
-      <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-[284px] h-full shadow-2xl`}>
+      {isSidebarOpen && <button className="management-menu-backdrop md:hidden" onClick={() => setIsSidebarOpen(false)} aria-label="Fechar menu" />}
+      <div className={`management-sidebar ${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-[284px] h-full shadow-2xl`}>
         <Sidebar
           toolbarContainer={toolbarContainer}
           activeScreen={currentScreen}
@@ -682,7 +683,7 @@ const App: React.FC = () => {
       >
         <div id="claudia-scroll-content" className="relative p-4 md:p-10 flex flex-col items-center">
           
-          <div className="flex items-center gap-3 mb-6 md:mb-8 w-full max-w-6xl">
+          <div className="management-toolbar flex items-center gap-3 mb-6 md:mb-8 w-full max-w-6xl">
             <button 
               onClick={() => navigateTo('CADASTRO')}
               className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
@@ -715,7 +716,7 @@ const App: React.FC = () => {
             <div ref={setToolbarContainer} />
           </div>
 
-          <div className="w-full max-w-6xl bg-white rounded-3xl md:rounded-[40px] p-6 md:p-12 shadow-xl border border-white/20 min-h-fit mb-10">
+          <div className="management-screen w-full max-w-6xl bg-white rounded-3xl md:rounded-[40px] p-6 md:p-12 shadow-xl border border-white/20 min-h-fit mb-10">
             {renderScreen()}
           </div>
         </div>

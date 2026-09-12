@@ -242,8 +242,8 @@ const InventoryDashboard: React.FC = () => {
       <header className="mb-12 flex flex-col md:flex-row justify-between items-center gap-6">
         <h1 className="text-5xl font-black text-gray-900 italic uppercase tracking-tighter">Inventário de <span className="text-[#b24a2b]">Estoque</span></h1>
         
-        <div className="flex items-center gap-4 w-full md:w-auto">
-          <div className="relative flex-1 md:w-80">
+        <div className="flex flex-col md:flex-row items-center gap-4 w-full md:w-auto">
+          <div className="relative w-full flex-1 md:w-80">
             <i className="fa-solid fa-magnifying-glass absolute left-4 top-1/2 -translate-y-1/2 text-gray-600"></i>
             <input 
               type="text"
