@@ -66,6 +66,16 @@ const App: React.FC = () => {
 
   // ESTADOS DE SEGURANÇA
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  useEffect(() => {
+    const abrirMenuNoCelular = () => {
+      if (isAuthenticated && window.matchMedia('(max-width: 767px)').matches) {
+        setIsSidebarOpen(true);
+      }
+    };
+    abrirMenuNoCelular();
+    window.addEventListener('pageshow', abrirMenuNoCelular);
+    return () => window.removeEventListener('pageshow', abrirMenuNoCelular);
+  }, [isAuthenticated]);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState(false);
   const [loginAttempt, setLoginAttempt] = useState(0);
