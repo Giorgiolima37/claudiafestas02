@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from 'react';
+import { createPortal } from 'react-dom';
 import { ActiveUserPresence, Screen } from '../types';
 import logo2 from '../logo-2.png';
 import instaLogo from '../insta.webp';
 import googleLogo from '../google.webp';
 
 interface SidebarProps {
+  toolbarContainer: HTMLElement | null;
   activeScreen: Screen;
   onNavigate: (screen: Screen) => void;
   activeUsers?: number;
@@ -91,7 +93,8 @@ const Sidebar: React.FC<SidebarProps> = ({
   currentPresenceSessionId,
   onLogoutSession,
   onLogout,
-  onOpenAdmin
+  onOpenAdmin,
+  toolbarContainer
 }) => {
   const currentTheme = getSidebarTheme();
   const [sidebarTone, setSidebarTone] = useState<number>(() => {
@@ -131,7 +134,7 @@ const Sidebar: React.FC<SidebarProps> = ({
         color: '#ffffff'
       }}
     >
-      <div className="fixed right-10 top-7 z-[80] flex items-center gap-3">
+      {toolbarContainer && createPortal(<div className="absolute right-10 top-7 z-40 flex items-center gap-3">
         <a
           href="https://wa.me/48991347343"
           target="_blank"
@@ -195,6 +198,8 @@ const Sidebar: React.FC<SidebarProps> = ({
           </div>
         )}
       </div>
+
+      , toolbarContainer)}
 
       {/* Cabeçalho / Logo */}
       <div className="mb-0 mt-4 text-center">

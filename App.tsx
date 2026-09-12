@@ -52,6 +52,7 @@ const deveManterDigitacaoOriginal = (campo: HTMLInputElement | HTMLTextAreaEleme
 const App: React.FC = () => {
   const [currentScreen, setCurrentScreen] = useState<Screen>('PEDIDOS');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [toolbarContainer, setToolbarContainer] = useState<HTMLDivElement | null>(null);
   const [selectedClientId, setSelectedClientId] = useState<number | null>(null);
   
   // --- ESTADOS DO CALENDÁRIO ---
@@ -582,6 +583,7 @@ const App: React.FC = () => {
 
       <div className={`${isSidebarOpen ? 'block' : 'hidden'} md:block fixed md:relative z-50 w-full md:w-[284px] h-full shadow-2xl`}>
         <Sidebar
+          toolbarContainer={toolbarContainer}
           activeScreen={currentScreen}
           onNavigate={navigateTo}
           activeUsers={activeUsers}
@@ -678,7 +680,7 @@ const App: React.FC = () => {
         className="flex-1 flex flex-col h-full overflow-y-auto bg-[#fdf8f6]"
         style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
       >
-        <div className="p-4 md:p-10 flex flex-col items-center">
+        <div ref={setToolbarContainer} id="claudia-scroll-content" className="relative p-4 md:p-10 flex flex-col items-center">
           
           <div className="flex gap-3 mb-6 md:mb-8 w-full max-w-6xl">
             <button 
