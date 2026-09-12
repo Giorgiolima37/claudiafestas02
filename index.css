@@ -97,22 +97,34 @@ textarea::placeholder {
 @media (max-width: 1000px) and (min-width: 761px) { .login-story { padding: 32px; } .login-brand strong { font-size: 26px; } .login-brand img { width: 180px; height: 180px; } .login-story h1 { font-size: 46px; } .login-services { flex-direction: column; gap: 12px; } .login-services span + span::before { content: none; } .login-access { padding: 32px; } }
 @media (max-width: 760px) {
   .login-page { grid-template-columns: 1fr; }
-  .login-story { min-height: 310px; padding: 24px; }
+  .login-story { min-height: 0; padding: 20px 24px; }
   .login-photo { object-position: center 62%; }
   .login-brand img { width: 168px; height: 168px; }
-  .login-brand strong { font-size: 26px; }
-  .login-brand span { font-size: 20px; margin-top: 10px; }
-  .login-story-copy { padding: 35px 0 10px; }
-  .login-story h1 { font-size: clamp(34px, 7vw, 48px); margin: 16px 0 0; }
+  .login-brand strong { font-size: 22px; }
+  .login-brand span { font-size: 14px; margin-top: 6px; }
+  .login-story-copy { padding: 18px 0 0; }
+  .login-story h1 { font-size: clamp(24px, 6vw, 32px); margin: 10px 0 0; }
   .login-eyebrow { font-size: 8px; }
   .login-story-copy p, .login-story-footer { display: none; }
-  .login-access { padding: 26px 24px; }
-  .login-access-top { display: none; }
-  .login-form-container { max-width: 460px; margin: 10px auto 40px; }
-  .login-welcome-icon { display: none; }
-  .login-form-container h2 { font-size: 32px; }
-  .login-form-container h2 br { display: none; }
-  .login-description { margin: 14px 0 26px; }
+  .login-access { padding: 16px 24px max(16px, env(safe-area-inset-bottom)); gap: 16px; }
+  .login-access-top { display: flex; }
+  .login-small-mark { font-size: 24px; }
+  .login-support-area { gap: 6px; }
+  .login-support-button { padding: 10px 14px; font-size: 10px; }
+  .login-form-container { max-width: 460px; margin: 0 auto; }
+  .login-welcome-brand { height: 105px; margin-bottom: 12px; }
+  .login-welcome-logo { width: 155px; height: 155px; }
+  .login-form-eyebrow { margin-bottom: 10px; }
+  .login-form-container h2 { font-size: 28px; }
+  .login-form-container h2 br { display: initial; }
+  .login-description { margin: 10px 0 18px; }
+  .login-password-wrap .login-welcome-icon { display: flex; right: auto; left: 8px; width: 34px; height: 34px; border-radius: 10px; }
+  .login-password-wrap .login-welcome-icon svg { width: 20px; height: 20px; }
+  .login-password { padding-left: 50px; height: 52px; }
+  .login-password-toggle { top: 2px; }
+  .login-submit { min-height: 52px; margin-top: 14px; }
+  .login-access-note { margin-top: 12px; }
+  .login-access-footer { gap: 8px; }
 }
 @media (min-width: 761px) {
   .login-support-area { transform: translateX(calc(clamp(32px, 5.2vw, 112px) - 24px)); }
