@@ -354,7 +354,7 @@ const OrderManagement: React.FC = () => {
     const saldoRestante = Math.max(0, totalGeral - adiantamento);
     const complementoObservacoes = extrairComplementoDasObservacoes(financeiroObservacoes.observacoesBase);
     const observacoesContrato = complementoObservacoes.observacoesBase;
-    const complementoEndereco = complementoObservacoes.complemento;
+    const complementoEndereco = complementoObservacoes.complemento || cliente.complemento || '';
     const dEnt = formatarDataBR(itensOrdenados[0].data_evento);
     const dRec = formatarDataBR(pedido.dataDevolucao);
     
@@ -464,6 +464,9 @@ const OrderManagement: React.FC = () => {
                 font-size: 18px;
                 margin: 15px 0;
                 letter-spacing: 2px;
+            }
+            .intro-text strong {
+                text-transform: uppercase;
             }
             .intro-text {
                 text-align: justify;

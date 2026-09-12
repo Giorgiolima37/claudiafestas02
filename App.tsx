@@ -28,6 +28,7 @@ const formatarTextoComoNomeProprio = (valor: string) =>
     );
 
 const deveManterDigitacaoOriginal = (campo: HTMLInputElement | HTMLTextAreaElement) => {
+  if (campo.closest('[data-preserve-input-case]')) return true;
   if (campo instanceof HTMLTextAreaElement) return false;
 
   const tiposTecnicos = new Set([
@@ -66,6 +67,7 @@ const App: React.FC = () => {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [passwordInput, setPasswordInput] = useState('');
   const [error, setError] = useState(false);
+  const [loginAttempt, setLoginAttempt] = useState(0);
   const [showPassword, setShowPassword] = useState(false);
   const [isZooming, setIsZooming] = useState(false);
   const [activeUsers, setActiveUsers] = useState(0);
@@ -439,6 +441,7 @@ const App: React.FC = () => {
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
+    if (isZooming) return;
     if (passwordInput === accessPassword) {
       setError(false);
       setLogoutMessage('');
@@ -447,8 +450,9 @@ const App: React.FC = () => {
         setIsAuthenticated(true);
         setIsZooming(false);
         sessionStorage.setItem('claudia_auth', 'true');
-      }, 200);
+      }, 700);
     } else {
+      setLoginAttempt((attempt) => attempt + 1);
       setError(true);
       setPasswordInput('');
     }
@@ -499,7 +503,6 @@ const App: React.FC = () => {
           <img className="login-photo" src={loginBackground} alt="" fetchPriority="high" />
           <div className="login-story-shade" />
           <header className="login-brand">
-            <img src={loginLogo} alt="" width="72" height="72" />
             <div><strong>CLAUDIA FESTAS</strong><span>Festas &amp; locações</span></div>
           </header>
           <div className="login-story-copy">
@@ -515,10 +518,19 @@ const App: React.FC = () => {
           </footer>
         </section>
         <section className="login-access" aria-labelledby="login-heading">
-          <div className="login-access-top"><span className="login-small-mark">CF<span>.</span></span><span>ÁREA DE GESTÃO</span></div>
+          <div className="login-access-top">
+            <span className="login-small-mark">CF<span>.</span></span>
+            <div className="login-support-area">
+              <span className="login-management-label">ÁREA DE GESTÃO</span>
+              <a className="login-support-button" href="https://wa.me/48991347343" target="_blank" rel="noopener noreferrer" title="Suporte via WhatsApp">
+                <i className="fa-brands fa-whatsapp" aria-hidden="true"></i>
+                <span>Suporte do Sistema</span>
+              </a>
+            </div>
+          </div>
           <div className="login-form-container">
-            <div className="login-welcome-icon" aria-hidden="true">
-              <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
+            <div className="login-welcome-brand">
+            <img className="login-welcome-logo" src={loginLogo} alt="Logo Claudia Festas" width="228" height="228" />
             </div>
             <span className="login-form-eyebrow">BEM-VINDO DE VOLTA</span>
             <h2 id="login-heading">Sua próxima festa<br />começa aqui.</h2>
@@ -526,6 +538,9 @@ const App: React.FC = () => {
             <form className="login-form" onSubmit={handleLogin}>
               <label className="login-label" htmlFor="login-password">Senha de acesso</label>
               <div className="login-password-wrap">
+                <div key={loginAttempt} className={`login-welcome-icon${isZooming ? ' login-welcome-icon--success' : error ? ' login-welcome-icon--error' : ''}`} aria-hidden="true">
+                  <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
+                </div>
                 <input id="login-password" className="login-password" type={showPassword ? 'text' : 'password'} value={passwordInput}
                   onChange={(event) => { setPasswordInput(event.target.value); setError(false); }}
                   placeholder="Digite sua senha" autoComplete="current-password" aria-invalid={error}

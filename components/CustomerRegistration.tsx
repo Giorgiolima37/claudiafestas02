@@ -253,7 +253,7 @@ const CustomerRegistration: React.FC<RegistrationProps> = ({ onSaved }) => {
       <h1 className="text-center text-[#b24a2b] text-3xl md:text-4xl font-bold mb-1">Claudia Festas</h1>
       <div className="text-center text-gray-600 text-[10px] font-bold uppercase tracking-[4px] mb-8">Registro de Cliente</div>
       
-      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6">
+      <form onSubmit={handleSubmit} className="space-y-4 md:space-y-6" data-preserve-input-case>
         
         {/* LINHA 1: Nome e Telefone (Voltamos para 2 colunas) */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 md:gap-6">
@@ -383,24 +383,6 @@ const FormInput: React.FC<{ label: string; id: string; value: string; onChange: 
       id={id}
       value={value}
       onChange={onChange}
-      onKeyDown={(e) => {
-        if (e.ctrlKey || e.altKey || e.metaKey || e.key.length !== 1 || !/\p{L}/u.test(e.key)) return;
-
-        e.preventDefault();
-        const inicio = e.currentTarget.selectionStart ?? value.length;
-        const fim = e.currentTarget.selectionEnd ?? inicio;
-        const letra = e.getModifierState('CapsLock')
-          ? e.key.toLocaleUpperCase('pt-BR')
-          : e.key.toLocaleLowerCase('pt-BR');
-        const novoValor = value.slice(0, inicio) + letra + value.slice(fim);
-
-        e.currentTarget.value = novoValor;
-        onChange(e as unknown as React.ChangeEvent<HTMLInputElement>);
-
-        requestAnimationFrame(() => {
-          e.currentTarget.setSelectionRange(inicio + letra.length, inicio + letra.length);
-        });
-      }}
       autoCapitalize="none"
       autoCorrect="off"
       spellCheck={false}
