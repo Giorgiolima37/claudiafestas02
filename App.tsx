@@ -542,7 +542,7 @@ const App: React.FC = () => {
                 <div key={loginAttempt} className={`login-welcome-icon${isZooming ? ' login-welcome-icon--success' : error ? ' login-welcome-icon--error' : ''}`} aria-hidden="true">
                   <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="5" y="10" width="14" height="11" rx="3" /><path d="M8 10V7a4 4 0 0 1 8 0v3M12 14v3" /></svg>
                 </div>
-                <input id="login-password" className="login-password" type={showPassword ? 'text' : 'password'} value={passwordInput}
+                <input id="login-password" className="login-password" type={showPassword ? 'text' : 'password'} inputMode="numeric" value={passwordInput}
                   onChange={(event) => { setPasswordInput(event.target.value); setError(false); }}
                   placeholder="Digite sua senha" autoComplete="current-password" aria-invalid={error}
                   aria-describedby={error || logoutMessage ? 'login-message' : undefined} required />
