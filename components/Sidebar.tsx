@@ -134,22 +134,12 @@ const Sidebar: React.FC<SidebarProps> = ({
         color: '#ffffff'
       }}
     >
-      {toolbarContainer && createPortal(<div className="absolute right-10 top-7 z-40 flex items-center gap-3">
-        <a
-          href="https://wa.me/48991347343"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-2 shadow-md transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
-          title="Suporte via WhatsApp"
-        >
-          <i className="fa-brands fa-whatsapp text-lg"></i>
-          <span>Suporte do Sistema</span>
-        </a>
-        <div className="relative flex flex-col items-center gap-2">
+      {toolbarContainer && createPortal(<div className="relative z-40 flex items-center gap-3">
+        <div className="relative flex items-center gap-3">
           <button
             type="button"
             onClick={() => setIsToneControlOpen(!isToneControlOpen)}
-            className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            className="w-12 h-12 rounded-xl border border-orange-100 bg-white text-[#B24D2D] shadow-sm flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             title="Ajustar cor da barra lateral"
           >
             <i className="fa-solid fa-sliders text-sm"></i>
@@ -157,7 +147,7 @@ const Sidebar: React.FC<SidebarProps> = ({
           <button
             type="button"
             onClick={onOpenAdmin}
-            className="w-10 h-10 rounded-full bg-white text-[#B24D2D] shadow-md flex items-center justify-center transition-all hover:scale-105 active:scale-95"
+            className="w-12 h-12 rounded-xl border border-orange-100 bg-white text-[#B24D2D] shadow-sm flex items-center justify-center transition-all hover:scale-105 active:scale-95"
             title="Administrador"
           >
             <i className="fa-solid fa-gear text-sm"></i>
@@ -323,6 +313,16 @@ const Sidebar: React.FC<SidebarProps> = ({
             <span className="text-sm tracking-wide uppercase">{item.label}</span>
           </button>
         ))}
+        <a
+          href="https://wa.me/48991347343"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="bg-[#12d164] hover:bg-[#0ebd57] text-white font-bold text-xs uppercase tracking-wider py-3 px-5 rounded-full flex items-center justify-center gap-2 shadow-md transition-all duration-300 transform-gpu hover:scale-105 active:scale-[0.98]"
+          title="Suporte via WhatsApp"
+        >
+          <i className="fa-brands fa-whatsapp text-lg"></i>
+          <span>Suporte do Sistema</span>
+        </a>
       </nav>
 
 

@@ -680,9 +680,9 @@ const App: React.FC = () => {
         className="flex-1 flex flex-col h-full overflow-y-auto bg-[#fdf8f6]"
         style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
       >
-        <div ref={setToolbarContainer} id="claudia-scroll-content" className="relative p-4 md:p-10 flex flex-col items-center">
+        <div id="claudia-scroll-content" className="relative p-4 md:p-10 flex flex-col items-center">
           
-          <div className="flex gap-3 mb-6 md:mb-8 w-full max-w-6xl">
+          <div className="flex items-center gap-3 mb-6 md:mb-8 w-full max-w-6xl">
             <button 
               onClick={() => navigateTo('CADASTRO')}
               className="flex items-center justify-center w-12 h-12 bg-white text-[#B24D2D] rounded-xl shadow-sm border border-orange-100 transition-all duration-300 transform-gpu hover:scale-110 hover:-translate-y-2 hover:shadow-[0_18px_35px_rgba(0,0,0,0.32)] active:scale-[0.98]"
@@ -712,6 +712,7 @@ const App: React.FC = () => {
             >
               <i className="fa-solid fa-calendar-days"></i>
             </button>
+            <div ref={setToolbarContainer} />
           </div>
 
           <div className="w-full max-w-6xl bg-white rounded-3xl md:rounded-[40px] p-6 md:p-12 shadow-xl border border-white/20 min-h-fit mb-10">
