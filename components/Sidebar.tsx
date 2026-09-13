@@ -128,7 +128,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   // Busca o clima baseado na latitude e longitude atuais (incluindo o parâmetro is_day)
   return (
     <div
-      className="relative w-full h-full flex flex-col p-6 shadow-2xl overflow-y-auto transition-colors duration-700"
+      className="management-sidebar-content relative w-full h-full flex flex-col p-6 shadow-2xl overflow-y-auto transition-colors duration-700"
       style={{
         background: SIDEBAR_BRAND_COLOR,
         color: '#ffffff'
@@ -192,7 +192,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       , toolbarContainer)}
 
       {/* Cabeçalho / Logo */}
-      <div className="mb-0 mt-4 text-center">
+      <div className="management-sidebar-brand mb-0 mt-4 text-center">
         <div className="relative mb-3 inline-flex items-center gap-2">
           <button
             type="button"
@@ -256,7 +256,7 @@ const Sidebar: React.FC<SidebarProps> = ({
             </div>
           )}
         </div>
-        <div className="flex items-center justify-center gap-3 mb-5">
+        <div className="management-sidebar-social flex items-center justify-center gap-3 mb-5">
           <a
             href="https://www.instagram.com/"
             target="_blank"
@@ -290,7 +290,7 @@ const Sidebar: React.FC<SidebarProps> = ({
       </div>
 
       {/* Menu de Navegação */}
-      <nav className="flex-1 space-y-2">
+      <nav className="management-sidebar-nav flex-1 space-y-2">
         {menuItems.map((item) => (
           <button
             key={item.id}

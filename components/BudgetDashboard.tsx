@@ -552,7 +552,9 @@ const BudgetDashboard: React.FC = () => {
             <div class="signatures"><div class="sig">CLIENTE</div><div class="sig">CLAUDIA FESTAS</div></div>
           </div>
           <script>
-            async function enviarOrcamentoPdf(botao) {
+            const celular = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
+            let arquivoOrcamento = null;
+            async function gerarOrcamentoPdf(botao) {
               const textoOriginal = botao.textContent;
               botao.disabled = true;
               botao.textContent = 'Gerando PDF...';
@@ -576,19 +578,8 @@ const BudgetDashboard: React.FC = () => {
                 documentoPdf.setDisplayMode('fullpage', 'single', 'UseNone');
                 const blob = documentoPdf.output('blob');
                 const arquivo = new File([blob], nomeArquivo, { type: 'application/pdf' });
-                if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
-                  await navigator.share({ files: [arquivo], title: 'Orçamento Claudia Festas', text: 'Orçamento - ${orcamento.cliente}' });
-                } else {
-                  const urlPdf = URL.createObjectURL(blob);
-                  const link = document.createElement('a');
-                  link.href = urlPdf;
-                  link.download = nomeArquivo;
-                  document.body.appendChild(link);
-                  link.click();
-                  link.remove();
-                  setTimeout(function () { URL.revokeObjectURL(urlPdf); }, 30000);
-                  alert('O PDF foi baixado. Abra o WhatsApp e anexe o arquivo na conversa do cliente.');
-                }
+                arquivoOrcamento = arquivo;
+                return arquivo;
               } catch (erro) {
                 if (erro && erro.name !== 'AbortError') alert(erro.message || 'Não foi possível gerar o PDF.');
               } finally {
@@ -598,6 +589,42 @@ const BudgetDashboard: React.FC = () => {
                 }
                 botao.disabled = false;
                 botao.textContent = textoOriginal;
+              }
+            }
+            async function enviarOrcamentoPdf(botao) {
+              if (botao.disabled) return;
+              const arquivo = arquivoOrcamento || await gerarOrcamentoPdf(botao);
+              if (!arquivo) return;
+              try {
+                if (navigator.share && navigator.canShare && navigator.canShare({ files: [arquivo] })) {
+                  botao.disabled = true;
+                  await navigator.share({ files: [arquivo], title: 'Orçamento Claudia Festas' });
+                } else {
+                  const urlPdf = URL.createObjectURL(arquivo);
+                  const link = document.createElement('a');
+                  link.href = urlPdf;
+                  link.download = arquivo.name;
+                  document.body.appendChild(link);
+                  link.click();
+                  link.remove();
+                  setTimeout(function () { URL.revokeObjectURL(urlPdf); }, 30000);
+                  alert('O PDF foi baixado. Abra o WhatsApp e anexe o arquivo na conversa do cliente.');
+                }
+              } catch (erro) {
+                if (erro && erro.name !== 'AbortError') alert(erro.message || 'Não foi possível compartilhar o PDF.');
+              } finally {
+                botao.disabled = false;
+              }
+            }
+            if (celular) {
+              const botaoPdf = document.querySelector('[onclick*="enviarOrcamentoPdf"]');
+              if (botaoPdf) {
+                botaoPdf.disabled = true;
+                botaoPdf.textContent = 'Preparando PDF...';
+                window.addEventListener('load', async function () {
+                  await gerarOrcamentoPdf(botaoPdf);
+                  botaoPdf.textContent = 'Enviar PDF pelo WhatsApp';
+                }, { once: true });
               }
             }
           </script>

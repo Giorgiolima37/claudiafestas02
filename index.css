@@ -157,6 +157,18 @@ textarea::placeholder {
   .management-app main { height: auto; padding-bottom: env(safe-area-inset-bottom); }
   .management-menu-backdrop { position: fixed; inset: 64px 0 0; background: rgb(0 0 0 / 45%); z-index: 45; }
   .management-sidebar { top: 64px; bottom: 0; width: min(320px, 88vw); height: auto; }
+  .management-sidebar-content { padding: 12px 16px; }
+  .management-sidebar-brand { margin-top: 0; flex-shrink: 0; }
+  .management-sidebar-brand > div:first-child { margin-bottom: 8px; }
+  .management-sidebar-social { margin-bottom: 12px; }
+  .management-sidebar-social > div { width: clamp(48px, 12dvh, 80px); height: clamp(48px, 12dvh, 80px); }
+  .management-sidebar-social a img { width: 30px; height: 30px; }
+  .management-sidebar-nav { display: grid; grid-template-rows: repeat(8, minmax(0, 1fr)); gap: 4px; min-height: 0; }
+  .management-sidebar-nav > * { margin-top: 0 !important; padding: 6px 16px; min-height: 32px; border-radius: 16px; }
+  .management-sidebar-nav > button { gap: 12px; }
+  .management-sidebar-nav > button span { font-size: 12px; }
+  .management-sidebar-nav > a { font-size: 10px; }
+  .management-sidebar-nav > button[style] { transform: none; }
   #claudia-scroll-content { padding: 16px 12px; }
   .management-toolbar { gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
   .management-toolbar button { width: 40px; height: 44px; flex-shrink: 0; }
