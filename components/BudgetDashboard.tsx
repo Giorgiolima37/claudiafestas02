@@ -5,6 +5,7 @@ import logoImg from '../logo.png';
 
 interface BudgetItem {
   id: string;
+  clienteId?: string | number | null;
   cliente: string;
   reserva: string;
   retirada: string;
@@ -14,6 +15,7 @@ interface BudgetItem {
   desconto: number;
   adiantamento: number;
   saldoRestante: number;
+  status?: string;
   produtos: Array<{ item: string; quantidade: number; preco: number; codigo: string; estoqueId?: string }>;
   criadoEm: string;
 }
@@ -70,6 +72,7 @@ const BudgetDashboard: React.FC = () => {
       setEstoque(resEstoque.data || []);
       setOrcamentos((resOrcamentos.data || []).map((orcamento: any) => ({
         id: String(orcamento.id),
+        clienteId: orcamento.cliente_id,
         cliente: orcamento.cliente_nome,
         reserva: orcamento.data_reserva,
         retirada: orcamento.data_retirada,
@@ -79,6 +82,7 @@ const BudgetDashboard: React.FC = () => {
         desconto: Number(orcamento.desconto || extrairFinanceiroOrcamento(orcamento.observacoes || '').desconto),
         adiantamento: Number(orcamento.adiantamento || 0),
         saldoRestante: Number(orcamento.saldo_restante || 0),
+        status: orcamento.status || 'Aberto',
         criadoEm: orcamento.created_at,
         produtos: (orcamento.orcamento_itens || []).map((produto: any) => ({
           item: produto.item,
@@ -108,6 +112,17 @@ const BudgetDashboard: React.FC = () => {
   });
 
   const formatarNumeroMoeda = (valor: number) => Number(valor || 0).toFixed(2).replace('.', ',');
+
+  const obterIdExibicaoCliente = (orcamento: BudgetItem) => {
+    const clienteCadastrado = clientes.find((cliente) =>
+      orcamento.clienteId != null && String(cliente.id) === String(orcamento.clienteId)
+    ) || clientes.find((cliente) =>
+      String(cliente.cliente || '').trim().toLocaleLowerCase('pt-BR') ===
+      String(orcamento.cliente || '').trim().toLocaleLowerCase('pt-BR')
+    );
+
+    return clienteCadastrado?.['id-client'] || clienteCadastrado?.id || null;
+  };
 
   const formatarNomeProprio = (valor: string) => {
     return valor
@@ -285,6 +300,7 @@ const BudgetDashboard: React.FC = () => {
 
     const item: BudgetItem = {
       id: crypto.randomUUID(),
+      clienteId: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
       cliente: clienteNome,
       reserva: novoOrcamento.reserva,
       retirada: novoOrcamento.retirada,
@@ -294,6 +310,7 @@ const BudgetDashboard: React.FC = () => {
       desconto: calcularDesconto(),
       adiantamento: calcularAdiantamento(),
       saldoRestante: calcularSaldoRestante(),
+      status: 'Aberto',
       produtos,
       criadoEm: new Date().toISOString()
     };
@@ -396,6 +413,131 @@ const BudgetDashboard: React.FC = () => {
     };
   };
 
+  const aceitarOrcamentoComoPedido = async (orcamentoId: string) => {
+    const orcamento = orcamentos.find((item) => item.id === String(orcamentoId));
+    if (!orcamento) throw new Error('Orçamento não encontrado. Atualize a página e tente novamente.');
+    if (orcamento.status?.toLocaleLowerCase('pt-BR') === 'aceito') {
+      throw new Error('Este orçamento já foi aceito.');
+    }
+    if (orcamento.clienteId == null) {
+      throw new Error('Este orçamento pertence a um cliente avulso. Cadastre ou vincule o cliente antes de aceitar o pedido.');
+    }
+    if (!orcamento.produtos.length) throw new Error('O orçamento não possui itens.');
+
+    const hoje = new Date().toLocaleDateString('en-CA');
+    const statusReserva = orcamento.reserva <= hoje ? 'Em Aluguel' : 'Pendente';
+    const { data: estoqueAtual, error: erroBuscarEstoque } = await db.from('estoque').select('*');
+    if (erroBuscarEstoque) throw erroBuscarEstoque;
+
+    const itensComEstoque = orcamento.produtos.map((produto) => {
+      const itemEstoque = (estoqueAtual || []).find((item: any) =>
+        (produto.estoqueId && String(item.id) === String(produto.estoqueId)) || item.item === produto.item
+      );
+      if (!itemEstoque) throw new Error(`O item "${produto.item}" não foi encontrado no estoque.`);
+      if (Number(itemEstoque.disponivel || 0) < Number(produto.quantidade || 0)) {
+        throw new Error(`Estoque insuficiente para "${produto.item}". Disponível: ${itemEstoque.disponivel || 0}.`);
+      }
+      return { produto, itemEstoque };
+    });
+
+    const observacoesComFinanceiro = orcamento.adiantamento > 0
+      ? `${orcamento.observacoes ? `${orcamento.observacoes}\n` : ''}ADIANTAMENTO: R$ ${formatarNumeroMoeda(orcamento.adiantamento)} | SALDO RESTANTE: R$ ${formatarNumeroMoeda(orcamento.saldoRestante)}`
+      : orcamento.observacoes;
+
+    const reservasParaInserir = itensComEstoque.map(({ produto, itemEstoque }) => ({
+      cliente_id: Number(orcamento.clienteId),
+      item: produto.item,
+      quantidade: produto.quantidade,
+      data_evento: orcamento.reserva,
+      data_devolucao: orcamento.retirada,
+      status: statusReserva,
+      forma_pagamento: 'Não Informado',
+      valor_total: produto.quantidade * produto.preco,
+      taxa_entrega: orcamento.taxaEntrega,
+      desconto: orcamento.desconto,
+      codigo_item: produto.codigo || itemEstoque.codigo_interno || 'S/C',
+      observacoes: observacoesComFinanceiro
+    }));
+
+    const { data: reservasInseridas, error: erroReservas } = await db
+      .from('reservas')
+      .insert(reservasParaInserir)
+      .select('id');
+    if (erroReservas) throw erroReservas;
+
+    const estoquesAlterados: any[] = [];
+    let idsMovimentacoes: Array<string | number> = [];
+
+    try {
+      for (const { produto, itemEstoque } of itensComEstoque) {
+        const colunaDestino = statusReserva === 'Em Aluguel' ? 'alugado' : 'reservado';
+        const atualizacao = {
+          disponivel: Number(itemEstoque.disponivel || 0) - Number(produto.quantidade),
+          [colunaDestino]: Number(itemEstoque[colunaDestino] || 0) + Number(produto.quantidade)
+        };
+        const { error } = await db.from('estoque').update(atualizacao).eq('id', itemEstoque.id);
+        if (error) throw error;
+        estoquesAlterados.push(itemEstoque);
+      }
+
+      const movimentacoes = itensComEstoque.map(({ produto }) => ({
+        descricao: `Reserva (${statusReserva}): ${produto.item}`,
+        valor: produto.quantidade * produto.preco,
+        tipo: 'Receita',
+        cliente_id: Number(orcamento.clienteId),
+        data: new Date().toISOString()
+      }));
+      if (orcamento.taxaEntrega > 0) movimentacoes.push({
+        descricao: `Taxa de Entrega - Cliente ID: ${orcamento.clienteId}`,
+        valor: orcamento.taxaEntrega,
+        tipo: 'Receita',
+        cliente_id: Number(orcamento.clienteId),
+        data: new Date().toISOString()
+      });
+      if (orcamento.desconto > 0) movimentacoes.push({
+        descricao: `Desconto Aplicado - Cliente ID: ${orcamento.clienteId}`,
+        valor: orcamento.desconto,
+        tipo: 'Despesa',
+        cliente_id: Number(orcamento.clienteId),
+        data: new Date().toISOString()
+      });
+
+      const { data: movimentacoesInseridas, error: erroMovimentacoes } = await db
+        .from('movimentacao_caixa')
+        .insert(movimentacoes)
+        .select('id');
+      if (erroMovimentacoes) throw erroMovimentacoes;
+      idsMovimentacoes = (movimentacoesInseridas || []).map((item: any) => item.id);
+
+      const { error: erroStatus } = await db.from('orcamentos').update({ status: 'Aceito' }).eq('id', orcamento.id);
+      if (erroStatus) throw erroStatus;
+
+      setOrcamentos((atuais) => atuais.map((item) =>
+        item.id === orcamento.id ? { ...item, status: 'Aceito' } : item
+      ));
+    } catch (erro) {
+      if (idsMovimentacoes.length) await db.from('movimentacao_caixa').delete().in('id', idsMovimentacoes);
+      if (reservasInseridas?.length) {
+        await db.from('reservas').delete().in('id', reservasInseridas.map((item: any) => item.id));
+      }
+      for (const itemEstoque of estoquesAlterados) {
+        await db.from('estoque').update({
+          disponivel: itemEstoque.disponivel,
+          reservado: itemEstoque.reservado,
+          alugado: itemEstoque.alugado
+        }).eq('id', itemEstoque.id);
+      }
+      throw erro;
+    }
+  };
+
+  useEffect(() => {
+    (window as any).aceitarOrcamentoComoPedido = aceitarOrcamentoComoPedido;
+    return () => {
+      delete (window as any).aceitarOrcamentoComoPedido;
+    };
+  }, [orcamentos, clientes]);
+
   const limparFormularioOrcamento = () => {
     setNovoOrcamento({ cliente: '', reserva: '', retirada: '', taxaEntrega: '', desconto: '', adiantamento: '', observacoes: '' });
     setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
@@ -469,7 +611,14 @@ const BudgetDashboard: React.FC = () => {
             .preview-toolbar { position: fixed; top: 16px; right: 20px; z-index: 10; display: flex; gap: 10px; padding: 10px; border-radius: 16px; background: rgba(255,255,255,.96); box-shadow: 0 8px 30px rgba(0,0,0,.18); }
             .preview-action { border: 0; border-radius: 999px; padding: 11px 16px; color: white; font-weight: 800; cursor: pointer; font-size: 13px; }
             .preview-action.print { background: #2563eb; }
+            .preview-action.accept { background: #f97316; animation: accept-order-pulse 1s ease-in-out infinite; }
+            .preview-action.accept.accepted { background: #16a34a; animation: none; cursor: default; }
             .preview-action.whatsapp { background: #16a34a; }
+            @keyframes accept-order-pulse {
+              0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(249,115,22,.45); }
+              50% { transform: scale(1.06); box-shadow: 0 0 0 7px rgba(249,115,22,0); }
+            }
+            @media (prefers-reduced-motion: reduce) { .preview-action.accept { animation: none; } }
             @media print { .preview-toolbar { display: none !important; } }
             .page-container { width: 200mm; min-height: 285mm; padding: 10px; border: 2px solid black; box-sizing: border-box; }
             .header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 22px; }
@@ -502,6 +651,7 @@ const BudgetDashboard: React.FC = () => {
         <body>
           <div class="preview-toolbar">
             <button class="preview-action print" type="button" onclick="window.print()">Imprimir</button>
+            <button class="preview-action accept ${orcamento.status?.toLocaleLowerCase('pt-BR') === 'aceito' ? 'accepted' : ''}" type="button" onclick="aceitarPedido(this)" ${orcamento.status?.toLocaleLowerCase('pt-BR') === 'aceito' ? 'disabled' : ''}>${orcamento.status?.toLocaleLowerCase('pt-BR') === 'aceito' ? 'Pedido aceito' : 'Aceitar pedido'}</button>
             <button class="preview-action whatsapp" type="button" onclick="enviarOrcamentoPdf(this)">Enviar PDF pelo WhatsApp</button>
           </div>
           <div id="orcamento-pdf" class="page-container">
@@ -552,6 +702,30 @@ const BudgetDashboard: React.FC = () => {
             <div class="signatures"><div class="sig">CLIENTE</div><div class="sig">CLAUDIA FESTAS</div></div>
           </div>
           <script>
+            async function aceitarPedido(botao) {
+              if (!window.confirm('Deseja aceitar este orçamento e enviá-lo para a Gestão de Pedidos?')) return;
+              if (!window.opener || typeof window.opener.aceitarOrcamentoComoPedido !== 'function') {
+                alert('A tela principal não está disponível. Feche esta janela, abra o orçamento novamente e tente outra vez.');
+                return;
+              }
+
+              const textoOriginal = botao.textContent;
+              botao.disabled = true;
+              botao.style.animation = 'none';
+              botao.textContent = 'Aceitando...';
+              try {
+                await window.opener.aceitarOrcamentoComoPedido('${orcamento.id}');
+                botao.textContent = 'Pedido aceito';
+                botao.classList.add('accepted');
+                alert('Pedido aceito com sucesso! Ele já está disponível na Gestão de Pedidos.');
+              } catch (erro) {
+                botao.disabled = false;
+                botao.style.animation = '';
+                botao.textContent = textoOriginal;
+                alert(erro?.message || 'Não foi possível aceitar o pedido.');
+              }
+            }
+
             async function enviarOrcamentoPdf(botao) {
               const textoOriginal = botao.textContent;
               botao.disabled = true;
@@ -639,17 +813,29 @@ const BudgetDashboard: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-          {orcamentosFiltrados.map((orcamento) => (
+          {orcamentosFiltrados.map((orcamento) => {
+            const idExibicaoCliente = obterIdExibicaoCliente(orcamento);
+
+            return (
             <div key={orcamento.id} className="rounded-[28px] border border-orange-100 bg-orange-50/40 p-6 shadow-sm">
               <div className="flex items-start justify-between gap-4">
                 <div>
                   <h3 className="text-xl font-black text-gray-800 uppercase">{orcamento.cliente}</h3>
-                  <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">
-                    Reserva: {orcamento.reserva ? orcamento.reserva.split('-').reverse().join('/') : '--/--/----'}
-                  </p>
-                  <p className="text-[10px] font-bold text-gray-600 uppercase mt-1">
-                    Retirada: {orcamento.retirada ? orcamento.retirada.split('-').reverse().join('/') : '--/--/----'}
-                  </p>
+                  <div className="mt-1 flex items-center gap-3">
+                    <div>
+                      <p className="text-[10px] font-bold text-gray-600 uppercase">
+                        Reserva: {orcamento.reserva ? orcamento.reserva.split('-').reverse().join('/') : '--/--/----'}
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold text-gray-600 uppercase">
+                        Retirada: {orcamento.retirada ? orcamento.retirada.split('-').reverse().join('/') : '--/--/----'}
+                      </p>
+                    </div>
+                    {idExibicaoCliente && (
+                      <span className="rounded-full bg-white px-3 py-1.5 text-[10px] font-black uppercase tracking-wide text-[#b24a2b] shadow-sm ring-1 ring-orange-100">
+                        ID: {idExibicaoCliente}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <button
                   type="button"
@@ -705,7 +891,8 @@ const BudgetDashboard: React.FC = () => {
                 )}
               </div>
             </div>
-          ))}
+            );
+          })}
         </div>
       )}
 
