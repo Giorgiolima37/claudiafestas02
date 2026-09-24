@@ -163,11 +163,15 @@ textarea::placeholder {
   .management-sidebar-social { margin-bottom: 12px; }
   .management-sidebar-social > div { width: clamp(48px, 12dvh, 80px); height: clamp(48px, 12dvh, 80px); }
   .management-sidebar-social a img { width: 30px; height: 30px; }
-  .management-sidebar-nav { display: grid; grid-template-rows: repeat(8, minmax(0, 1fr)); gap: 4px; min-height: 0; }
+  .management-sidebar-nav { display: grid; grid-template-rows: repeat(8, minmax(0, 1fr)) auto; gap: 4px; min-height: 0; }
   .management-sidebar-nav > * { margin-top: 0 !important; padding: 6px 16px; min-height: 32px; border-radius: 16px; }
   .management-sidebar-nav > button { gap: 12px; }
   .management-sidebar-nav > button span { font-size: 12px; }
   .management-sidebar-nav > a { font-size: 10px; }
+  .management-database-warning { padding: 7px 10px !important; }
+  .management-database-warning > div { margin-bottom: 2px; }
+  .management-database-warning p { font-size: 8px; line-height: 1.25; }
+  .management-database-warning p + p { margin-top: 2px; }
   .management-sidebar-nav > button[style] { transform: none; }
   #claudia-scroll-content { padding: 16px 12px; }
   .management-toolbar { gap: 8px; flex-wrap: wrap; margin-bottom: 16px; }
