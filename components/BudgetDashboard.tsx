@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import Select from 'react-select';
 import { db } from '../services/supabase';
 import logoImg from '../logo.png';
@@ -39,6 +39,13 @@ const BudgetDashboard: React.FC = () => {
     endereco: '',
     complemento: ''
   });
+  const [cadastroPendente, setCadastroPendente] = useState<BudgetItem | null>(null);
+  const [salvandoCadastroPendente, setSalvandoCadastroPendente] = useState(false);
+  const [dadosCadastroPendente, setDadosCadastroPendente] = useState({
+    nome: '', telefone: '', documento: '', endereco: '', bairro: '', municipio: '',
+    numero: '', complemento: '', idClient: ''
+  });
+  const aceitePendenteRef = useRef<{ resolve: () => void; reject: (erro: Error) => void } | null>(null);
   const [novoOrcamento, setNovoOrcamento] = useState({
     cliente: '',
     reserva: '',
@@ -413,14 +420,48 @@ const BudgetDashboard: React.FC = () => {
     };
   };
 
-  const aceitarOrcamentoComoPedido = async (orcamentoId: string) => {
+  const aceitarOrcamentoComoPedido = async (orcamentoId: string, clienteIdForcado?: string | number) => {
     const orcamento = orcamentos.find((item) => item.id === String(orcamentoId));
     if (!orcamento) throw new Error('Orçamento não encontrado. Atualize a página e tente novamente.');
     if (orcamento.status?.toLocaleLowerCase('pt-BR') === 'aceito') {
       throw new Error('Este orçamento já foi aceito.');
     }
-    if (orcamento.clienteId == null) {
-      throw new Error('Este orçamento pertence a um cliente avulso. Cadastre ou vincule o cliente antes de aceitar o pedido.');
+    const clienteIdPedido = clienteIdForcado ?? orcamento.clienteId;
+    if (clienteIdPedido == null) {
+      const camposAvulsos: Record<string, string> = {};
+      if (orcamento.observacoes.startsWith('DADOS DO CLIENTE AVULSO:')) {
+        const [bloco] = orcamento.observacoes.replace('DADOS DO CLIENTE AVULSO:', '').trim().split('\n\n');
+        bloco.split('\n').forEach((linha) => {
+          const separador = linha.indexOf(':');
+          if (separador < 0) return;
+          camposAvulsos[linha.slice(0, separador).trim().toLowerCase()] = linha.slice(separador + 1).trim();
+        });
+      }
+
+      const { data: clientesAtuais, error: erroClientes } = await db.from('cadastro').select('id, id-client');
+      if (erroClientes) throw erroClientes;
+      const ids = (clientesAtuais || [])
+        .flatMap((cliente: any) => [Number(cliente.id), Number(cliente['id-client'])])
+        .filter((id: number) => Number.isFinite(id));
+      const proximoId = ids.length ? Math.max(...ids) + 1 : 1;
+
+      setDadosCadastroPendente({
+        nome: orcamento.cliente,
+        telefone: camposAvulsos.telefone || '',
+        documento: camposAvulsos.documento || '',
+        endereco: camposAvulsos.endereco || '',
+        bairro: '',
+        municipio: '',
+        numero: '',
+        complemento: camposAvulsos.complemento || '',
+        idClient: String(proximoId)
+      });
+      setCadastroPendente(orcamento);
+
+      return await new Promise<void>((resolve, reject) => {
+        aceitePendenteRef.current = { resolve, reject };
+        window.focus();
+      });
     }
     if (!orcamento.produtos.length) throw new Error('O orçamento não possui itens.');
 
@@ -445,7 +486,7 @@ const BudgetDashboard: React.FC = () => {
       : orcamento.observacoes;
 
     const reservasParaInserir = itensComEstoque.map(({ produto, itemEstoque }) => ({
-      cliente_id: Number(orcamento.clienteId),
+      cliente_id: Number(clienteIdPedido),
       item: produto.item,
       quantidade: produto.quantidade,
       data_evento: orcamento.reserva,
@@ -484,21 +525,21 @@ const BudgetDashboard: React.FC = () => {
         descricao: `Reserva (${statusReserva}): ${produto.item}`,
         valor: produto.quantidade * produto.preco,
         tipo: 'Receita',
-        cliente_id: Number(orcamento.clienteId),
+        cliente_id: Number(clienteIdPedido),
         data: new Date().toISOString()
       }));
       if (orcamento.taxaEntrega > 0) movimentacoes.push({
-        descricao: `Taxa de Entrega - Cliente ID: ${orcamento.clienteId}`,
+        descricao: `Taxa de Entrega - Cliente ID: ${clienteIdPedido}`,
         valor: orcamento.taxaEntrega,
         tipo: 'Receita',
-        cliente_id: Number(orcamento.clienteId),
+        cliente_id: Number(clienteIdPedido),
         data: new Date().toISOString()
       });
       if (orcamento.desconto > 0) movimentacoes.push({
-        descricao: `Desconto Aplicado - Cliente ID: ${orcamento.clienteId}`,
+        descricao: `Desconto Aplicado - Cliente ID: ${clienteIdPedido}`,
         valor: orcamento.desconto,
         tipo: 'Despesa',
-        cliente_id: Number(orcamento.clienteId),
+        cliente_id: Number(clienteIdPedido),
         data: new Date().toISOString()
       });
 
@@ -513,7 +554,7 @@ const BudgetDashboard: React.FC = () => {
       if (erroStatus) throw erroStatus;
 
       setOrcamentos((atuais) => atuais.map((item) =>
-        item.id === orcamento.id ? { ...item, status: 'Aceito' } : item
+        item.id === orcamento.id ? { ...item, clienteId: clienteIdPedido, status: 'Aceito' } : item
       ));
     } catch (erro) {
       if (idsMovimentacoes.length) await db.from('movimentacao_caixa').delete().in('id', idsMovimentacoes);
@@ -529,6 +570,80 @@ const BudgetDashboard: React.FC = () => {
       }
       throw erro;
     }
+  };
+
+  const finalizarCadastroEAceitarPedido = async (event: React.FormEvent) => {
+    event.preventDefault();
+    if (!cadastroPendente) return;
+    setSalvandoCadastroPendente(true);
+    let clienteCriadoId: string | number | null = null;
+
+    try {
+      const idFinal = Number.parseInt(dadosCadastroPendente.idClient, 10);
+      if (!Number.isFinite(idFinal)) throw new Error('Informe um ID de cliente válido.');
+
+      const { data: existentes, error: erroBusca } = await db.from('cadastro').select('id, id-client, cliente, identificação');
+      if (erroBusca) throw erroBusca;
+      const documento = dadosCadastroPendente.documento.trim();
+      const documentoExistente = documento && (existentes || []).find((cliente: any) =>
+        String(cliente['identificação'] || '').replace(/\D/g, '') === documento.replace(/\D/g, '')
+      );
+      if (documentoExistente) throw new Error(`Este documento já pertence ao cliente ${documentoExistente.cliente}.`);
+      if ((existentes || []).some((cliente: any) =>
+        String(cliente.id) === String(idFinal) || String(cliente['id-client']) === String(idFinal)
+      )) throw new Error(`O ID ${idFinal} já está em uso.`);
+
+      const novoCliente = {
+        id: idFinal,
+        cliente: dadosCadastroPendente.nome.trim(),
+        telefone: dadosCadastroPendente.telefone.trim(),
+        'identificação': documento,
+        endereco: dadosCadastroPendente.endereco.trim(),
+        bairro: dadosCadastroPendente.bairro.trim(),
+        municipio: dadosCadastroPendente.municipio.trim(),
+        numero: dadosCadastroPendente.numero.trim(),
+        complemento: dadosCadastroPendente.complemento.trim(),
+        'id-client': String(idFinal)
+      };
+
+      const { data: clienteSalvo, error: erroCadastro } = await db
+        .from('cadastro')
+        .insert([novoCliente])
+        .select('*')
+        .single();
+      if (erroCadastro) throw erroCadastro;
+      clienteCriadoId = clienteSalvo.id;
+
+      const { error: erroVinculo } = await db
+        .from('orcamentos')
+        .update({ cliente_id: clienteSalvo.id, cliente_nome: novoCliente.cliente })
+        .eq('id', cadastroPendente.id);
+      if (erroVinculo) {
+        await db.from('cadastro').delete().eq('id', clienteSalvo.id);
+        throw erroVinculo;
+      }
+
+      setClientes((atuais) => [...atuais, clienteSalvo]);
+      await aceitarOrcamentoComoPedido(cadastroPendente.id, clienteSalvo.id);
+      setCadastroPendente(null);
+      aceitePendenteRef.current?.resolve();
+      aceitePendenteRef.current = null;
+    } catch (erro: any) {
+      if (clienteCriadoId != null) {
+        await db.from('orcamentos').update({ cliente_id: null }).eq('id', cadastroPendente.id);
+        await db.from('cadastro').delete().eq('id', clienteCriadoId);
+        setClientes((atuais) => atuais.filter((cliente) => String(cliente.id) !== String(clienteCriadoId)));
+      }
+      alert(erro?.message || 'Não foi possível cadastrar o cliente e aceitar o pedido.');
+    } finally {
+      setSalvandoCadastroPendente(false);
+    }
+  };
+
+  const cancelarCadastroPendente = () => {
+    setCadastroPendente(null);
+    aceitePendenteRef.current?.reject(new Error('Cadastro do cliente cancelado.'));
+    aceitePendenteRef.current = null;
   };
 
   useEffect(() => {
@@ -893,6 +1008,86 @@ const BudgetDashboard: React.FC = () => {
             </div>
             );
           })}
+        </div>
+      )}
+
+      {cadastroPendente && (
+        <div className="fixed inset-0 z-[120] flex items-center justify-center overflow-y-auto bg-black/60 p-4 backdrop-blur-sm">
+          <form
+            onSubmit={finalizarCadastroEAceitarPedido}
+            className="my-auto w-full max-w-4xl rounded-[36px] border border-orange-100 bg-white p-6 shadow-2xl md:p-10"
+            data-preserve-input-case
+          >
+            <div className="mb-8 flex items-start justify-between gap-4">
+              <div>
+                <h2 className="text-2xl font-black text-[#b24a2b] md:text-3xl">Cadastrar cliente e aceitar pedido</h2>
+                <p className="mt-2 text-[10px] font-bold uppercase tracking-[0.25em] text-gray-600">
+                  Complete os dados que faltam de {cadastroPendente.cliente}
+                </p>
+              </div>
+              <button
+                type="button"
+                onClick={cancelarCadastroPendente}
+                className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-gray-100 text-gray-600 hover:bg-red-50 hover:text-red-500"
+                aria-label="Cancelar cadastro"
+              >
+                <i className="fa-solid fa-xmark"></i>
+              </button>
+            </div>
+
+            <div className="grid grid-cols-1 gap-4 md:grid-cols-2 md:gap-5">
+              {([
+                ['nome', 'Nome do cliente', true],
+                ['telefone', 'Telefone', true],
+                ['documento', 'Identificação (CPF ou CNPJ)', true],
+                ['endereco', 'Endereço completo', true],
+                ['bairro', 'Bairro', true],
+                ['municipio', 'Município', true],
+                ['numero', 'Número da casa', true],
+                ['complemento', 'Complemento', false]
+              ] as Array<[keyof typeof dadosCadastroPendente, string, boolean]>).map(([campo, rotulo, obrigatorio]) => (
+                <label key={campo} className="flex flex-col gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600">
+                  {rotulo}
+                  <input
+                    type="text"
+                    required={obrigatorio}
+                    value={dadosCadastroPendente[campo]}
+                    onChange={(event) => setDadosCadastroPendente((dados) => ({ ...dados, [campo]: event.target.value }))}
+                    className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 p-4 text-sm font-bold normal-case tracking-normal text-gray-800 outline-none transition-all focus:border-[#b24a2b] focus:bg-white"
+                  />
+                </label>
+              ))}
+              <label className="flex flex-col gap-2 text-[10px] font-black uppercase tracking-widest text-gray-600 md:col-span-2">
+                ID personalizado (automático)
+                <input
+                  type="number"
+                  min="1"
+                  required
+                  value={dadosCadastroPendente.idClient}
+                  onChange={(event) => setDadosCadastroPendente((dados) => ({ ...dados, idClient: event.target.value }))}
+                  className="w-full rounded-2xl border-2 border-gray-100 bg-gray-50 p-4 text-sm font-bold tracking-normal text-gray-800 outline-none transition-all focus:border-[#b24a2b] focus:bg-white"
+                />
+              </label>
+            </div>
+
+            <div className="mt-8 flex flex-col-reverse gap-3 sm:flex-row">
+              <button
+                type="button"
+                onClick={cancelarCadastroPendente}
+                disabled={salvandoCadastroPendente}
+                className="flex-1 rounded-2xl bg-gray-100 p-4 text-xs font-black uppercase tracking-widest text-gray-600 hover:bg-gray-200"
+              >
+                Cancelar
+              </button>
+              <button
+                type="submit"
+                disabled={salvandoCadastroPendente}
+                className="flex-[2] rounded-2xl bg-[#b24a2b] p-4 text-xs font-black uppercase tracking-widest text-white shadow-lg transition-all hover:bg-[#943a20] disabled:bg-gray-300"
+              >
+                {salvandoCadastroPendente ? 'Finalizando...' : 'Finalizar pedido'}
+              </button>
+            </div>
+          </form>
         </div>
       )}
 
