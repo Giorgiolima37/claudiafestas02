@@ -15,14 +15,17 @@ const ReservationForm: React.FC = () => {
   const [freteAjustado, setFreteAjustado] = useState(0);
   const [desconto, setDesconto] = useState(0); 
   const [adiantamento, setAdiantamento] = useState(0);
+  const [usarEnderecoSecundario, setUsarEnderecoSecundario] = useState(false);
 
   const [itensSelecionados, setItensSelecionados] = useState([{ item: '', quantidade: 1 }]);
   
   const [reservaGeral, setReservaGeral] = useState({
     clienteId: '',
     data: '',
+    dataEvento: '',
     dataDevolucao: '',
     complemento: '',
+    enderecoSecundario: '',
     observacoes: '' 
   });
 
@@ -89,7 +92,7 @@ const ReservationForm: React.FC = () => {
 
   const handleAbrirConfirmacao = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!reservaGeral.clienteId || !reservaGeral.data || !reservaGeral.dataDevolucao) {
+    if (!reservaGeral.clienteId || !reservaGeral.data || !reservaGeral.dataEvento || !reservaGeral.dataDevolucao) {
       alert("Preencha os dados do cliente e as datas de aluguel e devolução.");
       return;
     }
@@ -106,7 +109,8 @@ const ReservationForm: React.FC = () => {
     
     const titulo = `ENTREGA: ${cliente}`;
     const complementoDescricao = reservaGeral.complemento ? `\\nComplemento: ${reservaGeral.complemento}` : '';
-    const descricao = `Itens Alugados:\\n${itensDescricao}${complementoDescricao}\\n\\nObs: ${reservaGeral.observacoes}`;
+    const enderecoSecundarioDescricao = reservaGeral.enderecoSecundario ? `\\nEndereço secundário: ${reservaGeral.enderecoSecundario}` : '';
+    const descricao = `Itens Alugados:\\n${itensDescricao}${complementoDescricao}${enderecoSecundarioDescricao}\\n\\nObs: ${reservaGeral.observacoes}`;
     const inicio = formatData(reservaGeral.data);
     const fim = formatData(reservaGeral.dataDevolucao);
 
@@ -127,9 +131,11 @@ const ReservationForm: React.FC = () => {
 
     try {
       const hoje = new Date().toISOString().split('T')[0];
-      const observacoesComComplemento = reservaGeral.complemento
-        ? `${reservaGeral.observacoes ? `${reservaGeral.observacoes}\n` : ''}COMPLEMENTO: ${reservaGeral.complemento}`
-        : reservaGeral.observacoes;
+      const observacoesComComplemento = [
+        reservaGeral.observacoes,
+        reservaGeral.complemento ? `COMPLEMENTO: ${reservaGeral.complemento}` : '',
+        reservaGeral.enderecoSecundario ? `ENDEREÇO SECUNDÁRIO: ${reservaGeral.enderecoSecundario}` : ''
+      ].filter(Boolean).join('\n');
       const observacoesComAdiantamento = adiantamento > 0
         ? `${observacoesComComplemento ? `${observacoesComComplemento}\n` : ''}ADIANTAMENTO: R$ ${formatarMoeda(adiantamento)} | SALDO RESTANTE: R$ ${formatarMoeda(calcularSaldoRestante())}`
         : observacoesComComplemento;
@@ -152,6 +158,7 @@ const ReservationForm: React.FC = () => {
           item: selecionado.item,
           quantidade: selecionado.quantidade,
           data_evento: reservaGeral.data,
+          data_festa: reservaGeral.dataEvento,
           data_devolucao: reservaGeral.dataDevolucao,
           status: statusReserva,
           forma_pagamento: 'Não Informado',
@@ -221,7 +228,8 @@ const ReservationForm: React.FC = () => {
       }
       
       // RESET DE ESTADOS
-      setReservaGeral({ clienteId: '', data: '', dataDevolucao: '', complemento: '', observacoes: '' });
+      setReservaGeral({ clienteId: '', data: '', dataEvento: '', dataDevolucao: '', complemento: '', enderecoSecundario: '', observacoes: '' });
+      setUsarEnderecoSecundario(false);
       setItensSelecionados([{ item: '', quantidade: 1 }]);
       setFreteAjustado(0);
       setDesconto(0); 
@@ -242,7 +250,7 @@ const ReservationForm: React.FC = () => {
       <h1 className="text-center text-[#b24a2b] text-3xl font-black mb-8 italic uppercase tracking-tighter">Nova Reserva Múltipla</h1>
       
       <form onSubmit={handleAbrirConfirmacao} className="max-w-5xl mx-auto space-y-8 bg-white p-10 rounded-[45px] shadow-sm border border-gray-100">
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-6">
           <div className="flex flex-col">
             <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">Cliente</label>
             
@@ -285,6 +293,14 @@ const ReservationForm: React.FC = () => {
             )}
           </div>
 
+          <div className="flex flex-col">
+            <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">Data do Evento</label>
+            <input type="date" required className="w-full p-4 bg-orange-50 border-2 border-[#f2c6b4] rounded-2xl outline-none font-bold text-[#b24a2b] focus:border-[#b24a2b] transition-all" value={reservaGeral.dataEvento} onChange={(e) => setReservaGeral({...reservaGeral, dataEvento: e.target.value})} />
+            {reservaGeral.dataEvento && (
+              <span className="text-[10px] font-bold text-[#b24a2b] ml-4 mt-1 uppercase">{obterDiaDaSemana(reservaGeral.dataEvento)}</span>
+            )}
+          </div>
+
           <div className="flex flex-col relative">
             <label className="text-[10px] font-black text-[#b24a2b] ml-4 mb-2 uppercase tracking-widest">Data de Devolução</label>
             <input type="date" required className="w-full p-4 bg-orange-50 border-2 border-[#f2c6b4] rounded-2xl outline-none font-bold text-[#b24a2b] focus:border-[#b24a2b] transition-all" value={reservaGeral.dataDevolucao} onChange={(e) => setReservaGeral({...reservaGeral, dataDevolucao: e.target.value})} />
@@ -305,6 +321,33 @@ const ReservationForm: React.FC = () => {
               onChange={(e) => setReservaGeral({...reservaGeral, complemento: e.target.value})}
             />
           </div>
+          <label className="ml-4 flex cursor-pointer items-center gap-3 text-[10px] font-black uppercase tracking-widest text-gray-600">
+            <input
+              type="checkbox"
+              checked={usarEnderecoSecundario}
+              onChange={(e) => {
+                const marcado = e.target.checked;
+                setUsarEnderecoSecundario(marcado);
+                if (!marcado) {
+                  setReservaGeral((atual) => ({ ...atual, enderecoSecundario: '' }));
+                }
+              }}
+              className="h-5 w-5 cursor-pointer rounded border-2 border-orange-200 accent-[#b24a2b]"
+            />
+            Adicionar endereço secundário
+          </label>
+          {usarEnderecoSecundario && (
+            <div className="flex flex-col animate-in fade-in slide-in-from-top-2 duration-200">
+              <label className="text-[10px] font-black text-gray-600 ml-4 mb-2 uppercase tracking-widest">Endereço secundário</label>
+              <input
+                type="text"
+                placeholder="Ex: outro local para entrega ou retirada..."
+                className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-gray-700 focus:border-[#b24a2b] transition-all"
+                value={reservaGeral.enderecoSecundario}
+                onChange={(e) => setReservaGeral({...reservaGeral, enderecoSecundario: e.target.value})}
+              />
+            </div>
+          )}
         </div>
 
         <div className="space-y-4 pt-10">

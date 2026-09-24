@@ -35,6 +35,8 @@ const OrderManagement: React.FC = () => {
   const [taxaEntregaEdicao, setTaxaEntregaEdicao] = useState(0);
   const [descontoEdicao, setDescontoEdicao] = useState(0);
   const [observacoesBaseEdicao, setObservacoesBaseEdicao] = useState('');
+  const [complementoEdicao, setComplementoEdicao] = useState('');
+  const [enderecoSecundarioEdicao, setEnderecoSecundarioEdicao] = useState('');
   
   // NOVO ESTADO: Armazena a data original para garantir que o update encontre o registro certo
   const [dataEventoOriginal, setDataEventoOriginal] = useState('');
@@ -155,8 +157,16 @@ const OrderManagement: React.FC = () => {
     return Number.parseFloat(normalizado) || 0;
   };
 
-  const extrairFinanceiroDasObservacoes = (observacoes: string) => {
+  const removerDadosClienteAvulso = (observacoes: string) => {
     const texto = observacoes || '';
+    if (!texto.trim().toUpperCase().startsWith('DADOS DO CLIENTE AVULSO:')) return texto.trim();
+    return texto
+      .replace(/^DADOS DO CLIENTE AVULSO:[\s\S]*?(?:\n\s*\n|$)/i, '')
+      .trim();
+  };
+
+  const extrairFinanceiroDasObservacoes = (observacoes: string) => {
+    const texto = removerDadosClienteAvulso(observacoes);
     const matchAdiantamento = texto.match(/ADIANTAMENTO:\s*R\$\s*([\d.,]+)/i);
     const textoLimpo = texto
       .replace(/\n?ADIANTAMENTO:\s*R\$\s*[\d.,]+\s*\|\s*SALDO RESTANTE:\s*R\$\s*[\d.,]+/i, '')
@@ -171,12 +181,15 @@ const OrderManagement: React.FC = () => {
   const extrairComplementoDasObservacoes = (observacoes: string) => {
     const texto = observacoes || '';
     const matchComplemento = texto.match(/COMPLEMENTO:\s*(.+)/i);
+    const matchEnderecoSecundario = texto.match(/ENDERE(?:Ç|C)O SECUND(?:Á|A)RIO:\s*(.+)/i);
     const textoLimpo = texto
       .replace(/\n?COMPLEMENTO:\s*.+/i, '')
+      .replace(/\n?ENDERE(?:Ç|C)O SECUND(?:Á|A)RIO:\s*.+/i, '')
       .trim();
 
     return {
       complemento: matchComplemento ? matchComplemento[1].trim() : '',
+      enderecoSecundario: matchEnderecoSecundario ? matchEnderecoSecundario[1].trim() : '',
       observacoesBase: textoLimpo
     };
   };
@@ -207,19 +220,27 @@ const OrderManagement: React.FC = () => {
 
   const montarObservacoesComFinanceiro = () => {
     const saldo = calcularSaldoEdicao();
-    return adiantamentoEdicao > 0
-      ? `${observacoesBaseEdicao ? `${observacoesBaseEdicao}\n` : ''}ADIANTAMENTO: R$ ${formatarMoeda(adiantamentoEdicao)} | SALDO RESTANTE: R$ ${formatarMoeda(saldo)}`
-      : observacoesBaseEdicao;
+    return [
+      observacoesBaseEdicao,
+      complementoEdicao ? `COMPLEMENTO: ${complementoEdicao}` : '',
+      enderecoSecundarioEdicao ? `ENDEREÇO SECUNDÁRIO: ${enderecoSecundarioEdicao}` : '',
+      adiantamentoEdicao > 0
+        ? `ADIANTAMENTO: R$ ${formatarMoeda(adiantamentoEdicao)} | SALDO RESTANTE: R$ ${formatarMoeda(saldo)}`
+        : ''
+    ].filter(Boolean).join('\n');
   };
 
   const handleAbrirEdicao = (pedidoAgrupado: any) => {
     const itensFormatados = ordenarItensPedido(pedidoAgrupado.itens).map((i: any) => ({ ...i, _originalQty: i.quantidade }));
     const financeiro = extrairFinanceiroDasObservacoes(pedidoAgrupado.observacoes || pedidoAgrupado.itens[0]?.observacoes || '');
+    const dadosEndereco = extrairComplementoDasObservacoes(financeiro.observacoesBase);
     setPedidoEmEdicao(itensFormatados);
     setAdiantamentoEdicao(financeiro.adiantamento);
     setTaxaEntregaEdicao(Number(pedidoAgrupado.itens[0]?.taxa_entrega || 0));
     setDescontoEdicao(Number(pedidoAgrupado.itens[0]?.desconto || 0));
-    setObservacoesBaseEdicao(financeiro.observacoesBase);
+    setObservacoesBaseEdicao(dadosEndereco.observacoesBase);
+    setComplementoEdicao(dadosEndereco.complemento);
+    setEnderecoSecundarioEdicao(dadosEndereco.enderecoSecundario);
     setDataEventoOriginal(pedidoAgrupado.itens[0].data_evento);
     setDadosPedidoFixo({
       cliente_id: pedidoAgrupado.cliente_id,
@@ -354,7 +375,12 @@ const OrderManagement: React.FC = () => {
     const saldoRestante = Math.max(0, totalGeral - adiantamento);
     const complementoObservacoes = extrairComplementoDasObservacoes(financeiroObservacoes.observacoesBase);
     const observacoesContrato = complementoObservacoes.observacoesBase;
-    const complementoEndereco = complementoObservacoes.complemento || cliente.complemento || '';
+    const usaEnderecoSecundario = Boolean(complementoObservacoes.enderecoSecundario);
+    const enderecoContrato = complementoObservacoes.enderecoSecundario || cliente.endereco || '____________________';
+    const complementoEndereco = usaEnderecoSecundario ? '' : (complementoObservacoes.complemento || cliente.complemento || '');
+    const localidadeContrato = usaEnderecoSecundario
+      ? ''
+      : `, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>`;
     const dEnt = formatarDataBR(itensOrdenados[0].data_evento);
     const dRec = formatarDataBR(pedido.dataDevolucao);
     
@@ -569,7 +595,7 @@ const OrderManagement: React.FC = () => {
 
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
-                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço em <strong>${cliente.endereco || '____________________'}${complementoEndereco ? ` - ${complementoEndereco.toUpperCase()}` : ''}</strong>, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>, 
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço de entrega em <strong>${enderecoContrato}${complementoEndereco ? ` - ${complementoEndereco.toUpperCase()}` : ''}</strong>${localidadeContrato}, 
                 tem ajustado the presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
@@ -768,7 +794,9 @@ const OrderManagement: React.FC = () => {
             dataDevolucao: r.data_devolucao,
             cliente_id: r.cliente_id,
             idPersonalizado: cliente?.['id-client'],
-            observacoes: r.observacoes || '',
+            observacoes: extrairComplementoDasObservacoes(
+              extrairFinanceiroDasObservacoes(r.observacoes || '').observacoesBase
+            ).observacoesBase,
             statusEstoque: r.status_estoque,
             origem: r.origem,
             itens: []
@@ -863,6 +891,14 @@ const OrderManagement: React.FC = () => {
     try {
       setLoading(true);
       for (const item of pedido.itens) {
+        const { data: reservasRemovidas, error: erroRemocao } = await db
+          .from('reservas')
+          .delete()
+          .eq('id', item.id)
+          .select('id');
+        if (erroRemocao) throw erroRemocao;
+        if (!reservasRemovidas?.length) continue;
+
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
         if (est) {
           // SE O PEDIDO ESTAVA ATIVO HOJE (STATUS EM ALUGUEL), RETIRA DE ALUGADO. SE ESTAVA FUTURO, RETIRA DE RESERVADO.
@@ -874,12 +910,12 @@ const OrderManagement: React.FC = () => {
             Number(valorAtualDeOndeRetirar || 0)
           );
 
-          await db.from('estoque').update({
+          const { error: erroEstoque } = await db.from('estoque').update({
             disponivel: Number(est.disponivel || 0) + quantidadeRealmenteRetirada,
             [deOndeRetirar]: Math.max(0, Number(valorAtualDeOndeRetirar || 0) - quantidadeRealmenteRetirada)
           }).eq('item', item.item);
+          if (erroEstoque) throw erroEstoque;
         }
-        await db.from('reservas').delete().eq('id', item.id);
       }
       alert("Pedido cancelado e produtos devolvidos ao estoque!");
       fetchData(); 
@@ -896,11 +932,23 @@ const OrderManagement: React.FC = () => {
       setLoading(true);
       for (const item of pedido.itens) {
         // Se for reserva_futura, deleta do banco. Se for reserva ativa, atualiza status para Finalizado.
+        let reservaProcessada = false;
         if (pedido.isFutura) {
-           await db.from('reservas_futuras').delete().eq('id', item.id);
+           const { data, error } = await db.from('reservas_futuras').delete().eq('id', item.id).select('id');
+           if (error) throw error;
+           reservaProcessada = Boolean(data?.length);
         } else {
-           await db.from('reservas').update({ status: 'Finalizado' }).eq('id', item.id);
+           const { data, error } = await db
+             .from('reservas')
+             .update({ status: 'Finalizado' })
+             .eq('id', item.id)
+             .neq('status', 'Finalizado')
+             .select('id');
+           if (error) throw error;
+           reservaProcessada = Boolean(data?.length);
         }
+
+        if (!reservaProcessada) continue;
 
         // Devolve os itens ao estoque disponível buscando a origem correta do desconto
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
@@ -914,10 +962,11 @@ const OrderManagement: React.FC = () => {
             Number(valorAtualDeOndeRetirar || 0)
           );
 
-          await db.from('estoque').update({
+          const { error: erroEstoque } = await db.from('estoque').update({
             disponivel: Number(est.disponivel || 0) + quantidadeRealmenteRetirada,
             [deOndeRetirar]: Math.max(0, Number(valorAtualDeOndeRetirar || 0) - quantidadeRealmenteRetirada)
           }).eq('item', item.item);
+          if (erroEstoque) throw erroEstoque;
         }
       }
       fetchData();

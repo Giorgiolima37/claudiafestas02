@@ -8,6 +8,7 @@ interface BudgetItem {
   clienteId?: string | number | null;
   cliente: string;
   reserva: string;
+  evento: string;
   retirada: string;
   observacoes: string;
   valor: number;
@@ -33,22 +34,27 @@ const BudgetDashboard: React.FC = () => {
   const [clienteAvulsoAtivo, setClienteAvulsoAtivo] = useState(false);
   const [clienteAvulso, setClienteAvulso] = useState({
     nome: '',
+    nomeFantasia: '',
     telefone: '',
     documento: '',
     cep: '',
     endereco: '',
+    bairro: '',
+    municipio: '',
+    numero: '',
     complemento: ''
   });
   const [cadastroPendente, setCadastroPendente] = useState<BudgetItem | null>(null);
   const [salvandoCadastroPendente, setSalvandoCadastroPendente] = useState(false);
   const [dadosCadastroPendente, setDadosCadastroPendente] = useState({
-    nome: '', telefone: '', documento: '', endereco: '', bairro: '', municipio: '',
-    numero: '', complemento: '', idClient: ''
+    nome: '', nomeFantasia: '', telefone: '', documento: '', cep: '', endereco: '',
+    bairro: '', municipio: '', numero: '', complemento: '', idClient: ''
   });
   const aceitePendenteRef = useRef<{ resolve: () => void; reject: (erro: Error) => void } | null>(null);
   const [novoOrcamento, setNovoOrcamento] = useState({
     cliente: '',
     reserva: '',
+    evento: '',
     retirada: '',
     taxaEntrega: '',
     desconto: '',
@@ -82,6 +88,7 @@ const BudgetDashboard: React.FC = () => {
         clienteId: orcamento.cliente_id,
         cliente: orcamento.cliente_nome,
         reserva: orcamento.data_reserva,
+        evento: orcamento.data_evento || orcamento.data_reserva,
         retirada: orcamento.data_retirada,
         observacoes: extrairFinanceiroOrcamento(orcamento.observacoes || '').observacoes,
         valor: Number(orcamento.valor_total || 0),
@@ -106,8 +113,11 @@ const BudgetDashboard: React.FC = () => {
 
   const orcamentosFiltrados = useMemo(() => {
     const termo = busca.trim().toLowerCase();
-    if (!termo) return orcamentos;
-    return orcamentos.filter((orcamento) =>
+    const orcamentosEmAberto = orcamentos.filter((orcamento) =>
+      orcamento.status?.toLocaleLowerCase('pt-BR') !== 'aceito'
+    );
+    if (!termo) return orcamentosEmAberto;
+    return orcamentosEmAberto.filter((orcamento) =>
       orcamento.cliente.toLowerCase().includes(termo) ||
       orcamento.observacoes.toLowerCase().includes(termo)
     );
@@ -186,15 +196,13 @@ const BudgetDashboard: React.FC = () => {
         return;
       }
 
-      const endereco = [
-        data.logradouro,
-        data.bairro,
-        data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : ''
-      ].filter(Boolean).join(', ');
-
       setClienteAvulso((prev) => ({
         ...prev,
-        endereco: formatarNomeProprio(endereco)
+        endereco: formatarNomeProprio(data.logradouro || ''),
+        bairro: formatarNomeProprio(data.bairro || ''),
+        municipio: formatarNomeProprio(
+          data.localidade && data.uf ? `${data.localidade} - ${data.uf}` : data.localidade || ''
+        )
       }));
     } catch (err) {
       console.error('Erro ao buscar CEP:', err);
@@ -267,8 +275,12 @@ const BudgetDashboard: React.FC = () => {
     const dadosClienteAvulso = [
       clienteAvulso.telefone.trim() ? `Telefone: ${clienteAvulso.telefone.trim()}` : '',
       clienteAvulso.documento.trim() ? `Documento: ${clienteAvulso.documento.trim()}` : '',
+      clienteAvulso.nomeFantasia.trim() ? `Nome Fantasia: ${clienteAvulso.nomeFantasia.trim()}` : '',
       clienteAvulso.cep.trim() ? `CEP: ${clienteAvulso.cep.trim()}` : '',
       clienteAvulso.endereco.trim() ? `Endereco: ${clienteAvulso.endereco.trim()}` : '',
+      clienteAvulso.bairro.trim() ? `Bairro: ${clienteAvulso.bairro.trim()}` : '',
+      clienteAvulso.municipio.trim() ? `Municipio: ${clienteAvulso.municipio.trim()}` : '',
+      clienteAvulso.numero.trim() ? `Numero: ${clienteAvulso.numero.trim()}` : '',
       clienteAvulso.complemento.trim() ? `Complemento: ${clienteAvulso.complemento.trim()}` : ''
     ].filter(Boolean);
     const observacoesComClienteAvulso = clienteAvulsoAtivo && dadosClienteAvulso.length > 0
@@ -310,6 +322,7 @@ const BudgetDashboard: React.FC = () => {
       clienteId: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
       cliente: clienteNome,
       reserva: novoOrcamento.reserva,
+      evento: novoOrcamento.evento,
       retirada: novoOrcamento.retirada,
       observacoes: observacoesComClienteAvulso,
       valor: calcularTotalOrcamento(),
@@ -327,6 +340,7 @@ const BudgetDashboard: React.FC = () => {
         cliente_id: clienteAvulsoAtivo ? null : clienteSelecionado?.id,
         cliente_nome: item.cliente,
         data_reserva: item.reserva,
+        data_evento: item.evento,
         data_retirada: item.retirada,
         valor_total: item.valor,
         adiantamento: item.adiantamento,
@@ -376,8 +390,8 @@ const BudgetDashboard: React.FC = () => {
         ? prev.map((orcamento) => orcamento.id === orcamentoEmEdicaoId ? itemSalvo : orcamento)
         : [itemSalvo, ...prev]
       );
-      setNovoOrcamento({ cliente: '', reserva: '', retirada: '', taxaEntrega: '', desconto: '', adiantamento: '', observacoes: '' });
-      setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
+      setNovoOrcamento({ cliente: '', reserva: '', evento: '', retirada: '', taxaEntrega: '', desconto: '', adiantamento: '', observacoes: '' });
+      setClienteAvulso({ nome: '', nomeFantasia: '', telefone: '', documento: '', cep: '', endereco: '', bairro: '', municipio: '', numero: '', complemento: '' });
       setClienteAvulsoAtivo(false);
       setProdutosSelecionados([{ item: '', quantidade: 1 }]);
       setBuscaCliente('');
@@ -447,12 +461,14 @@ const BudgetDashboard: React.FC = () => {
 
       setDadosCadastroPendente({
         nome: orcamento.cliente,
+        nomeFantasia: camposAvulsos['nome fantasia'] || '',
         telefone: camposAvulsos.telefone || '',
         documento: camposAvulsos.documento || '',
+        cep: camposAvulsos.cep || '',
         endereco: camposAvulsos.endereco || '',
-        bairro: '',
-        municipio: '',
-        numero: '',
+        bairro: camposAvulsos.bairro || '',
+        municipio: camposAvulsos.municipio || '',
+        numero: camposAvulsos.numero || '',
         complemento: camposAvulsos.complemento || '',
         idClient: String(proximoId)
       });
@@ -481,15 +497,17 @@ const BudgetDashboard: React.FC = () => {
       return { produto, itemEstoque };
     });
 
+    const observacoesReais = separarDadosClienteAvulso(orcamento.observacoes).observacoesLimpas;
     const observacoesComFinanceiro = orcamento.adiantamento > 0
-      ? `${orcamento.observacoes ? `${orcamento.observacoes}\n` : ''}ADIANTAMENTO: R$ ${formatarNumeroMoeda(orcamento.adiantamento)} | SALDO RESTANTE: R$ ${formatarNumeroMoeda(orcamento.saldoRestante)}`
-      : orcamento.observacoes;
+      ? `${observacoesReais ? `${observacoesReais}\n` : ''}ADIANTAMENTO: R$ ${formatarNumeroMoeda(orcamento.adiantamento)} | SALDO RESTANTE: R$ ${formatarNumeroMoeda(orcamento.saldoRestante)}`
+      : observacoesReais;
 
     const reservasParaInserir = itensComEstoque.map(({ produto, itemEstoque }) => ({
       cliente_id: Number(clienteIdPedido),
       item: produto.item,
       quantidade: produto.quantidade,
       data_evento: orcamento.reserva,
+      data_festa: orcamento.evento,
       data_devolucao: orcamento.retirada,
       status: statusReserva,
       forma_pagamento: 'Não Informado',
@@ -598,12 +616,16 @@ const BudgetDashboard: React.FC = () => {
         cliente: dadosCadastroPendente.nome.trim(),
         telefone: dadosCadastroPendente.telefone.trim(),
         'identificação': documento,
+        cep: dadosCadastroPendente.cep.trim(),
         endereco: dadosCadastroPendente.endereco.trim(),
         bairro: dadosCadastroPendente.bairro.trim(),
         municipio: dadosCadastroPendente.municipio.trim(),
         numero: dadosCadastroPendente.numero.trim(),
         complemento: dadosCadastroPendente.complemento.trim(),
-        'id-client': String(idFinal)
+        'id-client': String(idFinal),
+        'nome_fantasia': documento.replace(/\D/g, '').length > 11
+          ? dadosCadastroPendente.nomeFantasia.trim() || null
+          : null
       };
 
       const { data: clienteSalvo, error: erroCadastro } = await db
@@ -654,8 +676,8 @@ const BudgetDashboard: React.FC = () => {
   }, [orcamentos, clientes]);
 
   const limparFormularioOrcamento = () => {
-    setNovoOrcamento({ cliente: '', reserva: '', retirada: '', taxaEntrega: '', desconto: '', adiantamento: '', observacoes: '' });
-    setClienteAvulso({ nome: '', telefone: '', documento: '', cep: '', endereco: '', complemento: '' });
+    setNovoOrcamento({ cliente: '', reserva: '', evento: '', retirada: '', taxaEntrega: '', desconto: '', adiantamento: '', observacoes: '' });
+    setClienteAvulso({ nome: '', nomeFantasia: '', telefone: '', documento: '', cep: '', endereco: '', bairro: '', municipio: '', numero: '', complemento: '' });
     setClienteAvulsoAtivo(false);
     setProdutosSelecionados([{ item: '', quantidade: 1 }]);
     setBuscaCliente('');
@@ -669,11 +691,11 @@ const BudgetDashboard: React.FC = () => {
 
   const abrirEdicaoOrcamento = (orcamento: BudgetItem) => {
     const clienteCadastrado = clientes.some((cliente) => cliente.cliente === orcamento.cliente);
-    let observacoes = orcamento.observacoes || '';
-    const avulso = { nome: orcamento.cliente, telefone: '', documento: '', cep: '', endereco: '', complemento: '' };
+    let observacoes = separarDadosClienteAvulso(orcamento.observacoes).observacoesLimpas;
+    const avulso = { nome: orcamento.cliente, nomeFantasia: '', telefone: '', documento: '', cep: '', endereco: '', bairro: '', municipio: '', numero: '', complemento: '' };
 
-    if (!clienteCadastrado && observacoes.startsWith('DADOS DO CLIENTE AVULSO:')) {
-      const conteudo = observacoes.replace('DADOS DO CLIENTE AVULSO:', '').trim();
+    if (!clienteCadastrado && orcamento.observacoes.startsWith('DADOS DO CLIENTE AVULSO:')) {
+      const conteudo = orcamento.observacoes.replace('DADOS DO CLIENTE AVULSO:', '').trim();
       const [dados, ...restante] = conteudo.split('\n\n');
       dados.split('\n').forEach((linha) => {
         const separador = linha.indexOf(':');
@@ -682,8 +704,12 @@ const BudgetDashboard: React.FC = () => {
         const valor = linha.slice(separador + 1).trim();
         if (chave === 'telefone') avulso.telefone = valor;
         if (chave === 'documento') avulso.documento = valor;
+        if (chave === 'nome fantasia') avulso.nomeFantasia = valor;
         if (chave === 'cep') avulso.cep = valor;
         if (chave === 'endereco') avulso.endereco = valor;
+        if (chave === 'bairro') avulso.bairro = valor;
+        if (chave === 'municipio') avulso.municipio = valor;
+        if (chave === 'numero') avulso.numero = valor;
         if (chave === 'complemento') avulso.complemento = valor;
       });
       observacoes = restante.join('\n\n').trim();
@@ -695,6 +721,7 @@ const BudgetDashboard: React.FC = () => {
     setNovoOrcamento({
       cliente: clienteCadastrado ? orcamento.cliente : '',
       reserva: orcamento.reserva,
+      evento: orcamento.evento,
       retirada: orcamento.retirada,
       taxaEntrega: orcamento.taxaEntrega ? String(orcamento.taxaEntrega) : '',
       desconto: orcamento.desconto ? String(orcamento.desconto) : '',
@@ -813,7 +840,7 @@ const BudgetDashboard: React.FC = () => {
               </tbody>
             </table>
             <div class="obs"><strong>OBS:</strong> ${observacoesLimpas || ''}</div>
-            <div class="dates">RESERVA: ${formatarDataBR(orcamento.reserva)}<br>RETIRADA: ${formatarDataBR(orcamento.retirada)}</div>
+            <div class="dates">RESERVA: ${formatarDataBR(orcamento.reserva)}<br>DATA DO EVENTO: ${formatarDataBR(orcamento.evento)}<br>RETIRADA: ${formatarDataBR(orcamento.retirada)}</div>
             <div class="signatures"><div class="sig">CLIENTE</div><div class="sig">CLAUDIA FESTAS</div></div>
           </div>
           <script>
@@ -930,6 +957,7 @@ const BudgetDashboard: React.FC = () => {
         <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
           {orcamentosFiltrados.map((orcamento) => {
             const idExibicaoCliente = obterIdExibicaoCliente(orcamento);
+            const observacoesVisiveis = separarDadosClienteAvulso(orcamento.observacoes).observacoesLimpas;
 
             return (
             <div key={orcamento.id} className="rounded-[28px] border border-orange-100 bg-orange-50/40 p-6 shadow-sm">
@@ -940,6 +968,9 @@ const BudgetDashboard: React.FC = () => {
                     <div>
                       <p className="text-[10px] font-bold text-gray-600 uppercase">
                         Reserva: {orcamento.reserva ? orcamento.reserva.split('-').reverse().join('/') : '--/--/----'}
+                      </p>
+                      <p className="mt-1 text-[10px] font-bold text-gray-600 uppercase">
+                        Data do evento: {orcamento.evento ? orcamento.evento.split('-').reverse().join('/') : '--/--/----'}
                       </p>
                       <p className="mt-1 text-[10px] font-bold text-gray-600 uppercase">
                         Retirada: {orcamento.retirada ? orcamento.retirada.split('-').reverse().join('/') : '--/--/----'}
@@ -991,8 +1022,8 @@ const BudgetDashboard: React.FC = () => {
                     </div>
                   </div>
                 )}
-                {orcamento.observacoes && (
-                  <p className="mt-3 text-xs font-bold text-gray-500 italic whitespace-pre-wrap">"{orcamento.observacoes}"</p>
+                {observacoesVisiveis && (
+                  <p className="mt-3 text-xs font-bold text-gray-500 italic whitespace-pre-wrap">"{observacoesVisiveis}"</p>
                 )}
                 {orcamento.produtos?.length > 0 && (
                   <div className="mt-4 space-y-2 border-t border-orange-100 pt-4">
@@ -1040,6 +1071,8 @@ const BudgetDashboard: React.FC = () => {
                 ['nome', 'Nome do cliente', true],
                 ['telefone', 'Telefone', true],
                 ['documento', 'Identificação (CPF ou CNPJ)', true],
+                ['nomeFantasia', 'Nome fantasia (se for CNPJ)', false],
+                ['cep', 'CEP', false],
                 ['endereco', 'Endereço completo', true],
                 ['bairro', 'Bairro', true],
                 ['municipio', 'Município', true],
@@ -1133,6 +1166,7 @@ const BudgetDashboard: React.FC = () => {
                     />
                     <input
                       type="text"
+                      required
                       placeholder="Telefone"
                       value={clienteAvulso.telefone}
                       onChange={(e) => setClienteAvulso({ ...clienteAvulso, telefone: formatarTelefone(e.target.value) })}
@@ -1140,6 +1174,7 @@ const BudgetDashboard: React.FC = () => {
                     />
                     <input
                       type="text"
+                      required
                       placeholder="CPF ou CNPJ"
                       value={clienteAvulso.documento}
                       onChange={(e) => setClienteAvulso({ ...clienteAvulso, documento: formatarCpfCnpj(e.target.value) })}
@@ -1154,9 +1189,43 @@ const BudgetDashboard: React.FC = () => {
                     />
                     <input
                       type="text"
+                      required
                       placeholder="Endereço"
                       value={clienteAvulso.endereco}
                       onChange={(e) => setClienteAvulso({ ...clienteAvulso, endereco: formatarNomeProprio(e.target.value) })}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    {clienteAvulso.documento.replace(/\D/g, '').length > 11 && (
+                      <input
+                        type="text"
+                        placeholder="Nome fantasia"
+                        value={clienteAvulso.nomeFantasia}
+                        onChange={(e) => setClienteAvulso({ ...clienteAvulso, nomeFantasia: formatarNomeProprio(e.target.value) })}
+                        className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                      />
+                    )}
+                    <input
+                      type="text"
+                      required
+                      placeholder="Bairro"
+                      value={clienteAvulso.bairro}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, bairro: formatarNomeProprio(e.target.value) })}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Município"
+                      value={clienteAvulso.municipio}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, municipio: formatarNomeProprio(e.target.value) })}
+                      className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
+                    />
+                    <input
+                      type="text"
+                      required
+                      placeholder="Número da casa"
+                      value={clienteAvulso.numero}
+                      onChange={(e) => setClienteAvulso({ ...clienteAvulso, numero: e.target.value })}
                       className="w-full p-3 bg-white border-2 border-orange-100 rounded-xl outline-none font-bold text-xs text-gray-700 focus:border-[#b24a2b]"
                     />
                     <input
@@ -1265,7 +1334,7 @@ const BudgetDashboard: React.FC = () => {
                 </button>
               </div>
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                 <div>
                   <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-3 mb-2 block">Reserva</label>
                   <input
@@ -1274,6 +1343,16 @@ const BudgetDashboard: React.FC = () => {
                     value={novoOrcamento.reserva}
                     onChange={(e) => setNovoOrcamento({ ...novoOrcamento, reserva: e.target.value })}
                     className="w-full p-4 bg-gray-50 border-2 border-gray-100 rounded-2xl outline-none font-bold text-sm focus:border-[#b24a2b]"
+                  />
+                </div>
+                <div>
+                  <label className="text-[9px] font-black text-gray-600 uppercase tracking-widest ml-3 mb-2 block">Data do evento</label>
+                  <input
+                    type="date"
+                    required
+                    value={novoOrcamento.evento}
+                    onChange={(e) => setNovoOrcamento({ ...novoOrcamento, evento: e.target.value })}
+                    className="w-full p-4 bg-orange-50 border-2 border-orange-100 rounded-2xl outline-none font-bold text-sm focus:border-[#b24a2b]"
                   />
                 </div>
                 <div>
