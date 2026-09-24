@@ -375,13 +375,21 @@ const OrderManagement: React.FC = () => {
     const saldoRestante = Math.max(0, totalGeral - adiantamento);
     const complementoObservacoes = extrairComplementoDasObservacoes(financeiroObservacoes.observacoesBase);
     const observacoesContrato = complementoObservacoes.observacoesBase;
-    const usaEnderecoSecundario = Boolean(complementoObservacoes.enderecoSecundario);
-    const enderecoContrato = complementoObservacoes.enderecoSecundario || cliente.endereco || '____________________';
-    const complementoEndereco = usaEnderecoSecundario ? '' : (complementoObservacoes.complemento || cliente.complemento || '');
+    const primeiroItem = itensOrdenados[0] || {};
+    const enderecoSecundario = primeiroItem.endereco_secundario || complementoObservacoes.enderecoSecundario || '';
+    const usaEnderecoSecundario = Boolean(enderecoSecundario);
+    const enderecoContrato = enderecoSecundario || cliente.endereco || '____________________';
+    const numeroContrato = usaEnderecoSecundario ? primeiroItem.numero_secundario : cliente.numero;
+    const complementoEndereco = usaEnderecoSecundario
+      ? primeiroItem.complemento_secundario
+      : (complementoObservacoes.complemento || cliente.complemento || '');
     const localidadeContrato = usaEnderecoSecundario
-      ? ''
+      ? `, Bairro: <strong>${primeiroItem.bairro_secundario || '_________________'} - Município: ${(primeiroItem.municipio_secundario || '_________________').toUpperCase()}</strong>`
       : `, Bairro: <strong>${cliente.bairro || '_________________'} ${cliente.municipio ? ` - Município: ${cliente.municipio.toUpperCase()}` : ''}</strong>`;
+    const numeroEComplementoContrato = [numeroContrato, complementoEndereco].filter(Boolean).join(' - ');
     const dEnt = formatarDataBR(itensOrdenados[0].data_evento);
+    const dataEventoPedido = itensOrdenados[0].data_festa || itensOrdenados[0].data_evento;
+    const dEvento = formatarDataBR(dataEventoPedido);
     const dRec = formatarDataBR(pedido.dataDevolucao);
     
     const diasSemana = ['Domingo', 'Segunda', 'Terça', 'Quarta', 'Quinta', 'Sexta', 'Sábado'];
@@ -392,6 +400,7 @@ const OrderManagement: React.FC = () => {
       return diasSemana[d.getDay()];
     };
     const diaSemanaEnt = getDiaSemana(itensOrdenados[0].data_evento);
+    const diaSemanaEvento = getDiaSemana(dataEventoPedido);
     const diaSemanaRec = getDiaSemana(pedido.dataDevolucao);
 
     const telefoneWhatsApp = String(pedido.telefone || cliente.telefone || '').replace(/\D/g, '');
@@ -399,7 +408,7 @@ const OrderManagement: React.FC = () => {
     const resumoItens = itensOrdenados.map((item: any) => `${item.quantidade}x ${item.item}`).join('\n');
     const mensagemWhatsApp = encodeURIComponent(
       `Olá, ${pedido.nomeCliente}! Seguem os dados do seu contrato com a Claudia Festas:\n\n` +
-      `${resumoItens}\n\nEntrega: ${dEnt} (${diaSemanaEnt})\nRecolhimento: ${dRec} (${diaSemanaRec})\n` +
+      `${resumoItens}\n\nEntrega: ${dEnt} (${diaSemanaEnt})\nData do evento: ${dEvento} (${diaSemanaEvento})\nRecolhimento: ${dRec} (${diaSemanaRec})\n` +
       `Total: R$ ${totalGeral.toFixed(2).replace('.', ',')}\n` +
       (adiantamento > 0 ? `Adiantamento: R$ ${adiantamento.toFixed(2).replace('.', ',')}\nSaldo restante: R$ ${saldoRestante.toFixed(2).replace('.', ',')}\n` : '') +
       `\nPara enviar o documento em PDF, use Imprimir > Salvar como PDF e anexe o arquivo nesta conversa.`
@@ -595,7 +604,7 @@ const OrderManagement: React.FC = () => {
 
               <div class="intro-text">
                 Este instrumento particular, abaixo assinado, LOCADORA CLAUDIA FESTAS, CNPJ 29.639.830.0001.45 e como
-                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço de entrega em <strong>${enderecoContrato}${complementoEndereco ? ` - ${complementoEndereco.toUpperCase()}` : ''}</strong>${localidadeContrato}, 
+                locatário, <strong>${pedido.nomeCliente.toUpperCase()} - ID: ${pedido.idPersonalizado || '---'}</strong>, IDENTIFICAÇÃO: <strong>${cliente['identificação'] || '_________________'}</strong>, com endereço de entrega em <strong>${enderecoContrato}${numeroEComplementoContrato ? ` - ${numeroEComplementoContrato.toUpperCase()}` : ''}</strong>${localidadeContrato}, 
                 tem ajustado the presente contrato de locação dos equipamentos e utensílios (denominados diante
                 descritos, sobre as cláusulas e condições seguintes).
                 <br>
@@ -678,6 +687,7 @@ const OrderManagement: React.FC = () => {
 
               <div class="dates-info">
                  ENTREGAR: ${dEnt} <span style="color: blue;">${diaSemanaEnt}</span><br>
+                 DATA DO EVENTO: ${dEvento} <span style="color: blue;">${diaSemanaEvento}</span><br>
                  RECOLHER: ${dRec} <span style="color: blue;">${diaSemanaRec}</span>
               </div>
 
@@ -881,6 +891,45 @@ const OrderManagement: React.FC = () => {
     }
   };
 
+  const devolverItemAoEstoque = async (item: any) => {
+    const { data: est, error: erroBusca } = await db
+      .from('estoque')
+      .select('*')
+      .eq('item', item.item)
+      .single();
+    if (erroBusca) throw erroBusca;
+    if (!est) return;
+
+    const quantidadePedido = Math.max(0, Number(item.quantidade || 0));
+    const alugadoAtual = Math.max(0, Number(est.alugado || 0));
+    const reservadoAtual = Math.max(0, Number(est.reservado || 0));
+    const disponivelAtual = Math.max(0, Number(est.disponivel || 0));
+    const estavaEmAluguel = String(item.status || '').trim().toLowerCase() === 'em aluguel';
+
+    let restante = quantidadePedido;
+    let retirarAlugado = 0;
+    let retirarReservado = 0;
+
+    if (estavaEmAluguel) {
+      retirarAlugado = Math.min(restante, alugadoAtual);
+      restante -= retirarAlugado;
+      retirarReservado = Math.min(restante, reservadoAtual);
+    } else {
+      retirarReservado = Math.min(restante, reservadoAtual);
+      restante -= retirarReservado;
+      retirarAlugado = Math.min(restante, alugadoAtual);
+    }
+
+    const quantidadeRealmenteDevolvida = retirarAlugado + retirarReservado;
+    const totalFisicoAntes = disponivelAtual + alugadoAtual + reservadoAtual;
+    const { error: erroEstoque } = await db.from('estoque').update({
+      disponivel: Math.min(totalFisicoAntes, disponivelAtual + quantidadeRealmenteDevolvida),
+      alugado: alugadoAtual - retirarAlugado,
+      reservado: reservadoAtual - retirarReservado
+    }).eq('id', est.id);
+    if (erroEstoque) throw erroEstoque;
+  };
+
   const handleCancelarPedido = async (pedido: any) => {
     // Se for uma reserva vinda da tabela 'reservas_futuras', chama o cancelamento específico
     if (pedido.isFutura) {
@@ -899,23 +948,7 @@ const OrderManagement: React.FC = () => {
         if (erroRemocao) throw erroRemocao;
         if (!reservasRemovidas?.length) continue;
 
-        const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
-        if (est) {
-          // SE O PEDIDO ESTAVA ATIVO HOJE (STATUS EM ALUGUEL), RETIRA DE ALUGADO. SE ESTAVA FUTURO, RETIRA DE RESERVADO.
-          const deOndeRetirar = item.status?.toLowerCase() === 'em aluguel' ? 'alugado' : 'reservado';
-          const valorAtualDeOndeRetirar = est[deOndeRetirar] || 0;
-
-          const quantidadeRealmenteRetirada = Math.min(
-            Number(item.quantidade || 0),
-            Number(valorAtualDeOndeRetirar || 0)
-          );
-
-          const { error: erroEstoque } = await db.from('estoque').update({
-            disponivel: Number(est.disponivel || 0) + quantidadeRealmenteRetirada,
-            [deOndeRetirar]: Math.max(0, Number(valorAtualDeOndeRetirar || 0) - quantidadeRealmenteRetirada)
-          }).eq('item', item.item);
-          if (erroEstoque) throw erroEstoque;
-        }
+        await devolverItemAoEstoque(item);
       }
       alert("Pedido cancelado e produtos devolvidos ao estoque!");
       fetchData(); 
@@ -949,6 +982,9 @@ const OrderManagement: React.FC = () => {
         }
 
         if (!reservaProcessada) continue;
+
+        await devolverItemAoEstoque(item);
+        continue;
 
         // Devolve os itens ao estoque disponível buscando a origem correta do desconto
         const { data: est } = await db.from('estoque').select('*').eq('item', item.item).single();
