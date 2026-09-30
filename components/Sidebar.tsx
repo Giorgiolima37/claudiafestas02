@@ -193,6 +193,18 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Cabeçalho / Logo */}
       <div className="management-sidebar-brand mb-0 mt-4 text-center">
+        <div className="mb-3 flex -translate-y-4 items-center justify-center gap-2 text-white">
+          <strong className="text-xs font-black uppercase tracking-wider">Plano Plus</strong>
+          <span
+            className="flex h-5 w-5 items-center justify-center rounded-md bg-[#17221d] shadow-sm"
+            title="Plano Plus"
+            aria-label="Plano Plus"
+          >
+            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M13.2 2.8 4.9 13.1c-.5.6-.1 1.5.7 1.5h6.1l-.8 6.1c-.1.9 1 1.3 1.6.6l7.1-10.2c.4-.6 0-1.4-.7-1.4h-5.4l1.3-6.1c.2-.9-1-1.4-1.6-.8Z" fill="#3ECF8E"/>
+            </svg>
+          </span>
+        </div>
         <div className="relative mb-3 inline-flex items-center gap-2">
           <button
             type="button"
@@ -324,35 +336,6 @@ const Sidebar: React.FC<SidebarProps> = ({
           <span>Suporte do Sistema</span>
         </a>
 
-        <div
-          className="management-database-warning relative mt-4 rounded-2xl border border-[#efc7ae] bg-[#fff9f4] px-4 py-4 text-center shadow-[0_8px_22px_rgba(84,39,23,0.16)]"
-          role="alert"
-        >
-          <span
-            className="absolute right-3 top-3 flex h-5 w-5 items-center justify-center rounded-md bg-[#17221d] shadow-sm"
-            title="Banco de dados"
-            aria-label="Banco de dados"
-          >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M13.2 2.8 4.9 13.1c-.5.6-.1 1.5.7 1.5h6.1l-.8 6.1c-.1.9 1 1.3 1.6.6l7.1-10.2c.4-.6 0-1.4-.7-1.4h-5.4l1.3-6.1c.2-.9-1-1.4-1.6-.8Z" fill="#3ECF8E"/>
-            </svg>
-          </span>
-          <div
-            className="mb-2 flex animate-pulse items-center justify-center gap-2 text-[#B24D2D]"
-            style={{ animationDuration: '1s' }}
-          >
-            <span className="flex h-7 w-7 items-center justify-center rounded-full bg-[#f8e5d8]">
-              <i className="fa-solid fa-triangle-exclamation text-xs" aria-hidden="true"></i>
-            </span>
-            <strong className="text-[11px] font-black uppercase tracking-[0.14em]">Atenção</strong>
-          </div>
-          <p className="text-[10px] font-extrabold uppercase leading-relaxed tracking-wide text-[#673522]">
-            O banco de dados do usuário está em seu limite de uso.
-          </p>
-          <p className="mt-2 border-t border-[#f0d8c8] pt-2 text-[9px] font-bold uppercase leading-snug text-[#B24D2D]">
-            Entre em contato com a unidade.
-          </p>
-        </div>
       </nav>
 
 
