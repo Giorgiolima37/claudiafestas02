@@ -14,11 +14,14 @@ import { db } from './services/supabase';
 import logo2 from './logo-2.png';
 import loginLogo from './logo-login-faixa-branca.png';
 import loginBackground from './login-recepcao-hd.png';
+import avisoImage from './aviso.png';
 
 const ACCESS_PASSWORD_STORAGE_KEY = 'claudia_access_password';
 const LOGOUT_PASSWORD_STORAGE_KEY = 'claudia_logout_password';
 const DEFAULT_ACCESS_PASSWORD = '123456';
 const DEFAULT_LOGOUT_PASSWORD = '123456';
+const AVISO_EXIBICOES_STORAGE_KEY = 'claudia_aviso_manutencao_exibicoes';
+const MAX_AVISO_EXIBICOES = 5;
 
 const formatarTextoComoNomeProprio = (valor: string) =>
   valor
@@ -66,6 +69,8 @@ const App: React.FC = () => {
 
   // ESTADOS DE SEGURANÇA
   const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAvisoOpen, setIsAvisoOpen] = useState(false);
+  const avisoContabilizadoRef = useRef(false);
   useEffect(() => {
     const abrirMenuNoCelular = () => {
       if (isAuthenticated && window.matchMedia('(max-width: 767px)').matches) {
@@ -133,6 +138,21 @@ const App: React.FC = () => {
   const isLocalProgrammerAccess =
     ['localhost', '127.0.0.1'].includes(window.location.hostname) &&
     window.location.port === '3000';
+
+  useEffect(() => {
+    if (!isAuthenticated || isCatalogRoute || avisoContabilizadoRef.current) return;
+
+    avisoContabilizadoRef.current = true;
+    const totalExibicoes = Number.parseInt(
+      localStorage.getItem(AVISO_EXIBICOES_STORAGE_KEY) || '0',
+      10
+    );
+
+    if (totalExibicoes < MAX_AVISO_EXIBICOES) {
+      localStorage.setItem(AVISO_EXIBICOES_STORAGE_KEY, String(totalExibicoes + 1));
+      setIsAvisoOpen(true);
+    }
+  }, [isAuthenticated, isCatalogRoute]);
 
   const getDeviceInfo = () => {
     const userAgent = navigator.userAgent || '';
@@ -583,6 +603,35 @@ const App: React.FC = () => {
       className="management-app flex flex-col md:flex-row min-h-screen h-screen bg-[#fdf8f6] font-sans selection:bg-orange-100 overflow-hidden"
       style={{ backgroundColor: 'var(--claudia-page-bg, #fdf8f6)' }}
     >
+      {isAvisoOpen && (
+        <div
+          className="fixed inset-0 z-[200] flex items-center justify-center bg-black/65 p-4 backdrop-blur-sm"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Aviso importante"
+          onClick={() => setIsAvisoOpen(false)}
+        >
+          <div
+            className="relative max-h-[92vh] max-w-2xl overflow-hidden rounded-3xl bg-white shadow-2xl"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <button
+              type="button"
+              onClick={() => setIsAvisoOpen(false)}
+              className="absolute right-3 top-3 z-10 flex h-10 w-10 items-center justify-center rounded-full bg-white text-xl font-black text-gray-800 shadow-lg transition-transform hover:scale-110"
+              aria-label="Fechar aviso"
+              title="Fechar aviso"
+            >
+              ×
+            </button>
+            <img
+              src={avisoImage}
+              alt="Aviso importante sobre o reajuste do valor da manutenção"
+              className="block max-h-[92vh] w-auto max-w-full object-contain"
+            />
+          </div>
+        </div>
+      )}
       
       <div className="management-mobile-header md:hidden flex items-center justify-between p-4 bg-[#B24D2D] text-white shadow-md z-[60]">
         <span className="font-bold tracking-tight">Claudia Festas</span>
