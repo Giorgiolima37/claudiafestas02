@@ -471,8 +471,9 @@ const ReservationForm: React.FC = () => {
           </button>
 
           <div className="w-full max-w-sm flex flex-col items-center">
-            <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3">Campo de OBS</label>
+            <label className="text-[10px] font-black text-gray-600 uppercase tracking-widest mb-3">Campo de Observação</label>
             <textarea 
+              data-preserve-input-case
               placeholder="Digite aqui observações ou detalhes extras..."
               className="w-full p-5 bg-[#b24a2b] text-white rounded-[25px] text-center font-bold outline-none shadow-lg placeholder:text-orange-200 focus:ring-4 ring-orange-200 transition-all resize-none min-h-[80px]"
               value={reservaGeral.observacoes}
