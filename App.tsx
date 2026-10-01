@@ -20,8 +20,8 @@ const ACCESS_PASSWORD_STORAGE_KEY = 'claudia_access_password';
 const LOGOUT_PASSWORD_STORAGE_KEY = 'claudia_logout_password';
 const DEFAULT_ACCESS_PASSWORD = '123456';
 const DEFAULT_LOGOUT_PASSWORD = '123456';
-const AVISO_EXIBICOES_STORAGE_KEY = 'claudia_aviso_manutencao_exibicoes';
-const MAX_AVISO_EXIBICOES = 5;
+const AVISO_EXIBICOES_STORAGE_KEY = 'claudia_aviso_manutencao_180_exibicoes';
+const MAX_AVISO_EXIBICOES = 10;
 
 const formatarTextoComoNomeProprio = (valor: string) =>
   valor

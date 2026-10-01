@@ -193,15 +193,17 @@ const Sidebar: React.FC<SidebarProps> = ({
 
       {/* Cabeçalho / Logo */}
       <div className="management-sidebar-brand mb-0 mt-4 text-center">
-        <div className="mb-3 flex -translate-y-4 items-center justify-center gap-2 text-white">
-          <strong className="text-xs font-black uppercase tracking-wider">Plano Plus</strong>
+        <div className="mx-auto mb-3 flex w-fit -translate-y-4 items-center justify-center gap-2.5 rounded-full border border-white/15 bg-black/20 px-4 py-2 shadow-[0_6px_18px_rgba(0,0,0,0.28)] backdrop-blur-sm">
+          <strong className="bg-gradient-to-b from-[#FFE878] via-[#D4AF37] to-[#9A6800] bg-clip-text text-sm font-black uppercase tracking-wider text-transparent drop-shadow-sm">
+            Plano Plus
+          </strong>
           <span
-            className="flex h-5 w-5 items-center justify-center rounded-md bg-[#17221d] shadow-sm"
-            title="Plano Plus"
-            aria-label="Plano Plus"
+            className="flex h-6 w-6 items-center justify-center rounded-md bg-gradient-to-br from-[#292929] to-[#080808] shadow-[0_2px_5px_rgba(0,0,0,0.35)]"
+            title="Você está usando um plano Plus"
+            aria-label="Você está usando um plano Plus"
           >
-            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-              <path d="M13.2 2.8 4.9 13.1c-.5.6-.1 1.5.7 1.5h6.1l-.8 6.1c-.1.9 1 1.3 1.6.6l7.1-10.2c.4-.6 0-1.4-.7-1.4h-5.4l1.3-6.1c.2-.9-1-1.4-1.6-.8Z" fill="#3ECF8E"/>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+              <path d="M13.2 2.8 4.9 13.1c-.5.6-.1 1.5.7 1.5h6.1l-.8 6.1c-.1.9 1 1.3 1.6.6l7.1-10.2c.4-.6 0-1.4-.7-1.4h-5.4l1.3-6.1c.2-.9-1-1.4-1.6-.8Z" fill="#76FF03"/>
             </svg>
           </span>
         </div>
