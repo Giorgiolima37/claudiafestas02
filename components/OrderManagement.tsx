@@ -26,6 +26,7 @@ const OrderManagement: React.FC = () => {
   // Estados para o Modal de Edição
   const [modalAberto, setModalAberto] = useState(false);
   const [editandoData, setEditandoData] = useState(false);
+  const [editandoEvento, setEditandoEvento] = useState(false);
   const [editandoDevolucao, setEditandoDevolucao] = useState(false);
   const [pedidoEmEdicao, setPedidoEmEdicao] = useState<any[]>([]);
   const [dadosPedidoFixo, setDadosPedidoFixo] = useState<any>(null);
@@ -245,8 +246,12 @@ const OrderManagement: React.FC = () => {
     setDadosPedidoFixo({
       cliente_id: pedidoAgrupado.cliente_id,
       data_evento: pedidoAgrupado.itens[0].data_evento,
+      data_festa: pedidoAgrupado.itens[0].data_festa || '',
       data_devolucao: pedidoAgrupado.dataDevolucao
     });
+    setEditandoData(false);
+    setEditandoEvento(false);
+    setEditandoDevolucao(false);
     setModalAberto(true);
   };
 
@@ -293,6 +298,7 @@ const OrderManagement: React.FC = () => {
         .update({ 
             data_devolucao: dadosPedidoFixo.data_devolucao,
             data_evento: dadosPedidoFixo.data_evento,
+            data_festa: dadosPedidoFixo.data_festa || null,
             observacoes: observacoesAtualizadas,
             taxa_entrega: taxaEntregaEdicao,
             desconto: descontoEdicao
@@ -324,7 +330,8 @@ const OrderManagement: React.FC = () => {
             cliente_id: dadosPedidoFixo.cliente_id,
             item: item.item,
             quantidade: item.quantidade,
-            data_evento: dadosPedidoFixo.data_evento, 
+            data_evento: dadosPedidoFixo.data_evento,
+            data_festa: dadosPedidoFixo.data_festa || null,
             data_devolucao: dadosPedidoFixo.data_devolucao,
             status: 'Pendente',
             forma_pagamento: 'Ajuste',
@@ -1199,20 +1206,28 @@ const OrderManagement: React.FC = () => {
                     {editandoData ? (
                         <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" value={dadosPedidoFixo?.data_evento?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_evento: e.target.value })} onBlur={() => setEditandoData(false)} autoFocus />
                     ) : (
-                        <p className="text-[10px] font-bold text-gray-600 uppercase">Data: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
+                        <p className="text-[10px] font-bold text-gray-600 uppercase">Reserva: {formatarDataBR(dadosPedidoFixo?.data_evento)}</p>
                     )}
                     <button onClick={() => setEditandoData(!editandoData)} className="text-gray-600 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
+                </div>
+                <div className="flex items-center gap-2 mt-1">
+                  {editandoEvento ? (
+                    <input type="date" aria-label="Data do evento" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" value={dadosPedidoFixo?.data_festa?.split('T')[0] || ''} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_festa: e.target.value })} onBlur={() => setEditandoEvento(false)} autoFocus />
+                  ) : (
+                    <p className="text-[10px] font-bold text-gray-600 uppercase">Data evento: {formatarDataBR(dadosPedidoFixo?.data_festa)}</p>
+                  )}
+                  <button aria-label="Editar data do evento" onClick={() => setEditandoEvento(!editandoEvento)} className="text-gray-600 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
                 </div>
                 <div className="flex items-center gap-2 mt-1">
                   {editandoDevolucao ? (
                     <input type="date" className="text-[10px] font-bold text-gray-600 border rounded px-1 outline-none" min={new Date().toISOString().split('T')[0]} value={dadosPedidoFixo?.data_devolucao?.split('T')[0]} onChange={(e) => setDadosPedidoFixo({ ...dadosPedidoFixo, data_devolucao: e.target.value })} onBlur={() => setEditandoDevolucao(false)} autoFocus />
                   ) : (
-                    <p className="text-[10px] font-bold text-gray-600 uppercase">Devolução: {formatarDataBR(dadosPedidoFixo?.data_devolucao)}</p>
+                    <p className="text-[10px] font-bold text-gray-600 uppercase">Retirada: {formatarDataBR(dadosPedidoFixo?.data_devolucao)}</p>
                   )}
                   <button onClick={() => setEditandoDevolucao(!editandoDevolucao)} className="text-gray-600 hover:text-gray-600 transition-colors"><i className="fa-solid fa-pencil text-[9px]"></i></button>
                 </div>
               </div>
-              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); }} className="text-gray-600 hover:text-red-500 text-2xl">×</button>
+              <button onClick={() => { setModalAberto(false); setEditandoDevolucao(false); setEditandoData(false); setEditandoEvento(false); }} className="text-gray-600 hover:text-red-500 text-2xl">×</button>
             </div>
             <div className="bg-gray-50 rounded-3xl p-6 mb-6">
               <h4 className="text-[9px] font-black text-gray-600 uppercase tracking-widest mb-4">Itens no Pedido</h4>
